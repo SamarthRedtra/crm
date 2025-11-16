@@ -7,6 +7,12 @@
         </template>
       </Breadcrumbs>
     </template>
+    <template #right-header>
+      <CustomActions
+        v-if="organization._actions?.length"
+        :actions="organization._actions"
+      />
+    </template>
   </LayoutHeader>
   <div v-if="organization.doc" ref="parentRef" class="flex h-full">
     <Resizer
@@ -30,14 +36,14 @@
                     :image="organization.doc.organization_logo"
                   />
                   <component
-                    :is="organization.doc.image ? Dropdown : 'div'"
+                    :is="organization.doc.organization_logo ? Dropdown : 'div'"
                     v-bind="
-                      organization.doc.image
+                      organization.doc.organization_logo
                         ? {
                             options: [
                               {
                                 icon: 'upload',
-                                label: organization.doc.image
+                                label: organization.doc.organization_logo
                                   ? __('Change image')
                                   : __('Upload image'),
                                 onClick: openFileSelector,
@@ -80,6 +86,7 @@
               </div>
               <div class="flex gap-1.5">
                 <Button
+                  v-if="canDelete"
                   :label="__('Delete')"
                   theme="red"
                   size="sm"
@@ -105,6 +112,7 @@
           doctype="CRM Organization"
           :docname="organization.doc.name"
           @reload="sections.reload"
+          @beforeFieldChange="beforeFieldChange"
         />
       </div>
     </Resizer>
@@ -180,30 +188,31 @@ import WebsiteIcon from '@/components/Icons/WebsiteIcon.vue'
 import CameraIcon from '@/components/Icons/CameraIcon.vue'
 import DealsIcon from '@/components/Icons/DealsIcon.vue'
 import ContactsIcon from '@/components/Icons/ContactsIcon.vue'
+import DeleteLinkedDocModal from '@/components/DeleteLinkedDocModal.vue'
+import CustomActions from '@/components/CustomActions.vue'
 import { showAddressModal, addressProps } from '@/composables/modals'
 import { useDocument } from '@/data/document'
 import { getSettings } from '@/stores/settings'
+import { globalStore } from '@/stores/global'
 import { getMeta } from '@/stores/meta'
 import { usersStore } from '@/stores/users'
 import { statusesStore } from '@/stores/statuses'
 import { getView } from '@/utils/view'
-import { formatDate, timeAgo, validateIsImageFile } from '@/utils'
+import { formatDate, timeAgo, validateIsImageFile, setupCustomizations } from '@/utils'
 import {
-  Tooltip,
   Breadcrumbs,
   Avatar,
   FileUploader,
   Dropdown,
   Tabs,
-  call,
   createListResource,
   usePageMeta,
   createResource,
   toast,
+  call,
 } from 'frappe-ui'
-import { h, computed, ref } from 'vue'
-import { useRoute } from 'vue-router'
-import DeleteLinkedDocModal from '@/components/DeleteLinkedDocModal.vue'
+import { h, computed, ref, watch } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 
 const props = defineProps({
   organizationId: {
@@ -213,21 +222,25 @@ const props = defineProps({
 })
 
 const { brand } = getSettings()
+const { $dialog, $socket } = globalStore()
 const { getUser } = usersStore()
 const { getDealStatus } = statusesStore()
 const { doctypeMeta } = getMeta('CRM Organization')
 
 const route = useRoute()
+const router = useRouter()
 
 const errorTitle = ref('')
 const errorMessage = ref('')
 
 const showDeleteLinkedDocModal = ref(false)
 
-const { document: organization } = useDocument(
+const { document: organization, permissions, scripts } = useDocument(
   'CRM Organization',
   props.organizationId,
 )
+
+const canDelete = computed(() => permissions.data?.permissions?.delete || false)
 
 const breadcrumbs = computed(() => {
   let items = [{ label: __('Organizations'), route: { name: 'Organizations' } }]
@@ -277,14 +290,27 @@ async function deleteOrganization() {
   showDeleteLinkedDocModal.value = true
 }
 
-async function changeOrganizationImage(file) {
-  await call('frappe.client.set_value', {
-    doctype: 'CRM Organization',
-    name: props.organizationId,
-    fieldname: 'organization_logo',
-    value: file?.file_url || '',
+function changeOrganizationImage(file) {
+  organization.setValue.submit({
+    organization_logo: file?.file_url || null,
   })
-  organization.reload()
+}
+
+function beforeFieldChange(data) {
+  if (data?.hasOwnProperty('organization_name')) {
+    call('frappe.client.rename_doc', {
+      doctype: 'CRM Organization',
+      old_name: props.organizationId,
+      new_name: data.organization_name,
+    }).then(() => {
+      router.push({
+        name: 'Organization',
+        params: { organizationId: data.organization_name },
+      })
+    })
+  } else {
+    organization.save.submit()
+  }
 }
 
 function website(url) {
@@ -522,4 +548,26 @@ function openAddressModal(_address) {
     address: _address,
   }
 }
+
+// Setup custom actions from Form Scripts
+watch(
+  () => organization.doc,
+  async (_doc) => {
+    if (scripts.data?.length) {
+      let s = await setupCustomizations(scripts.data, {
+        doc: _doc,
+        $dialog,
+        $socket,
+        router,
+        toast,
+        updateField: organization.setValue.submit,
+        createToast: toast.create,
+        deleteDoc: deleteOrganization,
+        call,
+      })
+      organization._actions = s.actions || []
+    }
+  },
+  { once: true },
+)
 </script>

@@ -83,12 +83,12 @@
           :isSidebarCollapsed="isSidebarCollapsed"
           :afterUpgrade="() => capture('upgrade_plan_from_trial_banner')"
         />
-        <GettingStartedBanner
+        <!-- <GettingStartedBanner
           v-if="!isOnboardingStepsCompleted"
           :isSidebarCollapsed="isSidebarCollapsed"
-        />
+        /> -->
       </div>
-      <SidebarLink
+      <!-- <SidebarLink
         v-if="isOnboardingStepsCompleted"
         :label="__('Help')"
         :isCollapsed="isSidebarCollapsed"
@@ -102,7 +102,7 @@
         <template #icon>
           <HelpIcon class="h-4 w-4" />
         </template>
-      </SidebarLink>
+      </SidebarLink> -->
       <SidebarLink
         :label="isSidebarCollapsed ? __('Expand') : __('Collapse')"
         :isCollapsed="isSidebarCollapsed"
@@ -121,7 +121,7 @@
     </div>
     <Notifications />
     <Settings />
-    <HelpModal
+    <!-- <HelpModal
       v-if="showHelpModal"
       v-model="showHelpModal"
       v-model:articles="articles"
@@ -130,8 +130,7 @@
       :afterSkipAll="() => capture('onboarding_steps_skipped')"
       :afterReset="(step) => capture('onboarding_step_reset_' + step)"
       :afterResetAll="() => capture('onboarding_steps_reset')"
-      docsLink="https://docs.frappe.io/crm"
-    />
+    /> -->
     <IntermediateStepModal
       v-model="showIntermediateModal"
       :currentStep="currentStep"
@@ -157,6 +156,7 @@ import ContactsIcon from '@/components/Icons/ContactsIcon.vue'
 import OrganizationsIcon from '@/components/Icons/OrganizationsIcon.vue'
 import NoteIcon from '@/components/Icons/NoteIcon.vue'
 import TaskIcon from '@/components/Icons/TaskIcon.vue'
+import CalendarIcon from '@/components/Icons/CalendarIcon.vue'
 import PhoneIcon from '@/components/Icons/PhoneIcon.vue'
 import CollapseSidebar from '@/components/Icons/CollapseSidebar.vue'
 import NotificationsIcon from '@/components/Icons/NotificationsIcon.vue'
@@ -232,6 +232,11 @@ const links = [
     label: 'Tasks',
     icon: TaskIcon,
     to: 'Tasks',
+  },
+  {
+    label: 'Calendar',
+    icon: CalendarIcon,
+    to: 'Calendar',
   },
   {
     label: 'Call Logs',
