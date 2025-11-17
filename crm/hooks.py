@@ -191,6 +191,13 @@ scheduler_events = {
 		],
 	}
 }
+app_include_js = [
+    "/assets/crm/apply.js"
+]
+
+
+# on_boot = "crm.overrides.patch.apply"
+# after_migrate = ["crm.overrides.patch.apply"]
 
 # Testing
 # -------
