@@ -1,0 +1,54 @@
+{
+ "actions": [],
+ "allow_import": 0,
+ "allow_rename": 0,
+ "creation": "2025-12-02 00:00:00.000000",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "document_type",
+  "document_file",
+  "verified",
+  "remarks"
+ ],
+ "fields": [
+  {
+   "fieldname": "document_type",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "label": "Document Type",
+   "options": "ID Proof\nAddress Proof\nLicense\nOther",
+   "reqd": 1
+  },
+  {
+   "fieldname": "document_file",
+   "fieldtype": "Attach",
+   "in_list_view": 1,
+   "label": "Document File",
+   "reqd": 1
+  },
+  {
+   "default": "0",
+   "fieldname": "verified",
+   "fieldtype": "Check",
+   "label": "Verified"
+  },
+  {
+   "fieldname": "remarks",
+   "fieldtype": "Small Text",
+   "label": "Remarks"
+  }
+ ],
+ "index_web_pages_for_search": 0,
+ "is_submittable": 0,
+ "istable": 1,
+ "links": [],
+ "modified": "2025-12-02 00:00:00.000000",
+ "module": "FCRM",
+ "name": "Agent KYC Document",
+ "owner": "Administrator",
+ "permissions": [],
+ "sort_field": "creation",
+ "sort_order": "ASC"
+}
+
