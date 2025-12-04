@@ -134,8 +134,6 @@ override_doctype_class = {
 	"Email Template": "crm.overrides.email_template.CustomEmailTemplate",
 }
 
-auth_hooks = ["crm.api.redtra.jwt_auth.authenticate"]
-
 # Document Events
 # ---------------
 # Hook on document methods and events
