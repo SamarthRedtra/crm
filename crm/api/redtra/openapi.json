@@ -24,6 +24,9 @@
       "name": "Properties"
     },
     {
+      "name": "Developers"
+    },
+    {
       "name": "Favorites"
     },
     {
@@ -103,6 +106,29 @@
           "phone": {
             "type": "string",
             "example": "+91-9876543210"
+          },
+          "is_agent": {
+            "type": "boolean",
+            "description": "Pass true to create an Agent account instead of a Customer.",
+            "example": false
+          },
+          "whatsapp_number": {
+            "type": "string",
+            "example": "+971500000001"
+          },
+          "bio": {
+            "type": "string",
+            "example": "Dubai Marina specialist with 10 years of experience."
+          },
+          "max_daily_appointments": {
+            "type": "integer",
+            "example": 8
+          },
+          "kyc_documents": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AgentKYCDocumentInput"
+            }
           }
         }
       },
@@ -120,6 +146,31 @@
           "password": {
             "type": "string",
             "format": "password"
+          }
+        }
+      },
+      "ForgotPasswordRequest": {
+        "type": "object",
+        "required": [
+          "email",
+          "password",
+          "new_password"
+        ],
+        "properties": {
+          "email": {
+            "type": "string",
+            "format": "email",
+            "example": "anwar@example.com"
+          },
+          "password": {
+            "type": "string",
+            "format": "password",
+            "description": "New password"
+          },
+          "new_password": {
+            "type": "string",
+            "format": "password",
+            "description": "Confirm new password; must match password"
           }
         }
       },
@@ -180,6 +231,28 @@
           },
           "preferred_city": {
             "type": "string"
+          }
+        }
+      },
+      "AgentKYCDocumentInput": {
+        "type": "object",
+        "required": [
+          "document_type",
+          "document_file"
+        ],
+        "properties": {
+          "document_type": {
+            "type": "string",
+            "example": "License"
+          },
+          "document_file": {
+            "type": "string",
+            "format": "uri",
+            "example": "https://cdn.example.com/agents/documents/license.pdf"
+          },
+          "remarks": {
+            "type": "string",
+            "example": "Expires 2026"
           }
         }
       },
@@ -332,10 +405,27 @@
             "type": "string",
             "example": "Indiranagar"
           },
+          "developer": {
+            "type": "string",
+            "example": "DEV-0001",
+            "description": "Developer ID if assigned."
+          },
+          "developer_name": {
+            "type": "string",
+            "example": "Sunrise Builders"
+          },
           "primary_image_url": {
             "type": "string",
             "format": "uri",
             "example": "https://cdn.example.com/properties/PROP-00001/main.jpg"
+          },
+          "location": {
+            "type": "string",
+            "example": "Indiranagar, Bangalore"
+          },
+          "furnishing_status": {
+            "type": "string",
+            "example": "Furnished"
           }
         }
       },
@@ -415,6 +505,23 @@
                   }
                 }
               },
+              "developer_id": {
+                "type": "string",
+                "nullable": true,
+                "description": "Developer ID if assigned."
+              },
+              "developer_name": {
+                "type": "string",
+                "nullable": true
+              },
+              "developer": {
+                "nullable": true,
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/DeveloperDetail"
+                  }
+                ]
+              },
               "whatsapp_chat_link": {
                 "type": "string",
                 "format": "uri",
@@ -464,6 +571,14 @@
           "bathrooms": {
             "type": "integer"
           },
+          "furnishing_status": {
+            "type": "string",
+            "enum": [
+              "Furnished",
+              "Semi-Furnished",
+              "Unfurnished"
+            ]
+          },
           "area_sqft": {
             "type": "number",
             "format": "float"
@@ -471,6 +586,10 @@
           "area_id": {
             "type": "string",
             "description": "ID of Area"
+          },
+          "developer_id": {
+            "type": "string",
+            "description": "ID of Developer"
           },
           "address_line1": {
             "type": "string"
@@ -540,6 +659,162 @@
             "type": "array",
             "items": {
               "$ref": "#/components/schemas/PropertySummary"
+            }
+          },
+          "page": {
+            "type": "integer"
+          },
+          "page_size": {
+            "type": "integer"
+          },
+          "total_items": {
+            "type": "integer"
+          },
+          "total_pages": {
+            "type": "integer"
+          }
+        }
+      },
+      "DeveloperSummary": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "example": "DEV-0001"
+          },
+          "name": {
+            "type": "string",
+            "example": "Sunrise Builders"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "Active",
+              "Inactive"
+            ]
+          },
+          "city": {
+            "type": "string",
+            "example": "Dubai"
+          },
+          "state": {
+            "type": "string",
+            "example": "Dubai"
+          },
+          "country": {
+            "type": "string",
+            "example": "UAE"
+          },
+          "website": {
+            "type": "string",
+            "format": "uri",
+            "example": "https://sunrise.example.com"
+          },
+          "logo": {
+            "type": "string",
+            "format": "uri",
+            "example": "https://cdn.example.com/developers/DEV-0001/logo.png"
+          },
+          "location": {
+            "type": "string",
+            "example": "Dubai, UAE"
+          }
+        }
+      },
+      "DeveloperDetail": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/DeveloperSummary"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "email": {
+                "type": "string",
+                "format": "email",
+                "example": "info@sunrise.example.com"
+              },
+              "phone": {
+                "type": "string",
+                "example": "+971500000001"
+              },
+              "address_line1": {
+                "type": "string"
+              },
+              "address_line2": {
+                "type": "string"
+              },
+              "pincode": {
+                "type": "string"
+              },
+              "description": {
+                "type": "string"
+              }
+            }
+          }
+        ]
+      },
+      "DeveloperCreateRequest": {
+        "type": "object",
+        "required": [
+          "developer_name"
+        ],
+        "properties": {
+          "developer_name": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "Active",
+              "Inactive"
+            ]
+          },
+          "email": {
+            "type": "string",
+            "format": "email"
+          },
+          "phone": {
+            "type": "string"
+          },
+          "website": {
+            "type": "string",
+            "format": "uri"
+          },
+          "address_line1": {
+            "type": "string"
+          },
+          "address_line2": {
+            "type": "string"
+          },
+          "city": {
+            "type": "string"
+          },
+          "state": {
+            "type": "string"
+          },
+          "country": {
+            "type": "string"
+          },
+          "pincode": {
+            "type": "string"
+          },
+          "logo": {
+            "type": "string",
+            "format": "uri"
+          },
+          "description": {
+            "type": "string"
+          }
+        }
+      },
+      "PaginatedDeveloperList": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/DeveloperSummary"
             }
           },
           "page": {
@@ -722,6 +997,16 @@
           }
         }
       },
+      "ForbiddenError": {
+        "description": "Access forbidden",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ErrorResponse"
+            }
+          }
+        }
+      },
       "ValidationError": {
         "description": "Validation error",
         "content": {
@@ -799,6 +1084,42 @@
           },
           "401": {
             "$ref": "#/components/responses/UnauthorizedError"
+          }
+        }
+      }
+    },
+    "/api/auth/forgot-password": {
+      "post": {
+        "tags": [
+          "Authentication"
+        ],
+        "summary": "Reset password",
+        "description": "Directly sets a new password for the specified account.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ForgotPasswordRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Password reset completed.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MessageResponse"
+                }
+              }
+            }
           }
         }
       }
@@ -901,7 +1222,11 @@
           "Areas"
         ],
         "summary": "List areas",
-        "security": [],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
         "parameters": [
           {
             "in": "query",
@@ -948,7 +1273,11 @@
           "Areas"
         ],
         "summary": "Get area",
-        "security": [],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
         "parameters": [
           {
             "in": "path",
@@ -1099,24 +1428,151 @@
           },
           {
             "in": "query",
+            "name": "property_types",
+            "description": "Filter by one or more property types.",
+            "schema": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "style": "form",
+            "explode": true
+          },
+          {
+            "in": "query",
             "name": "bedrooms",
+            "description": "Include properties matching any of the supplied bedroom counts.",
+            "schema": {
+              "type": "array",
+              "items": {
+                "type": "integer"
+              }
+            },
+            "style": "form",
+            "explode": true
+          },
+          {
+            "in": "query",
+            "name": "min_bedrooms",
             "schema": {
               "type": "integer"
             }
           },
           {
             "in": "query",
-            "name": "area",
+            "name": "max_bedrooms",
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "bathrooms",
+            "description": "Include properties matching any of the supplied bathroom counts.",
+            "schema": {
+              "type": "array",
+              "items": {
+                "type": "integer"
+              }
+            },
+            "style": "form",
+            "explode": true
+          },
+          {
+            "in": "query",
+            "name": "min_bathrooms",
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "max_bathrooms",
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "min_area",
+            "description": "Minimum built-up area (sq.ft).",
+            "schema": {
+              "type": "number"
+            }
+          },
+          {
+            "in": "query",
+            "name": "max_area",
+            "description": "Maximum built-up area (sq.ft).",
+            "schema": {
+              "type": "number"
+            }
+          },
+          {
+            "in": "query",
+            "name": "furnishing",
+            "description": "Filter by furnishing status (repeat parameter for multiple values).",
+            "schema": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "enum": [
+                  "Furnished",
+                  "Semi-Furnished",
+                  "Unfurnished"
+                ]
+              }
+            },
+            "style": "form",
+            "explode": true
+          },
+          {
+            "in": "query",
+            "name": "amenities",
+            "description": "Require all of the specified amenities.",
+            "schema": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "style": "form",
+            "explode": true
+          },
+          {
+            "in": "query",
+            "name": "location",
+            "description": "Text search across area, city, state, country, and address.",
             "schema": {
               "type": "string"
             }
           },
           {
             "in": "query",
-            "name": "city",
+            "name": "area_id",
+            "description": "Filter by area ID (repeat parameter for multiple values).",
             "schema": {
-              "type": "string"
-            }
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "style": "form",
+            "explode": true
+          },
+          {
+            "in": "query",
+            "name": "developer_id",
+            "description": "Filter by developer ID (repeat parameter for multiple values).",
+            "schema": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "style": "form",
+            "explode": true
           },
           {
             "in": "query",
@@ -1189,11 +1645,7 @@
           "Properties"
         ],
         "summary": "Get property detail",
-        "security": [
-          {
-            "bearerAuth": []
-          }
-        ],
+        "security": [],
         "parameters": [
           {
             "in": "path",
@@ -1217,6 +1669,9 @@
           },
           "401": {
             "$ref": "#/components/responses/UnauthorizedError"
+          },
+          "403": {
+            "$ref": "#/components/responses/ForbiddenError"
           }
         }
       },
@@ -1331,6 +1786,147 @@
           },
           "401": {
             "$ref": "#/components/responses/UnauthorizedError"
+          }
+        }
+      }
+    },
+    "/api/developers": {
+      "get": {
+        "tags": [
+          "Developers"
+        ],
+        "summary": "List developers",
+        "security": [],
+        "parameters": [
+          {
+            "in": "query",
+            "name": "page",
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "page_size",
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "status",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "Active",
+                "Inactive"
+              ]
+            }
+          },
+          {
+            "in": "query",
+            "name": "city",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "search",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Paginated developers",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PaginatedDeveloperList"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Developers"
+        ],
+        "summary": "Create developer",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DeveloperCreateRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Created developer",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeveloperDetail"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/ValidationError"
+          },
+          "401": {
+            "$ref": "#/components/responses/UnauthorizedError"
+          },
+          "403": {
+            "$ref": "#/components/responses/ForbiddenError"
+          }
+        }
+      }
+    },
+    "/api/developers/{developer_id}": {
+      "get": {
+        "tags": [
+          "Developers"
+        ],
+        "summary": "Get developer detail",
+        "security": [],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "developer_id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Developer detail",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeveloperDetail"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/UnauthorizedError"
+          },
+          "403": {
+            "$ref": "#/components/responses/ForbiddenError"
           }
         }
       }
@@ -1690,6 +2286,41 @@
         }
       }
     },
+    "/api/method/crm.api.redtra.auth.forgot_password": {
+      "post": {
+        "tags": [
+          "Authentication"
+        ],
+        "summary": "Reset password",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ForgotPasswordRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Password reset completed.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MessageResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/method/crm.api.redtra.auth.logout": {
       "post": {
         "tags": [
@@ -1775,7 +2406,11 @@
           "Areas"
         ],
         "summary": "List areas",
-        "security": [],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
         "parameters": [
           {
             "in": "query",
@@ -1822,7 +2457,11 @@
           "Areas"
         ],
         "summary": "Get area",
-        "security": [],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
         "parameters": [
           {
             "in": "query",
@@ -1963,24 +2602,138 @@
           },
           {
             "in": "query",
+            "name": "property_types",
+            "description": "Filter by one or more property types.",
+            "schema": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "style": "form",
+            "explode": true
+          },
+          {
+            "in": "query",
             "name": "bedrooms",
+            "description": "Include properties matching any of the supplied bedroom counts.",
+            "schema": {
+              "type": "array",
+              "items": {
+                "type": "integer"
+              }
+            },
+            "style": "form",
+            "explode": true
+          },
+          {
+            "in": "query",
+            "name": "min_bedrooms",
             "schema": {
               "type": "integer"
             }
           },
           {
             "in": "query",
-            "name": "area",
+            "name": "max_bedrooms",
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "bathrooms",
+            "description": "Include properties matching any of the supplied bathroom counts.",
+            "schema": {
+              "type": "array",
+              "items": {
+                "type": "integer"
+              }
+            },
+            "style": "form",
+            "explode": true
+          },
+          {
+            "in": "query",
+            "name": "min_bathrooms",
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "max_bathrooms",
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "min_area",
+            "description": "Minimum built-up area (sq.ft).",
+            "schema": {
+              "type": "number"
+            }
+          },
+          {
+            "in": "query",
+            "name": "max_area",
+            "description": "Maximum built-up area (sq.ft).",
+            "schema": {
+              "type": "number"
+            }
+          },
+          {
+            "in": "query",
+            "name": "furnishing",
+            "description": "Filter by furnishing status (repeat parameter for multiple values).",
+            "schema": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "enum": [
+                  "Furnished",
+                  "Semi-Furnished",
+                  "Unfurnished"
+                ]
+              }
+            },
+            "style": "form",
+            "explode": true
+          },
+          {
+            "in": "query",
+            "name": "amenities",
+            "description": "Require all of the specified amenities.",
+            "schema": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "style": "form",
+            "explode": true
+          },
+          {
+            "in": "query",
+            "name": "location",
+            "description": "Text search across area, city, state, country, and address.",
             "schema": {
               "type": "string"
             }
           },
           {
             "in": "query",
-            "name": "city",
+            "name": "area_id",
+            "description": "Filter by area ID (repeat parameter for multiple values).",
             "schema": {
-              "type": "string"
-            }
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "style": "form",
+            "explode": true
           },
           {
             "in": "query",

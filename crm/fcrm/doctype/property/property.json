@@ -19,6 +19,7 @@
   "column_break_pricing",
   "bedrooms",
   "bathrooms",
+  "furnishing_status",
   "area_sqft",
   "amenities",
   "section_break_location",
@@ -34,6 +35,7 @@
   "longitude",
   "section_break_content",
   "description",
+  "developer",
   "agent",
   "section_break_media",
   "primary_image",
@@ -119,6 +121,13 @@
    "label": "Bathrooms"
   },
   {
+   "fieldname": "furnishing_status",
+   "fieldtype": "Select",
+   "in_standard_filter": 1,
+   "label": "Furnishing",
+   "options": "Furnished\nSemi-Furnished\nUnfurnished"
+  },
+  {
    "fieldname": "area_sqft",
    "fieldtype": "Float",
    "label": "Area (sq.ft)",
@@ -198,6 +207,13 @@
    "fieldname": "description",
    "fieldtype": "Text Editor",
    "label": "Description"
+  },
+  {
+   "fieldname": "developer",
+   "fieldtype": "Link",
+   "in_standard_filter": 1,
+   "label": "Developer",
+   "options": "Developer"
   },
   {
    "fieldname": "agent",

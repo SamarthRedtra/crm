@@ -117,13 +117,13 @@ before_uninstall = "crm.uninstall.before_uninstall"
 # -----------
 # Permissions evaluated in scripted ways
 
-# permission_query_conditions = {
-# "Event": "frappe.desk.doctype.event.event.get_permission_query_conditions",
-# }
-#
-# has_permission = {
-# "Event": "frappe.desk.doctype.event.event.has_permission",
-# }
+permission_query_conditions = {
+	"Property": "crm.api.redtra.permissions.get_property_permission_query",
+}
+
+has_permission = {
+	"Property": "crm.api.redtra.permissions.has_property_permission",
+}
 
 # DocType Class
 # ---------------

@@ -3,12 +3,14 @@ from __future__ import annotations
 from typing import Any
 
 import frappe
+from frappe import _
 from frappe.utils import cint
 
 from . import properties, utils
 
 
-@frappe.whitelist(allow_guest=True)
+@frappe.whitelist()
+@utils.require_jwt()
 def list_areas() -> dict[str, Any]:
 	page = cint(frappe.form_dict.get("page") or 1)
 	page_size = cint(frappe.form_dict.get("page_size") or 20)
@@ -37,7 +39,8 @@ def list_areas() -> dict[str, Any]:
 	)
 
 
-@frappe.whitelist(allow_guest=True)
+@frappe.whitelist()
+@utils.require_jwt()
 def get_area(area_id: str) -> dict[str, Any]:
 	area = frappe.get_doc("Area", area_id)
 	area.check_permission("read")
@@ -60,6 +63,12 @@ def list_area_properties(area_id: str) -> dict[str, Any]:
 		filters.append(["Property", "price", ">=", float(min_price)])
 	if max_price:
 		filters.append(["Property", "price", "<=", float(max_price)])
+
+	restrict, agent_id = properties.resolve_agent_scope()
+	if restrict:
+		if not agent_id:
+			frappe.throw(_("Agent profile not found."), frappe.PermissionError)
+		filters.append(["Property", "agent", "=", agent_id])
 
 	result = utils.get_paginated_list(
 		"Property",

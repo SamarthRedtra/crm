@@ -5,6 +5,8 @@ from typing import Any
 import frappe
 from frappe import _
 from frappe.auth import LoginManager
+from frappe.utils import cint
+from frappe.utils.password import update_password
 
 from . import utils
 
@@ -13,6 +15,7 @@ from . import utils
 def register() -> dict[str, Any]:
 	data = utils.get_request_json(["full_name", "email", "password"])
 	email = data["email"].strip().lower()
+	is_agent = _coerce_bool(data.get("is_agent"))
 
 	if frappe.db.exists("User", email):
 		frappe.throw(_("Email {0} is already registered.").format(email), frappe.DuplicateEntryError)
@@ -33,9 +36,12 @@ def register() -> dict[str, Any]:
 		user.mobile_no = phone
 
 	user.insert()
-	user.add_roles("Customer")
-
-	utils.ensure_customer_record(user.name, data["full_name"], email, data.get("phone"))
+	if is_agent:
+		utils.ensure_agent_role(user.name)
+		_create_agent_record(user.name, data)
+	else:
+		user.add_roles("Customer")
+		utils.ensure_customer_record(user.name, data["full_name"], email, data.get("phone"))
 
 	frappe.response.http_status_code = 201
 	return {"message": _("Registration successful.")}
@@ -59,6 +65,39 @@ def login() -> dict[str, Any]:
 		"user_id": login_manager.user,
 		"full_name": user_doc.full_name,
 	}
+
+
+@frappe.whitelist(methods=["POST"])
+@utils.require_jwt()
+def forgot_password() -> dict[str, Any]:
+	data = utils.get_request_json(["email", "password", "new_password"])
+	email = data["email"].strip().lower()
+	new_password = data["password"]
+	confirm_password = data["new_password"]
+
+	if new_password != confirm_password:
+		frappe.throw(_("Password and new password must match."), frappe.ValidationError)
+
+	current_user = utils.get_current_user()
+	if frappe.session.user != "Administrator" and current_user.lower() != email:
+		frappe.throw(_("You can only reset your own password."), frappe.PermissionError)
+
+	user_name = frappe.db.exists("User", {"name": email})
+	if not user_name:
+		frappe.response.http_status_code = 404
+		frappe.throw(_("User not found."), frappe.DoesNotExistError)
+
+	user_doc = frappe.get_doc("User", user_name)
+	if user_doc.name == "Administrator":
+		frappe.throw(_("Password reset for Administrator is not allowed."), frappe.PermissionError)
+	if not user_doc.enabled:
+		frappe.throw(_("User account is disabled."), frappe.PermissionError)
+
+	user_doc.validate_reset_password()
+	update_password(user=user_doc.name, pwd=new_password, logout_all_sessions=True)
+
+	frappe.response.http_status_code = 200
+	return {"message": _("Password has been reset successfully.")}
 
 
 @frappe.whitelist()
@@ -135,4 +174,53 @@ def update_profile() -> dict[str, Any]:
 	user_doc.save(ignore_permissions=True)
 
 	return {"message": _("Profile updated successfully.")}
+
+
+def _coerce_bool(value: Any) -> bool:
+	if isinstance(value, bool):
+		return value
+	if value is None:
+		return False
+	if isinstance(value, (int, float)):
+		return bool(value)
+	if isinstance(value, str):
+		return value.strip().lower() in {"1", "true", "yes", "y", "on"}
+	return False
+
+
+def _create_agent_record(user: str, data: dict[str, Any]):
+	if frappe.db.exists("Agent", {"user": user}):
+		return
+
+	agent_doc = frappe.get_doc(
+		{
+			"doctype": "Agent",
+			"user": user,
+			"phone": data.get("phone"),
+			"whatsapp_number": data.get("whatsapp_number") or data.get("phone"),
+			"bio": data.get("bio"),
+		}
+	)
+
+	max_daily = data.get("max_daily_appointments")
+	if max_daily is not None:
+		agent_doc.max_daily_appointments = cint(max_daily)
+
+	for doc in data.get("kyc_documents") or []:
+		if not isinstance(doc, dict):
+			continue
+		document_type = doc.get("document_type")
+		document_file = doc.get("document_file")
+		if not document_type or not document_file:
+			continue
+		agent_doc.append(
+			"kyc_documents",
+			{
+				"document_type": document_type,
+				"document_file": document_file,
+				"remarks": doc.get("remarks"),
+			},
+		)
+
+	agent_doc.insert(ignore_permissions=True)
 

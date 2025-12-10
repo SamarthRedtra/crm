@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import functools
 import math
+from contextlib import contextmanager
 from datetime import datetime, timedelta
 from typing import Any, Callable, Iterable
 
@@ -63,6 +64,14 @@ def extract_bearer_token() -> str:
 	return auth_header.split(" ", 1)[1].strip()
 
 
+def get_optional_bearer_token() -> str | None:
+	auth_header = frappe.get_request_header("Authorization")
+	if not auth_header or not auth_header.lower().startswith("bearer "):
+		return None
+	token = auth_header.split(" ", 1)[1].strip()
+	return token or None
+
+
 def require_jwt(roles: Iterable[str] | None = None) -> Callable:
 	required_roles = set(roles or [])
 
@@ -94,6 +103,44 @@ def require_jwt(roles: Iterable[str] | None = None) -> Callable:
 		return wrapper
 
 	return decorator
+
+
+@contextmanager
+def maybe_authenticate_jwt(roles: Iterable[str] | None = None):
+	token = get_optional_bearer_token()
+	if not token:
+		yield None
+		return
+
+	if is_token_blacklisted(token):
+		frappe.throw(_("Token has been revoked."), frappe.AuthenticationError)
+
+	payload = decode_jwt(token)
+	user = payload.get("user")
+	if not user:
+		frappe.throw(_("Invalid authentication token."), frappe.AuthenticationError)
+
+	required_roles = set(roles or [])
+	if required_roles:
+		user_roles = set(frappe.get_roles(user))
+		if required_roles.isdisjoint(user_roles):
+			frappe.throw(_("Insufficient permissions."), frappe.PermissionError)
+
+	previous_user = frappe.session.user
+	had_previous_auth = hasattr(frappe.local, "redtra_auth")
+	previous_auth = frappe.local.redtra_auth if had_previous_auth else None
+
+	frappe.set_user(user)
+	frappe.local.redtra_auth = {"token": token, "payload": payload}
+
+	try:
+		yield user
+	finally:
+		frappe.set_user(previous_user)
+		if had_previous_auth:
+			frappe.local.redtra_auth = previous_auth
+		elif hasattr(frappe.local, "redtra_auth"):
+			delattr(frappe.local, "redtra_auth")
 
 
 def get_current_user() -> str:
