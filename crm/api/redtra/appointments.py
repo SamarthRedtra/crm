@@ -56,23 +56,35 @@ def create_appointment() -> dict[str, Any]:
 	if prop.status != "Active":
 		frappe.throw(_("Only active properties can be booked."))
 
+	agent_name = prop.agent
+	if not agent_name:
+		frappe.throw(_("Property {0} is not assigned to an agent.").format(prop.name))
+
 	customer = utils.get_customer_by_user(utils.get_current_user())
 	if not customer:
 		frappe.throw(_("Customer profile is required to book an appointment."))
+
+	start_datetime = get_datetime(data["start_datetime"])
+	end_datetime = get_datetime(data["end_datetime"])
 
 	doc = frappe.get_doc(
 		{
 			"doctype": "Property Appointment",
 			"customer": customer.name,
-			"agent": data.get("agent") or prop.agent,
+			"agent": agent_name,
 			"property": property_id,
-			"start_datetime": get_datetime(data["start_datetime"]),
-			"end_datetime": get_datetime(data["end_datetime"]),
+			"start_datetime": start_datetime,
+			"end_datetime": end_datetime,
 			"notes": data.get("notes"),
 			"source": "Mobile App",
 		}
 	)
 	doc.insert(ignore_permissions=True)
+
+	event_name = _create_calendar_event(doc, prop, customer)
+	if event_name:
+		doc.db_set("calendar_event", event_name, update_modified=False)
+
 	frappe.response.http_status_code = 201
 	return serialize_appointment(doc.name)
 
@@ -100,6 +112,7 @@ def update_appointment(appointment_id: str) -> dict[str, Any]:
 		doc.notes = data["notes"]
 
 	doc.save(ignore_permissions=True)
+	_update_calendar_event(doc)
 	return serialize_appointment(doc.name)
 
 
@@ -109,6 +122,7 @@ def cancel_appointment(appointment_id: str) -> dict[str, Any]:
 	doc = _ensure_appointment_access(appointment_id)
 	doc.status = "Cancelled"
 	doc.save(ignore_permissions=True)
+	_update_calendar_event(doc)
 	frappe.response.http_status_code = 204
 	return {}
 
@@ -142,6 +156,7 @@ def serialize_appointment(name: str) -> dict[str, Any]:
 			"whatsapp_number": agent_doc.whatsapp_number if agent_doc else None,
 		},
 		"property": property_summary,
+		"calendar_event": doc.calendar_event,
 	}
 
 
@@ -163,4 +178,90 @@ def _ensure_appointment_access(appointment_id: str):
 		return doc
 
 	frappe.throw(_("You do not have access to this appointment."), frappe.PermissionError)
+
+
+def _create_calendar_event(appointment_doc, property_doc, customer_doc):
+	subject = _("Property Viewing: {0}").format(property_doc.title or property_doc.name)
+	description = _build_event_description(appointment_doc, property_doc, customer_doc)
+
+	event_doc = frappe.get_doc(
+		{
+			"doctype": "Event",
+			"subject": subject,
+			"event_category": "Meeting",
+			"event_type": "Private",
+			"starts_on": appointment_doc.start_datetime,
+			"ends_on": appointment_doc.end_datetime,
+			"status": "Open",
+			"reference_doctype": "Property",
+			"reference_docname": property_doc.name,
+			"description": description,
+		}
+	)
+
+	agent_user = frappe.db.get_value("Agent", appointment_doc.agent, "user")
+	if agent_user:
+		event_doc.append(
+			"event_participants",
+			{"reference_doctype": "User", "reference_docname": agent_user},
+		)
+
+	customer_user = getattr(customer_doc, "user", None)
+	if customer_user:
+		event_doc.append(
+			"event_participants",
+			{"reference_doctype": "User", "reference_docname": customer_user},
+		)
+
+	event_doc.insert(ignore_permissions=True)
+	return event_doc.name
+
+
+def _update_calendar_event(appointment_doc):
+	if not appointment_doc.calendar_event:
+		return
+
+	try:
+		event_doc = frappe.get_doc("Event", appointment_doc.calendar_event)
+	except frappe.DoesNotExistError:
+		return
+
+	property_doc = frappe.get_doc("Property", appointment_doc.property)
+	customer_doc = frappe.get_doc("Customer", appointment_doc.customer)
+
+	event_doc.starts_on = appointment_doc.start_datetime
+	event_doc.ends_on = appointment_doc.end_datetime
+	event_doc.description = _build_event_description(appointment_doc, property_doc, customer_doc)
+
+	if appointment_doc.status == "Cancelled":
+		event_doc.status = "Cancelled"
+	elif appointment_doc.status == "Completed":
+		event_doc.status = "Completed"
+	else:
+		event_doc.status = "Open"
+
+	event_doc.save(ignore_permissions=True)
+
+
+def _build_event_description(appointment_doc, property_doc, customer_doc) -> str:
+	lines = [
+		_("Property: {0} ({1})").format(property_doc.title or property_doc.name, property_doc.name),
+		_("Customer: {0}").format(customer_doc.full_name),
+	]
+
+	if property_doc.address_line1 or property_doc.city:
+		address_parts = [
+			property_doc.address_line1 or "",
+			property_doc.city or "",
+			property_doc.state or "",
+			property_doc.country or "",
+		]
+		address = ", ".join([part for part in address_parts if part])
+		if address:
+			lines.append(_("Address: {0}").format(address))
+
+	if appointment_doc.notes:
+		lines.append(_("Notes: {0}").format(appointment_doc.notes))
+
+	return "\n".join(lines)
 

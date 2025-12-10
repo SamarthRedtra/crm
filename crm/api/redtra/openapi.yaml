@@ -13,6 +13,7 @@ tags:
   - name: Developers
   - name: Favorites
   - name: Appointments
+  - name: Notifications
 components:
   securitySchemes:
     bearerAuth:
@@ -75,11 +76,17 @@ components:
           example: "Dubai Marina specialist with 10 years of experience."
         max_daily_appointments:
           type: integer
+        agent_id:
+          type: string
+          description: Optional DFD registration ID; ignored if the agent already has one.
           example: 8
         kyc_documents:
           type: array
           items:
             $ref: '#/components/schemas/AgentKYCDocumentInput'
+        agent_id:
+          type: string
+          description: Optional DFD registration ID that links the signup to an existing Agent.
     LoginRequest:
       type: object
       required: [email, password]
@@ -132,6 +139,67 @@ components:
           type: string
         preferred_city:
           type: string
+        agent_profile:
+          type: object
+          nullable: true
+          properties:
+            id:
+              type: string
+            status:
+              type: string
+            about_me:
+              type: string
+            profile_image:
+              type: string
+              format: uri
+            max_daily_appointments:
+              type: integer
+        appointments_today:
+          type: array
+          items:
+            type: object
+            properties:
+              id:
+                type: string
+              start:
+                type: string
+                format: date-time
+              end:
+                type: string
+                format: date-time
+              status:
+                type: string
+              property:
+                type: object
+                properties:
+                  id:
+                    type: string
+                  title:
+                    type: string
+              customer:
+                type: object
+                properties:
+                  id:
+                    type: string
+                  name:
+                    type: string
+        properties:
+          type: array
+          items:
+            $ref: '#/components/schemas/PropertySummary'
+        lead_stats:
+          type: object
+          properties:
+            total:
+              type: integer
+            today:
+              type: integer
+            last_month_same_day:
+              type: integer
+            trend_ratio:
+              type: number
+              format: float
+              nullable: true
     ProfileUpdateRequest:
       type: object
       properties:
@@ -146,6 +214,13 @@ components:
           type: string
         preferred_city:
           type: string
+        about_me:
+          type: string
+        profile_image:
+          type: string
+          format: uri
+        max_daily_appointments:
+          type: integer
     AgentKYCDocumentInput:
       type: object
       required: [document_type, document_file]
@@ -241,6 +316,9 @@ components:
         property_type:
           type: string
           example: "Apartment"
+        property_category:
+          type: string
+          enum: [Residential, Commercial, Mixed Use]
         price:
           type: number
           format: float
@@ -284,6 +362,9 @@ components:
         furnishing_status:
           type: string
           example: "Furnished"
+        is_featured:
+          type: boolean
+          example: true
     PropertyDetail:
       allOf:
         - $ref: '#/components/schemas/PropertySummary'
@@ -372,6 +453,9 @@ components:
           format: float
         currency:
           type: string
+        property_category:
+          type: string
+          enum: [Residential, Commercial, Mixed Use]
         bedrooms:
           type: integer
         bathrooms:
@@ -471,6 +555,9 @@ components:
         location:
           type: string
           example: "Dubai, UAE"
+        property_count:
+          type: integer
+          description: Number of active properties associated with this developer (when requested).
     DeveloperDetail:
       allOf:
         - $ref: '#/components/schemas/DeveloperSummary'
@@ -540,6 +627,64 @@ components:
           type: integer
         total_pages:
           type: integer
+    NotificationItem:
+      type: object
+      properties:
+        id:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+        type:
+          type: string
+        title:
+          type: string
+        message:
+          type: string
+        read:
+          type: boolean
+        from_user:
+          type: object
+          properties:
+            id:
+              type: string
+            full_name:
+              type: string
+        reference:
+          type: object
+          properties:
+            doctype:
+              type: string
+            name:
+              type: string
+    NotificationListResponse:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/NotificationItem'
+        page:
+          type: integer
+        page_size:
+          type: integer
+        total_items:
+          type: integer
+        total_pages:
+          type: integer
+    MarkNotificationsReadRequest:
+      type: object
+      properties:
+        notification_ids:
+          type: array
+          description: Optional list of notification IDs to mark as read. If omitted, all unread notifications are updated.
+          items:
+            type: string
+    MarkNotificationsReadResponse:
+      type: object
+      properties:
+        updated:
+          type: integer
     FavoriteItem:
       type: object
       properties:
@@ -564,7 +709,7 @@ components:
           example: "PROP-00001"
         agent:
           type: string
-          description: Optional Agent ID (defaults to property agent)
+          description: Deprecated – property agent is assigned automatically.
         start_datetime:
           type: string
           format: date-time
@@ -630,6 +775,10 @@ components:
               type: string
         property:
           $ref: '#/components/schemas/PropertySummary'
+        calendar_event:
+          type: string
+          nullable: true
+          description: Linked calendar event ID (Event doctype).
     WhatsAppLinkResponse:
       type: object
       properties:
@@ -701,8 +850,7 @@ paths:
       tags: [Authentication]
       summary: Reset password
       description: Directly sets a new password for the specified account.
-      security:
-        - bearerAuth: []
+      security: []
       requestBody:
         required: true
         content:
@@ -973,6 +1121,16 @@ paths:
           style: form
           explode: true
         - in: query
+          name: property_category
+          description: Filter by property category (Residential, Commercial, Mixed Use).
+          schema:
+            type: array
+            items:
+              type: string
+              enum: [Residential, Commercial, Mixed Use]
+          style: form
+          explode: true
+        - in: query
           name: developer_id
           description: Filter by developer ID (repeat parameter for multiple values).
           schema:
@@ -985,6 +1143,11 @@ paths:
           name: agent
           schema:
             type: string
+        - in: query
+          name: is_featured
+          description: Set to true to return only featured properties.
+          schema:
+            type: boolean
       responses:
         '200':
           description: Paginated properties
@@ -1130,6 +1293,25 @@ paths:
           name: search
           schema:
             type: string
+        - in: query
+          name: include_property_stats
+          description: When true, include property_count in each developer summary.
+          schema:
+            type: boolean
+        - in: query
+          name: has_properties
+          description: Return only developers with at least one active property.
+          schema:
+            type: boolean
+        - in: query
+          name: property_ids
+          description: Filter developers to those referenced by the given property IDs.
+          schema:
+            type: array
+            items:
+              type: string
+          style: form
+          explode: true
       responses:
         '200':
           description: Paginated developers
@@ -1183,6 +1365,91 @@ paths:
           $ref: '#/components/responses/UnauthorizedError'
         '403':
           $ref: '#/components/responses/ForbiddenError'
+  /api/developers/{developer_id}/properties:
+    get:
+      tags: [Developers]
+      summary: List properties for developer
+      security: []
+      parameters:
+        - in: path
+          name: developer_id
+          required: true
+          schema:
+            type: string
+        - in: query
+          name: page
+          schema:
+            type: integer
+            minimum: 1
+        - in: query
+          name: page_size
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+      responses:
+        '200':
+          description: Properties grouped under the developer
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedPropertyList'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+  /api/notifications:
+    get:
+      tags: [Notifications]
+      summary: List notifications
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: query
+          name: page
+          schema:
+            type: integer
+            minimum: 1
+        - in: query
+          name: page_size
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+        - in: query
+          name: unread_only
+          schema:
+            type: boolean
+      responses:
+        '200':
+          description: Notifications for the authenticated user
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NotificationListResponse'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+  /api/notifications/mark-read:
+    post:
+      tags: [Notifications]
+      summary: Mark notifications as read
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MarkNotificationsReadRequest'
+      responses:
+        '200':
+          description: Count of notifications updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MarkNotificationsReadResponse'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
   /api/favorites:
     get:
       tags: [Favorites]

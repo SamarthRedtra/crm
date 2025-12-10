@@ -12,6 +12,7 @@
   "property_code",
   "listing_type",
   "property_type",
+  "property_category",
   "status",
   "section_break_pricing",
   "price",
@@ -74,6 +75,13 @@
    "label": "Property Type",
    "options": "Apartment\nVilla\nOffice\nShop\nPlot\nOther",
    "reqd": 1
+  },
+  {
+   "fieldname": "property_category",
+   "fieldtype": "Select",
+   "in_standard_filter": 1,
+   "label": "Property Category",
+   "options": "Residential\nCommercial\nMixed Use"
   },
   {
    "default": "Draft",

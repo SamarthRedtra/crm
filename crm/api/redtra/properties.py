@@ -18,6 +18,7 @@ SUMMARY_FIELDS = [
 	"title",
 	"listing_type",
 	"property_type",
+	"property_category",
 	"price",
 	"currency",
 	"bedrooms",
@@ -31,180 +32,188 @@ SUMMARY_FIELDS = [
 	"country",
 	"primary_image",
 	"status",
+	"is_featured",
 ]
 
 
-@frappe.whitelist()
-@utils.require_jwt()
+@frappe.whitelist(allow_guest=True)
 def list_properties() -> dict[str, Any]:
-	page = max(1, cint(frappe.form_dict.get("page") or 1))
-	page_size = cint(frappe.form_dict.get("page_size") or 20)
-	page_size = max(1, min(page_size, 100))
-	offset = (page - 1) * page_size
+	with utils.maybe_authenticate_jwt():
+		page = max(1, cint(frappe.form_dict.get("page") or 1))
+		page_size = cint(frappe.form_dict.get("page_size") or 20)
+		page_size = max(1, min(page_size, 100))
+		offset = (page - 1) * page_size
 
-	property_dt = DocType("Property")
-	area_dt = DocType("Area")
-	developer_dt = DocType("Developer")
+		property_dt = DocType("Property")
+		area_dt = DocType("Area")
+		developer_dt = DocType("Developer")
 
-	conditions = [property_dt.status == "Active"]
+		conditions = [property_dt.status == "Active"]
 
-	listing_type = (frappe.form_dict.get("listing_type") or "").strip()
-	if listing_type:
-		conditions.append(property_dt.listing_type == listing_type)
+		listing_type = (frappe.form_dict.get("listing_type") or "").strip()
+		if listing_type:
+			conditions.append(property_dt.listing_type == listing_type)
 
-	property_types = _get_list_param("property_types") or _get_list_param("property_type")
-	if property_types:
-		conditions.append(property_dt.property_type.isin(property_types))
+		property_types = _get_list_param("property_types") or _get_list_param("property_type")
+		if property_types:
+			conditions.append(property_dt.property_type.isin(property_types))
 
-	min_price = _get_float_param("min_price")
-	if min_price is not None:
-		conditions.append(property_dt.price >= min_price)
-	max_price = _get_float_param("max_price")
-	if max_price is not None:
-		conditions.append(property_dt.price <= max_price)
+		property_categories = _get_list_param("property_category") or _get_list_param("property_categories")
+		if property_categories:
+			conditions.append(property_dt.property_category.isin(property_categories))
 
-	bedroom_values = _get_int_list_param("bedrooms")
-	if bedroom_values:
-		conditions.append(property_dt.bedrooms.isin(bedroom_values))
+		min_price = _get_float_param("min_price")
+		if min_price is not None:
+			conditions.append(property_dt.price >= min_price)
+		max_price = _get_float_param("max_price")
+		if max_price is not None:
+			conditions.append(property_dt.price <= max_price)
 
-	min_bedrooms = _get_int_param("min_bedrooms")
-	if min_bedrooms is not None:
-		conditions.append(property_dt.bedrooms >= min_bedrooms)
-	max_bedrooms = _get_int_param("max_bedrooms")
-	if max_bedrooms is not None:
-		conditions.append(property_dt.bedrooms <= max_bedrooms)
+		bedroom_values = _get_int_list_param("bedrooms")
+		if bedroom_values:
+			conditions.append(property_dt.bedrooms.isin(bedroom_values))
 
-	bathroom_values = _get_int_list_param("bathrooms")
-	if bathroom_values:
-		conditions.append(property_dt.bathrooms.isin(bathroom_values))
+		min_bedrooms = _get_int_param("min_bedrooms")
+		if min_bedrooms is not None:
+			conditions.append(property_dt.bedrooms >= min_bedrooms)
+		max_bedrooms = _get_int_param("max_bedrooms")
+		if max_bedrooms is not None:
+			conditions.append(property_dt.bedrooms <= max_bedrooms)
 
-	min_bathrooms = _get_int_param("min_bathrooms")
-	if min_bathrooms is not None:
-		conditions.append(property_dt.bathrooms >= min_bathrooms)
-	max_bathrooms = _get_int_param("max_bathrooms")
-	if max_bathrooms is not None:
-		conditions.append(property_dt.bathrooms <= max_bathrooms)
+		bathroom_values = _get_int_list_param("bathrooms")
+		if bathroom_values:
+			conditions.append(property_dt.bathrooms.isin(bathroom_values))
 
-	min_area = _get_float_param("min_area") or _get_float_param("min_area_sqft")
-	if min_area is not None:
-		conditions.append(property_dt.area_sqft >= min_area)
-	max_area = _get_float_param("max_area") or _get_float_param("max_area_sqft")
-	if max_area is not None:
-		conditions.append(property_dt.area_sqft <= max_area)
+		min_bathrooms = _get_int_param("min_bathrooms")
+		if min_bathrooms is not None:
+			conditions.append(property_dt.bathrooms >= min_bathrooms)
+		max_bathrooms = _get_int_param("max_bathrooms")
+		if max_bathrooms is not None:
+			conditions.append(property_dt.bathrooms <= max_bathrooms)
 
-	area_ids = _get_list_param("area_id") or _get_list_param("area_ids")
-	if area_ids:
-		conditions.append(property_dt.area.isin(area_ids))
+		min_area = _get_float_param("min_area") or _get_float_param("min_area_sqft")
+		if min_area is not None:
+			conditions.append(property_dt.area_sqft >= min_area)
+		max_area = _get_float_param("max_area") or _get_float_param("max_area_sqft")
+		if max_area is not None:
+			conditions.append(property_dt.area_sqft <= max_area)
 
-	developer_ids = _get_list_param("developer_id") or _get_list_param("developer")
-	if developer_ids:
-		conditions.append(property_dt.developer.isin(developer_ids))
+		area_ids = _get_list_param("area_id") or _get_list_param("area_ids")
+		if area_ids:
+			conditions.append(property_dt.area.isin(area_ids))
 
-	agent = (frappe.form_dict.get("agent") or "").strip()
-	if agent:
-		conditions.append(property_dt.agent == agent)
+		developer_ids = _get_list_param("developer_id") or _get_list_param("developer")
+		if developer_ids:
+			conditions.append(property_dt.developer.isin(developer_ids))
 
-	furnishing_values = _get_list_param("furnishing") or _get_list_param("furnishings")
-	if furnishing_values:
-		conditions.append(property_dt.furnishing_status.isin(furnishing_values))
+		agent = (frappe.form_dict.get("agent") or "").strip()
+		if agent:
+			conditions.append(property_dt.agent == agent)
 
-	amenities = _get_list_param("amenities")
-	if amenities:
-		property_ids_with_amenities = _get_property_ids_with_all_amenities(amenities)
-		if not property_ids_with_amenities:
-			return {
-				"items": [],
-				"page": page,
-				"page_size": page_size,
-				"total_items": 0,
-				"total_pages": 0,
-			}
-		conditions.append(property_dt.name.isin(list(property_ids_with_amenities)))
+		furnishing_values = _get_list_param("furnishing") or _get_list_param("furnishings")
+		if furnishing_values:
+			conditions.append(property_dt.furnishing_status.isin(furnishing_values))
 
-	location = (frappe.form_dict.get("location") or "").strip()
-	if location:
-		location_like = f"%{location}%"
-		location_condition = (
-			property_dt.city.like(location_like)
-			| property_dt.state.like(location_like)
-			| property_dt.country.like(location_like)
-			| property_dt.address_line1.like(location_like)
-			| property_dt.address_line2.like(location_like)
-			| property_dt.title.like(location_like)
-			| property_dt.description.like(location_like)
+		amenities = _get_list_param("amenities")
+		if amenities:
+			property_ids_with_amenities = _get_property_ids_with_all_amenities(amenities)
+			if not property_ids_with_amenities:
+				return {
+					"items": [],
+					"page": page,
+					"page_size": page_size,
+					"total_items": 0,
+					"total_pages": 0,
+				}
+			conditions.append(property_dt.name.isin(list(property_ids_with_amenities)))
+
+		if (is_featured := frappe.form_dict.get("is_featured")) is not None:
+			conditions.append(property_dt.is_featured == int(_coerce_bool(is_featured)))
+
+		location = (frappe.form_dict.get("location") or "").strip()
+		if location:
+			location_like = f"%{location}%"
+			location_condition = (
+				property_dt.city.like(location_like)
+				| property_dt.state.like(location_like)
+				| property_dt.country.like(location_like)
+				| property_dt.address_line1.like(location_like)
+				| property_dt.address_line2.like(location_like)
+				| property_dt.title.like(location_like)
+				| property_dt.description.like(location_like)
+			)
+
+			area_matches = frappe.get_all(
+				"Area",
+				filters=[["area_name", "like", location_like]],
+				pluck="name",
+			)
+			if area_matches:
+				location_condition = location_condition | property_dt.area.isin(area_matches)
+			conditions.append(location_condition)
+
+		restrict, agent_id = _resolve_agent_scope()
+		if restrict:
+			if not agent_id:
+				frappe.throw(_("Agent profile not found."), frappe.PermissionError)
+			conditions.append(property_dt.agent == agent_id)
+
+		summary_query = (
+			frappe.qb.from_(property_dt)
+			.left_join(area_dt)
+			.on(property_dt.area == area_dt.name)
+			.left_join(developer_dt)
+			.on(property_dt.developer == developer_dt.name)
+			.select(
+				property_dt.name.as_("name"),
+				property_dt.title,
+				property_dt.listing_type,
+				property_dt.property_type,
+				property_dt.property_category,
+				property_dt.price,
+				property_dt.currency,
+				property_dt.bedrooms,
+				property_dt.bathrooms,
+				property_dt.area_sqft,
+				property_dt.city,
+				property_dt.area,
+				property_dt.developer,
+				property_dt.furnishing_status,
+				property_dt.state,
+				property_dt.country,
+				property_dt.primary_image,
+				property_dt.status,
+				property_dt.is_featured,
+				area_dt.area_name.as_("area_name"),
+				developer_dt.developer_name.as_("developer_name"),
+			)
 		)
 
-		area_matches = frappe.get_all(
-			"Area",
-			filters=[["area_name", "like", location_like]],
-			pluck="name",
+		for condition in conditions:
+			summary_query = summary_query.where(condition)
+
+		summary_query = (
+			summary_query.orderby(property_dt.modified, order=Order.desc)
+			.offset(offset)
+			.limit(page_size)
 		)
-		if area_matches:
-			location_condition = location_condition | property_dt.area.isin(area_matches)
-		conditions.append(location_condition)
 
-	restrict, agent_id = _resolve_agent_scope()
-	if restrict:
-		if not agent_id:
-			frappe.throw(_("Agent profile not found."), frappe.PermissionError)
-		conditions.append(property_dt.agent == agent_id)
+		rows = summary_query.run(as_dict=True)
 
-	summary_query = (
-		frappe.qb.from_(property_dt)
-		.left_join(area_dt)
-		.on(property_dt.area == area_dt.name)
-		.left_join(developer_dt)
-		.on(property_dt.developer == developer_dt.name)
-		.select(
-			property_dt.name.as_("name"),
-			property_dt.title,
-			property_dt.listing_type,
-			property_dt.property_type,
-			property_dt.price,
-			property_dt.currency,
-			property_dt.bedrooms,
-			property_dt.bathrooms,
-			property_dt.area_sqft,
-			property_dt.city,
-			property_dt.area,
-			property_dt.developer,
-			property_dt.furnishing_status,
-			property_dt.state,
-			property_dt.country,
-			property_dt.primary_image,
-			property_dt.status,
-			area_dt.area_name.as_("area_name"),
-			developer_dt.developer_name.as_("developer_name"),
-		)
-	)
+		count_query = frappe.qb.from_(property_dt).select(fn.Count(property_dt.name))
+		for condition in conditions:
+			count_query = count_query.where(condition)
 
-	for condition in conditions:
-		summary_query = summary_query.where(condition)
+		total_items = count_query.run()[0][0]
+		total_pages = math.ceil(total_items / page_size) if page_size else 0
 
-	summary_query = (
-		summary_query.orderby(property_dt.modified, order=Order.desc)
-		.offset(offset)
-		.limit(page_size)
-	)
-
-	rows = summary_query.run(as_dict=True)
-
-	count_query = frappe.qb.from_(property_dt).select(fn.Count(property_dt.name))
-	for condition in conditions:
-		count_query = count_query.where(condition)
-
-	total_items = count_query.run()[0][0]
-	total_pages = math.ceil(total_items / page_size) if page_size else 0
-
-	return {
-		"items": [serialize_property_summary(row) for row in rows],
-		"page": page,
-		"page_size": page_size,
-		"total_items": total_items,
-		"total_pages": total_pages,
-	}
-
-
+		return {
+			"items": [serialize_property_summary(row) for row in rows],
+			"page": page,
+			"page_size": page_size,
+			"total_items": total_items,
+			"total_pages": total_pages,
+		}
 @frappe.whitelist(allow_guest=True)
 def get_property(property_id: str) -> dict[str, Any]:
 	with utils.maybe_authenticate_jwt() as user:
@@ -231,6 +240,7 @@ def create_property() -> dict[str, Any]:
 			"title": data["title"],
 			"listing_type": data["listing_type"],
 			"property_type": data["property_type"],
+			"property_category": data.get("property_category"),
 			"price": data["price"],
 			"currency": data["currency"],
 			"bedrooms": data.get("bedrooms"),
@@ -250,7 +260,7 @@ def create_property() -> dict[str, Any]:
 			"description": data.get("description"),
 			"agent": agent_name,
 			"primary_image": data.get("primary_image"),
-			"is_featured": data.get("is_featured") or 0,
+			"is_featured": int(_coerce_bool(data.get("is_featured"))) if "is_featured" in data else 0,
 		}
 	)
 
@@ -291,6 +301,7 @@ def update_property(property_id: str) -> dict[str, Any]:
 			"title": data.get("title") or doc.title,
 			"listing_type": data.get("listing_type") or doc.listing_type,
 			"property_type": data.get("property_type") or doc.property_type,
+			"property_category": data.get("property_category", doc.property_category),
 			"price": data.get("price", doc.price),
 			"currency": data.get("currency") or doc.currency,
 			"bedrooms": data.get("bedrooms", doc.bedrooms),
@@ -314,7 +325,11 @@ def update_property(property_id: str) -> dict[str, Any]:
 			"latitude": data.get("latitude", doc.latitude),
 			"longitude": data.get("longitude", doc.longitude),
 			"description": data.get("description", doc.description),
-			"is_featured": data.get("is_featured", doc.is_featured),
+			"is_featured": (
+				int(_coerce_bool(data.get("is_featured")))
+				if "is_featured" in data
+				else doc.is_featured
+			),
 			"status": data.get("status", doc.status),
 		}
 	)
@@ -389,6 +404,7 @@ def serialize_property_summary(row: dict[str, Any]) -> dict[str, Any]:
 		"title": row.get("title"),
 		"listing_type": row.get("listing_type"),
 		"property_type": row.get("property_type"),
+		"property_category": row.get("property_category"),
 		"price": row.get("price"),
 		"currency": row.get("currency"),
 		"bedrooms": row.get("bedrooms"),
@@ -397,6 +413,7 @@ def serialize_property_summary(row: dict[str, Any]) -> dict[str, Any]:
 		"city": row.get("city"),
 		"area": row.get("area"),
 		"area_name": area_name,
+		"is_featured": bool(row.get("is_featured")),
 		"developer": developer_id,
 		"developer_name": developer_name,
 		"location": location,
@@ -422,6 +439,7 @@ def serialize_property_detail(doc) -> dict[str, Any]:
 		"title": doc.title,
 		"listing_type": doc.listing_type,
 		"property_type": doc.property_type,
+		"property_category": doc.property_category,
 		"status": doc.status,
 		"price": doc.price,
 		"currency": doc.currency,
@@ -443,6 +461,7 @@ def serialize_property_detail(doc) -> dict[str, Any]:
 		"developer": developer,
 		"furnishing_status": doc.furnishing_status,
 		"primary_image_url": doc.primary_image,
+		"is_featured": bool(doc.is_featured),
 		"amenities": [row.amenity_name for row in doc.amenities],
 		"gallery": [
 			{"image": row.image, "caption": row.caption, "sort_order": row.sort_order}
@@ -480,6 +499,18 @@ def _build_location_label(
 		if text and text not in components:
 			components.append(text)
 	return ", ".join(components) if components else None
+
+
+def _coerce_bool(value: Any) -> bool:
+	if isinstance(value, bool):
+		return value
+	if value is None:
+		return False
+	if isinstance(value, (int, float)):
+		return bool(value)
+	if isinstance(value, str):
+		return value.strip().lower() in {"1", "true", "yes", "y", "on"}
+	return False
 
 
 def _get_developer_profile(developer_id: str | None) -> dict[str, Any] | None:
