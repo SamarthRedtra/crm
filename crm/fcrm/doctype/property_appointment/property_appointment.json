@@ -15,7 +15,8 @@
   "end_datetime",
   "status",
   "source",
-  "notes"
+  "notes",
+  "calendar_event"
  ],
  "fields": [
   {
@@ -80,6 +81,13 @@
    "fieldname": "notes",
    "fieldtype": "Small Text",
    "label": "Notes"
+  },
+  {
+   "fieldname": "calendar_event",
+   "fieldtype": "Link",
+   "label": "Calendar Event",
+   "options": "Event",
+   "read_only": 1
   }
  ],
  "index_web_pages_for_search": 1,

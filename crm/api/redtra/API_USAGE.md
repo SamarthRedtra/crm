@@ -45,14 +45,39 @@ Any other endpoint requires a valid bearer token. System Manager permissions are
 - `Content-Type: application/json`
 - `Authorization: Bearer <token>` (omit for guest endpoints)
 
+## Authentication & Session
+
+| Endpoint | Method | Auth | Notes |
+| --- | --- | --- | --- |
+| `/auth/register` | `POST` | None | Creates a new customer account. |
+| `/auth/register` | `POST` | None | Include `is_agent=true` (and optional `agent_id`) to bind the signup to an Agent record. |
+| `/auth/login` | `POST` | None | Exchanges credentials for a JWT token. |
+| `/auth/forgot-password` | `POST` | Bearer | Logged-in users can rotate their password. |
+| `/auth/logout` | `POST` | Bearer | Revokes the current JWT (blacklisted server-side). |
+
+## User Profile
+
+| Endpoint | Method | Auth | Notes |
+| --- | --- | --- | --- |
+| `/user/profile` | `GET` | Bearer | Returns customer details or the enriched agent dashboard payload. |
+| `/user/profile` | `PUT` | Bearer | Updates contact info; agents can also update `about_me`, `profile_image`, DFD ID, and scheduling preferences. |
+
+## Areas
+
+| Endpoint | Method | Auth | Notes |
+| --- | --- | --- | --- |
+| `/areas` | `GET` | Optional | Paginated list of areas (filter by city). |
+| `/areas/{area_id}` | `GET` | Optional | Returns the Area DocType record. |
+| `/areas/{area_id}/properties` | `GET` | Agent / System Manager | Lists active properties in the area, respecting agent scoping rules. |
+
 ## Properties
 
 | Endpoint | Method | Auth | Notes |
 | --- | --- | --- | --- |
-| `/properties` | `GET` | Optional | Supports comprehensive filtering via query params: `listing_type`, `property_types`, price/bedroom/bathroom ranges, `amenities`, `location`, `area_id`, and `developer_id`. |
+| `/properties` | `GET` | Optional | Supports comprehensive filtering via query params (see below). |
 | `/properties/{property_id}` | `GET` | Optional | Returns full property detail. Guests only see active properties; authenticated users can view their own inactive drafts. Includes nested `developer` object when available. |
 | `/properties` | `POST` | Agent / System Manager | Creates a property. Payload must include `title`, `listing_type`, `property_type`, `price`, `currency`. Optional `developer_id` links the property to a developer. Agent scope is enforced. |
-| `/properties/{property_id}` | `PUT` | Agent / System Manager | Updates mutable fields. Pass `developer_id` to change developer association. |
+| `/properties/{property_id}` | `PUT` | Agent / System Manager | Updates mutable fields. Pass `developer_id` / `property_category` to change associations. |
 | `/properties/{property_id}` | `DELETE` | Agent / System Manager | Soft deletes (sets status to `Inactive`). |
 | `/properties/{property_id}/whatsapp-link` | `GET` | Agent / System Manager | Returns a WhatsApp deep link for the assigned agent. |
 
@@ -63,6 +88,7 @@ Any other endpoint requires a valid bearer token. System Manager permissions are
   "title": "2 BHK Apartment in Al Jaddaf",
   "listing_type": "Sale",
   "property_type": "Apartment",
+  "property_category": "Residential",
   "price": 350000,
   "currency": "AED",
   "bedrooms": 2,
@@ -74,11 +100,21 @@ Any other endpoint requires a valid bearer token. System Manager permissions are
   "address_line1": "Creek Harbour",
   "city": "Dubai",
   "country": "United Arab Emirates",
-  "amenities": ["Pool", "Gym"]
+  "amenities": ["Pool", "Gym"],
+  "is_featured": true
 }
 ```
 
 The backend validates that the supplied `developer_id` exists and is `Active` before accepting the property.
+
+### Key Property Filters
+
+- `listing_type`, `property_types`, `property_category`
+- Price, bedroom, bathroom, and area ranges (`min_*`, `max_*`)
+- `amenities` (requires all specified values)
+- `developer_id`, `area_id`, `agent`
+- `is_featured` flag for curated listings
+- Free-text `location` search covering area, city, state, country, address, and title
 
 ## Developers
 
@@ -86,9 +122,13 @@ The new `Developer` DocType powers dedicated developer endpoints.
 
 | Endpoint | Method | Auth | Notes |
 | --- | --- | --- | --- |
-| `/developers` | `GET` | Optional | Paginates developers. Supports `status`, `city`, and `search` filters. |
-| `/developers/{developer_id}` | `GET` | Optional | Returns full company profile. Guests can access only active developers; authenticated System Managers can see inactive entries. |
+| `/developers` | `GET` | Optional | Paginates developers. Supports `status`, `city`, `search`, `include_property_stats`, `has_properties`, and `property_ids` filters. |
+| `/developers/{developer_id}` | `GET` | Optional | Returns full company profile plus active property counts. Guests can access only active developers; authenticated System Managers can see inactive entries. |
+| `/developers/{developer_id}/properties` | `GET` | Optional | Lists the active properties linked to a developer with pagination. |
 | `/developers` | `POST` | System Manager | Creates a developer record. Requires at least `developer_name`. Optional metadata (contact info, address, logo) is accepted. |
+
+- When `include_property_stats=true`, each developer summary contains `property_count` for active listings that match the current filters.
+- Combine `property_ids` with the property import batch to quickly surface the developers represented on the home page.
 
 ### Sample Create Payload
 
@@ -107,24 +147,61 @@ The new `Developer` DocType powers dedicated developer endpoints.
 }
 ```
 
-## Areas
+## Registration & Profile
+
+- `POST /auth/register` now accepts an optional `agent_id` so invitation-driven signups can bind to pre-created Agent records.
+- `GET /user/profile` returns richer agent analytics:
+  - `agent_profile` (status, about me, profile image, max daily appointments)
+  - `appointments_today` (scheduled slots for the current day)
+  - `properties` (recent active listings for the agent)
+  - `lead_stats` (totals, today’s leads, last-month comparison, trend ratio)
+- `PUT /user/profile` accepts `about_me`, `profile_image`, and `max_daily_appointments` alongside the existing contact fields; agent and user records stay in sync.
+
+### Agent Registration Example
+
+```json
+{
+  "full_name": "Fatima Ali",
+  "email": "fatima.agent@example.com",
+  "password": "StrongPassword123!",
+  "is_agent": true,
+  "agent_id": "AGENT-0005",
+  "phone": "+971500000010",
+  "whatsapp_number": "+971500000011",
+  "bio": "Specialist in luxury villas across Dubai."
+}
+```
+
+If `agent_id` is omitted, the API creates a fresh Agent record for the new user. When it is supplied, the backend looks for an Agent whose `dfd_registration_id` matches that value (and links it to the signing-up user). The legacy Agent name is no longer required for this mapping.
+
+## Favorites
 
 | Endpoint | Method | Auth | Notes |
 | --- | --- | --- | --- |
-| `/areas` | `GET` | Optional | Paginates areas. Filter with `city`. |
-| `/areas/{area_id}` | `GET` | Optional | Returns area detail. |
-| `/areas/{area_id}/properties` | `GET` | Agent / System Manager | Returns active properties within the area, constrained by agent scope when applicable. |
+| `/favorites` | `GET` | Bearer | Lists the authenticated user’s saved properties. |
+| `/favorites` | `POST` | Bearer | Adds a property to the favorites list (`property_id` required). |
+| `/favorites/{property_id}` | `DELETE` | Bearer | Removes a property from favorites. |
 
-## Favorites & Appointments
+## Appointments
 
-These remain unchanged but require authentication:
+| Endpoint | Method | Auth | Notes |
+| --- | --- | --- | --- |
+| `/appointments` | `GET` | Bearer | Paginated list of appointments scoped to the current user. |
+| `/appointments` | `POST` | Bearer | Creates an appointment for a property. |
+| `/appointments/{appointment_id}` | `GET` | Bearer | Retrieves appointment details. |
+| `/appointments/{appointment_id}` | `PUT` | Bearer | Updates timing or notes for an appointment. |
+| `/appointments/{appointment_id}` | `DELETE` | Bearer | Cancels an appointment. |
 
-- `/favorites` (`GET`, `POST`)
-- `/favorites/{property_id}` (`DELETE`)
-- `/appointments` (`GET`, `POST`)
-- `/appointments/{appointment_id}` (`GET`, `PUT`, `DELETE`)
+Every confirmed booking automatically creates/maintains a linked `Event` (`calendar_event`) on the property, so schedule changes and cancellations stay visible in the CRM calendar.
 
-Refer to the OpenAPI document or Postman examples for payloads and expected responses.
+## Notifications
+
+| Endpoint | Method | Auth | Notes |
+| --- | --- | --- | --- |
+| `/notifications` | `GET` | Bearer | Paginated notifications; use `unread_only=true` to focus on pending items. |
+| `/notifications/mark-read` | `POST` | Bearer | Marks specific (or all) notifications as read. |
+
+Refer to the OpenAPI document or Postman examples for payload structures and expected responses.
 
 ## Error Handling
 

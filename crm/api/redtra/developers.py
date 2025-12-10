@@ -6,7 +6,7 @@ import frappe
 from frappe import _
 from frappe.utils import cint
 
-from . import utils
+from . import properties, utils
 
 SUMMARY_FIELDS = [
 	"name",
@@ -22,31 +22,75 @@ SUMMARY_FIELDS = [
 
 @frappe.whitelist(allow_guest=True)
 def list_developers() -> dict[str, Any]:
-	page = cint(frappe.form_dict.get("page") or 1)
-	page_size = cint(frappe.form_dict.get("page_size") or 20)
-	status = (frappe.form_dict.get("status") or "").strip()
-	city = (frappe.form_dict.get("city") or "").strip()
-	search = (frappe.form_dict.get("search") or "").strip()
+	with utils.maybe_authenticate_jwt():
+		page = cint(frappe.form_dict.get("page") or 1)
+		page_size = cint(frappe.form_dict.get("page_size") or 20)
+		status = (frappe.form_dict.get("status") or "").strip()
+		city = (frappe.form_dict.get("city") or "").strip()
+		search = (frappe.form_dict.get("search") or "").strip()
+		include_stats = _coerce_bool(frappe.form_dict.get("include_property_stats"))
+		property_ids = properties._get_list_param("property_ids")
+		requires_property_filter = bool(property_ids)
+		has_properties_only = _coerce_bool(frappe.form_dict.get("has_properties"))
 
-	filters: list[list[Any]] = []
-	if status:
-		filters.append(["Developer", "status", "=", status])
-	if city:
-		filters.append(["Developer", "city", "=", city])
-	if search:
-		filters.append(["Developer", "developer_name", "like", f"%{search}%"])
+		filters: list[list[Any]] = []
+		if status:
+			filters.append(["Developer", "status", "=", status])
+		if city:
+			filters.append(["Developer", "city", "=", city])
+		if search:
+			filters.append(["Developer", "developer_name", "like", f"%{search}%"])
 
-	result = utils.get_paginated_list(
-		"Developer",
-		filters=filters,
-		fields=SUMMARY_FIELDS,
-		page=page,
-		page_size=page_size,
-		order_by="developer_name asc",
-	)
+		property_counts: dict[str, int] = {}
+		restrict, agent_id = properties.resolve_agent_scope()
 
-	result["items"] = [_serialize_developer_summary(row) for row in result["items"]]
-	return result
+		if restrict or requires_property_filter or has_properties_only or include_stats:
+			property_filters: dict[str, Any] = {"status": "Active"}
+			if property_ids:
+				property_filters["name"] = ["in", property_ids]
+			if restrict and agent_id:
+				property_filters["agent"] = agent_id
+
+			for entry in frappe.db.get_all(
+				"Property",
+				filters=property_filters,
+				fields=["developer", "count(name) as property_count"],
+				group_by="developer",
+			):
+				developer_name = entry.get("developer")
+				if not developer_name:
+					continue
+				property_counts[developer_name] = int(entry.get("property_count") or 0)
+
+			if has_properties_only or requires_property_filter or restrict:
+				if not property_counts:
+					return {
+						"items": [],
+						"page": page,
+						"page_size": page_size,
+						"total_items": 0,
+						"total_pages": 0,
+					}
+				filters.append(["Developer", "name", "in", list(property_counts.keys())])
+
+		result = utils.get_paginated_list(
+			"Developer",
+			filters=filters,
+			fields=SUMMARY_FIELDS,
+			page=page,
+			page_size=page_size,
+			order_by="developer_name asc",
+		)
+
+		items: list[dict[str, Any]] = []
+		for row in result["items"]:
+			summary = _serialize_developer_summary(row)
+			if include_stats or row.get("name") in property_counts:
+				summary["property_count"] = property_counts.get(row.get("name"), 0)
+			items.append(summary)
+
+		result["items"] = items
+		return result
 
 
 @frappe.whitelist(allow_guest=True)
@@ -60,7 +104,16 @@ def get_developer(developer_id: str) -> dict[str, Any]:
 			if "System Manager" not in frappe.get_roles(user):
 				frappe.throw(_("Developer is not active."), frappe.PermissionError)
 
-		return _serialize_developer_detail(doc)
+		restrict, agent_id = properties.resolve_agent_scope()
+		property_filters: dict[str, Any] = {"status": "Active", "developer": doc.name}
+		if restrict and agent_id:
+			property_filters["agent"] = agent_id
+
+		property_count = frappe.db.count("Property", property_filters)
+
+		data = _serialize_developer_detail(doc)
+		data["property_count"] = property_count
+		return data
 
 
 @frappe.whitelist()
@@ -94,6 +147,35 @@ def create_developer() -> dict[str, Any]:
 
 	frappe.response.http_status_code = 201
 	return _serialize_developer_detail(doc)
+
+
+@frappe.whitelist(allow_guest=True)
+def list_developer_properties(developer_id: str) -> dict[str, Any]:
+	with utils.maybe_authenticate_jwt():
+		page = cint(frappe.form_dict.get("page") or 1)
+		page_size = cint(frappe.form_dict.get("page_size") or 20)
+
+		filters: list[list[Any]] = [
+			["Property", "status", "=", "Active"],
+			["Property", "developer", "=", developer_id],
+		]
+
+		restrict, agent_id = properties.resolve_agent_scope()
+		if restrict:
+			if not agent_id:
+				frappe.throw(_("Agent profile not found."), frappe.PermissionError)
+			filters.append(["Property", "agent", "=", agent_id])
+
+		result = utils.get_paginated_list(
+			"Property",
+			filters=filters,
+			fields=properties.SUMMARY_FIELDS,
+			page=page,
+			page_size=page_size,
+			order_by="modified desc",
+		)
+		result["items"] = [properties.serialize_property_summary(row) for row in result["items"]]
+		return result
 
 
 def _serialize_developer_summary(row: dict[str, Any]) -> dict[str, Any]:
@@ -137,3 +219,15 @@ def _build_location(city: str | None, state: str | None, country: str | None) ->
 		if text and text not in components:
 			components.append(text)
 	return ", ".join(components) if components else None
+
+
+def _coerce_bool(value: Any) -> bool:
+	if isinstance(value, bool):
+		return value
+	if value is None:
+		return False
+	if isinstance(value, (int, float)):
+		return bool(value)
+	if isinstance(value, str):
+		return value.strip().lower() in {"1", "true", "yes", "y", "on"}
+	return False

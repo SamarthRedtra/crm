@@ -224,5 +224,7 @@ def get_customer_by_user(user: str):
 
 def ensure_agent_role(user: str):
 	if "Agent" not in frappe.get_roles(user):
-		frappe.get_doc("User", user).add_roles("Agent")
+		doc = frappe.get_doc("User", user)
+		doc.flags.ignore_permissions = True
+		doc.add_roles("Agent")
 

@@ -1,11 +1,11 @@
 {
   "info": {
     "name": "Redtra Property Booking API",
-    "description": "Postman collection for the Redtra backend APIs with updated property filters and authentication flows.",
+    "description": "Comprehensive Postman collection mirroring all Redtra routes.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
     "version": {
       "major": 1,
-      "minor": 1,
+      "minor": 2,
       "patch": 0
     }
   },
@@ -39,6 +39,16 @@
       "key": "developer_id",
       "value": "DEV-00001",
       "type": "string"
+    },
+    {
+      "key": "area_id",
+      "value": "AREA-0001",
+      "type": "string"
+    },
+    {
+      "key": "appointment_id",
+      "value": "APPT-2025-00001",
+      "type": "string"
     }
   ],
   "item": [
@@ -47,9 +57,6 @@
       "item": [
         {
           "name": "Register",
-          "auth": {
-            "type": "noauth"
-          },
           "request": {
             "method": "POST",
             "header": [
@@ -58,6 +65,20 @@
                 "value": "application/json"
               }
             ],
+            "url": {
+              "raw": "{{base_url}}/api/auth/register",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "auth",
+                "register"
+              ]
+            },
+            "auth": {
+              "type": "noauth"
+            },
             "body": {
               "mode": "raw",
               "raw": "{\n  \"full_name\": \"Anwar Khan\",\n  \"email\": \"anwar@example.com\",\n  \"password\": \"StrongPassword123!\",\n  \"phone\": \"+971500000000\",\n  \"is_agent\": false\n}",
@@ -66,26 +87,12 @@
                   "language": "json"
                 }
               }
-            },
-            "url": {
-              "raw": "{{base_url}}/api/auth/register",
-              "host": [
-                "{{base_url}}"
-              ],
-              "path": [
-                "api",
-                "auth",
-                "register"
-              ]
             }
           },
           "response": []
         },
         {
           "name": "Register Agent",
-          "auth": {
-            "type": "noauth"
-          },
           "request": {
             "method": "POST",
             "header": [
@@ -94,15 +101,6 @@
                 "value": "application/json"
               }
             ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"full_name\": \"Fatima Ali\",\n  \"email\": \"fatima.agent@example.com\",\n  \"password\": \"StrongPassword123!\",\n  \"phone\": \"+971500000010\",\n  \"is_agent\": true,\n  \"whatsapp_number\": \"+971500000011\",\n  \"bio\": \"Specialist in luxury villas across Dubai.\",\n  \"max_daily_appointments\": 6,\n  \"kyc_documents\": [\n    {\n      \"document_type\": \"License\",\n      \"document_file\": \"https://cdn.example.com/documents/fatima-license.pdf\"\n    }\n  ]\n}",
-              "options": {
-                "raw": {
-                  "language": "json"
-                }
-              }
-            },
             "url": {
               "raw": "{{base_url}}/api/auth/register",
               "host": [
@@ -113,15 +111,24 @@
                 "auth",
                 "register"
               ]
+            },
+            "auth": {
+              "type": "noauth"
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"full_name\": \"Fatima Ali\",\n  \"email\": \"fatima.agent@example.com\",\n  \"password\": \"StrongPassword123!\",\n  \"phone\": \"+971500000010\",\n  \"is_agent\": true,\n  \"agent_id\": \"DFD-12345\",\n  \"whatsapp_number\": \"+971500000011\",\n  \"bio\": \"Specialist in luxury villas across Dubai.\",\n  \"max_daily_appointments\": 6\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
             }
           },
           "response": []
         },
         {
           "name": "Login",
-          "auth": {
-            "type": "noauth"
-          },
           "request": {
             "method": "POST",
             "header": [
@@ -130,15 +137,6 @@
                 "value": "application/json"
               }
             ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"email\": \"anwar@example.com\",\n  \"password\": \"StrongPassword123!\"\n}",
-              "options": {
-                "raw": {
-                  "language": "json"
-                }
-              }
-            },
             "url": {
               "raw": "{{base_url}}/api/auth/login",
               "host": [
@@ -149,6 +147,18 @@
                 "auth",
                 "login"
               ]
+            },
+            "auth": {
+              "type": "noauth"
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"anwar@example.com\",\n  \"password\": \"StrongPassword123!\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
             }
           },
           "response": []
@@ -168,15 +178,6 @@
                 "type": "text"
               }
             ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"email\": \"anwar@example.com\",\n  \"password\": \"NewStrongPassword123!\",\n  \"new_password\": \"NewStrongPassword123!\"\n}",
-              "options": {
-                "raw": {
-                  "language": "json"
-                }
-              }
-            },
             "url": {
               "raw": "{{base_url}}/api/auth/forgot-password",
               "host": [
@@ -187,6 +188,15 @@
                 "auth",
                 "forgot-password"
               ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"anwar@example.com\",\n  \"password\": \"NewStrongPassword123!\",\n  \"new_password\": \"NewStrongPassword123!\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
             }
           },
           "response": []
@@ -196,10 +206,6 @@
           "request": {
             "method": "POST",
             "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              },
               {
                 "key": "Authorization",
                 "value": "Bearer {{token}}",
@@ -223,10 +229,10 @@
       ]
     },
     {
-      "name": "Properties",
+      "name": "User",
       "item": [
         {
-          "name": "List Properties",
+          "name": "Get Profile",
           "request": {
             "method": "GET",
             "header": [
@@ -236,6 +242,177 @@
                 "type": "text"
               }
             ],
+            "url": {
+              "raw": "{{base_url}}/api/user/profile",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "user",
+                "profile"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Update Profile",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/user/profile",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "user",
+                "profile"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"full_name\": \"Anwar Khan\",\n  \"phone\": \"+971500000000\",\n  \"whatsapp_number\": \"+971500000001\",\n  \"preferred_city\": \"Dubai\",\n  \"about_me\": \"15 years experience with waterfront properties.\",\n  \"profile_image\": \"https://cdn.example.com/agents/anwar.png\",\n  \"max_daily_appointments\": 12\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Areas",
+      "item": [
+        {
+          "name": "List Areas",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/areas",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "areas"
+              ],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "page_size",
+                  "value": "20"
+                },
+                {
+                  "key": "city",
+                  "value": "Dubai",
+                  "disabled": true
+                }
+              ]
+            },
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Area",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/areas/{{area_id}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "areas",
+                "{{area_id}}"
+              ]
+            },
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "List Area Properties",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/areas/{{area_id}}/properties",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "areas",
+                "{{area_id}}",
+                "properties"
+              ],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "page_size",
+                  "value": "20"
+                },
+                {
+                  "key": "min_price",
+                  "value": "100000",
+                  "disabled": true
+                },
+                {
+                  "key": "max_price",
+                  "value": "500000",
+                  "disabled": true
+                }
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Properties",
+      "item": [
+        {
+          "name": "List Properties",
+          "request": {
+            "method": "GET",
+            "header": [],
             "url": {
               "raw": "{{base_url}}/api/properties",
               "host": [
@@ -265,8 +442,8 @@
                   "disabled": true
                 },
                 {
-                  "key": "property_types",
-                  "value": "Villa",
+                  "key": "property_category",
+                  "value": "Residential",
                   "disabled": true
                 },
                 {
@@ -280,73 +457,8 @@
                   "disabled": true
                 },
                 {
-                  "key": "bedrooms",
-                  "value": "2",
-                  "disabled": true
-                },
-                {
-                  "key": "bedrooms",
-                  "value": "3",
-                  "disabled": true
-                },
-                {
-                  "key": "min_bedrooms",
-                  "value": "1",
-                  "disabled": true
-                },
-                {
-                  "key": "max_bedrooms",
-                  "value": "4",
-                  "disabled": true
-                },
-                {
-                  "key": "bathrooms",
-                  "value": "2",
-                  "disabled": true
-                },
-                {
-                  "key": "min_bathrooms",
-                  "value": "1",
-                  "disabled": true
-                },
-                {
-                  "key": "max_bathrooms",
-                  "value": "3",
-                  "disabled": true
-                },
-                {
-                  "key": "min_area",
-                  "value": "800",
-                  "disabled": true
-                },
-                {
-                  "key": "max_area",
-                  "value": "2000",
-                  "disabled": true
-                },
-                {
-                  "key": "furnishing",
-                  "value": "Furnished",
-                  "disabled": true
-                },
-                {
-                  "key": "amenities",
-                  "value": "Gym",
-                  "disabled": true
-                },
-                {
                   "key": "amenities",
                   "value": "Pool",
-                  "disabled": true
-                },
-                {
-                  "key": "location",
-                  "value": "Al Jaddaf, Dubai",
-                  "disabled": true
-                },
-                {
-                  "key": "area_id",
-                  "value": "AREA-0001",
                   "disabled": true
                 },
                 {
@@ -355,11 +467,14 @@
                   "disabled": true
                 },
                 {
-                  "key": "agent",
-                  "value": "AGENT-0001",
+                  "key": "is_featured",
+                  "value": "true",
                   "disabled": true
                 }
               ]
+            },
+            "auth": {
+              "type": "noauth"
             }
           },
           "response": []
@@ -379,6 +494,9 @@
                 "properties",
                 "{{property_id}}"
               ]
+            },
+            "auth": {
+              "type": "noauth"
             }
           },
           "response": []
@@ -398,15 +516,6 @@
                 "type": "text"
               }
             ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"title\": \"2 BHK Apartment in Al Jaddaf\",\n  \"listing_type\": \"Sale\",\n  \"property_type\": \"Apartment\",\n  \"price\": 350000.0,\n  \"currency\": \"AED\",\n  \"bedrooms\": 2,\n  \"bathrooms\": 2,\n  \"furnishing_status\": \"Furnished\",\n  \"area_sqft\": 1200,\n  \"area_id\": \"AREA-0001\",\n  \"developer_id\": \"{{developer_id}}\",\n  \"address_line1\": \"Creek Harbour\",\n  \"city\": \"Dubai\",\n  \"state\": \"Dubai\",\n  \"country\": \"United Arab Emirates\",\n  \"amenities\": [\n    \"Pool\",\n    \"Gym\"\n  ],\n  \"gallery\": [\n    {\n      \"image\": \"https://cdn.example.com/prop-1/1.jpg\",\n      \"caption\": \"Living Room\",\n      \"sort_order\": 1\n    }\n  ],\n  \"is_featured\": true\n}",
-              "options": {
-                "raw": {
-                  "language": "json"
-                }
-              }
-            },
             "url": {
               "raw": "{{base_url}}/api/properties",
               "host": [
@@ -416,6 +525,15 @@
                 "api",
                 "properties"
               ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"2 BHK Apartment in Al Jaddaf\",\n  \"listing_type\": \"Sale\",\n  \"property_type\": \"Apartment\",\n  \"property_category\": \"Residential\",\n  \"price\": 350000.0,\n  \"currency\": \"AED\",\n  \"bedrooms\": 2,\n  \"bathrooms\": 2,\n  \"furnishing_status\": \"Furnished\",\n  \"area_sqft\": 1200,\n  \"area_id\": \"{{area_id}}\",\n  \"developer_id\": \"{{developer_id}}\",\n  \"amenities\": [\n    \"Pool\",\n    \"Gym\"\n  ],\n  \"is_featured\": true\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
             }
           },
           "response": []
@@ -435,15 +553,6 @@
                 "type": "text"
               }
             ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"price\": 360000.0,\n  \"developer_id\": \"{{developer_id}}\",\n  \"furnishing_status\": \"Semi-Furnished\",\n  \"amenities\": [\n    \"Pool\",\n    \"Gym\",\n    \"Parking\"\n  ]\n}",
-              "options": {
-                "raw": {
-                  "language": "json"
-                }
-              }
-            },
             "url": {
               "raw": "{{base_url}}/api/properties/{{property_id}}",
               "host": [
@@ -454,6 +563,15 @@
                 "properties",
                 "{{property_id}}"
               ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"price\": 360000.0,\n  \"property_category\": \"Commercial\",\n  \"furnishing_status\": \"Semi-Furnished\",\n  \"amenities\": [\n    \"Pool\",\n    \"Gym\",\n    \"Parking\"\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
             }
           },
           "response": []
@@ -551,8 +669,26 @@
                   "key": "search",
                   "value": "Sunrise",
                   "disabled": true
+                },
+                {
+                  "key": "include_property_stats",
+                  "value": "true",
+                  "disabled": true
+                },
+                {
+                  "key": "has_properties",
+                  "value": "true",
+                  "disabled": true
+                },
+                {
+                  "key": "property_ids",
+                  "value": "{{property_id}}",
+                  "disabled": true
                 }
               ]
+            },
+            "auth": {
+              "type": "noauth"
             }
           },
           "response": []
@@ -572,6 +708,42 @@
                 "developers",
                 "{{developer_id}}"
               ]
+            },
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "List Developer Properties",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/developers/{{developer_id}}/properties",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "developers",
+                "{{developer_id}}",
+                "properties"
+              ],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "page_size",
+                  "value": "20"
+                }
+              ]
+            },
+            "auth": {
+              "type": "noauth"
             }
           },
           "response": []
@@ -591,15 +763,6 @@
                 "type": "text"
               }
             ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"developer_name\": \"Sunrise Builders\",\n  \"status\": \"Active\",\n  \"email\": \"info@sunrise.example.com\",\n  \"phone\": \"+971500000001\",\n  \"website\": \"https://sunrise.example.com\",\n  \"address_line1\": \"Downtown\",\n  \"city\": \"Dubai\",\n  \"country\": \"United Arab Emirates\",\n  \"logo\": \"https://cdn.example.com/developers/sunrise-logo.png\",\n  \"description\": \"Developer specializing in waterfront communities.\"\n}",
-              "options": {
-                "raw": {
-                  "language": "json"
-                }
-              }
-            },
             "url": {
               "raw": "{{base_url}}/api/developers",
               "host": [
@@ -609,6 +772,343 @@
                 "api",
                 "developers"
               ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"developer_name\": \"Sunrise Builders\",\n  \"status\": \"Active\",\n  \"email\": \"info@sunrise.example.com\",\n  \"phone\": \"+971500000001\",\n  \"website\": \"https://sunrise.example.com\",\n  \"address_line1\": \"Downtown\",\n  \"city\": \"Dubai\",\n  \"country\": \"United Arab Emirates\",\n  \"logo\": \"https://cdn.example.com/developers/sunrise-logo.png\",\n  \"description\": \"Developer specializing in waterfront communities.\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Favorites",
+      "item": [
+        {
+          "name": "List Favorites",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/favorites",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "favorites"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Add Favorite",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/favorites",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "favorites"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"property_id\": \"{{property_id}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Remove Favorite",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/favorites/{{property_id}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "favorites",
+                "{{property_id}}"
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Appointments",
+      "item": [
+        {
+          "name": "List Appointments",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/appointments",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "appointments"
+              ],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "page_size",
+                  "value": "20"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Create Appointment",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/appointments",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "appointments"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"property_id\": \"{{property_id}}\",\n  \"start_datetime\": \"2025-12-10T10:00:00Z\",\n  \"end_datetime\": \"2025-12-10T11:00:00Z\",\n  \"notes\": \"Customer prefers morning slot.\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Appointment",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/appointments/{{appointment_id}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "appointments",
+                "{{appointment_id}}"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Update Appointment",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/appointments/{{appointment_id}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "appointments",
+                "{{appointment_id}}"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"notes\": \"Rescheduled to noon.\",\n  \"start_datetime\": \"2025-12-10T12:00:00Z\",\n  \"end_datetime\": \"2025-12-10T13:00:00Z\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Cancel Appointment",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/appointments/{{appointment_id}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "appointments",
+                "{{appointment_id}}"
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Notifications",
+      "item": [
+        {
+          "name": "List Notifications",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/notifications",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "notifications"
+              ],
+              "query": [
+                {
+                  "key": "unread_only",
+                  "value": "true"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Mark Notifications Read",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/notifications/mark-read",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "notifications",
+                "mark-read"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"notification_ids\": [\n    \"CRM-NOTIF-0001\",\n    \"CRM-NOTIF-0002\"\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
             }
           },
           "response": []

@@ -4,7 +4,7 @@ from werkzeug.routing import Rule
 
 from frappe.api.v1 import url_rules
 
-from . import appointments, areas, auth, developers, favorites, properties
+from . import appointments, areas, auth, developers, favorites, notifications, properties
 
 
 def register_routes():
@@ -42,6 +42,17 @@ def register_routes():
 			"/developers/<string:developer_id>",
 			methods=["GET"],
 			endpoint=developers.get_developer,
+		),
+		Rule(
+			"/developers/<string:developer_id>/properties",
+			methods=["GET"],
+			endpoint=developers.list_developer_properties,
+		),
+		Rule("/notifications", methods=["GET"], endpoint=notifications.list_notifications),
+		Rule(
+			"/notifications/mark-read",
+			methods=["POST"],
+			endpoint=notifications.mark_notifications_read,
 		),
 		Rule("/favorites", methods=["GET"], endpoint=favorites.list_favorites),
 		Rule("/favorites", methods=["POST"], endpoint=favorites.add_favorite),
