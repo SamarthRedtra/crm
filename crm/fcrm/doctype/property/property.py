@@ -25,6 +25,7 @@ class Property(Document):
 		self._validate_price()
 		self._validate_coordinates()
 		self._validate_status_transition()
+		self._ensure_active_developer()
 		self._ensure_verified_agent()
 
 	def _set_property_code(self):
@@ -64,5 +65,17 @@ class Property(Document):
 		if agent_status != "Verified":
 			frappe.throw(
 				_("Agent {0} must be verified before the property can be saved.").format(self.agent)
+			)
+
+	def _ensure_active_developer(self):
+		if not self.developer:
+			return
+
+		status = frappe.db.get_value("Developer", self.developer, "status")
+		if not status:
+			frappe.throw(_("Developer {0} does not exist.").format(self.developer))
+		if status != "Active":
+			frappe.throw(
+				_("Developer {0} must be active before the property can be saved.").format(self.developer)
 			)
 

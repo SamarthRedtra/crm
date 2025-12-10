@@ -1,11 +1,15 @@
 from __future__ import annotations
 
+import json
+import math
 from typing import Any
 from urllib.parse import quote
 
 import frappe
 from frappe import _
+from frappe.query_builder import DocType, functions as fn
 from frappe.utils import cint
+from pypika import Order
 
 from . import utils
 
@@ -21,6 +25,10 @@ SUMMARY_FIELDS = [
 	"area_sqft",
 	"city",
 	"area",
+	"developer",
+	"furnishing_status",
+	"state",
+	"country",
 	"primary_image",
 	"status",
 ]
@@ -29,53 +37,183 @@ SUMMARY_FIELDS = [
 @frappe.whitelist()
 @utils.require_jwt()
 def list_properties() -> dict[str, Any]:
-	page = cint(frappe.form_dict.get("page") or 1)
+	page = max(1, cint(frappe.form_dict.get("page") or 1))
 	page_size = cint(frappe.form_dict.get("page_size") or 20)
-	listing_type = frappe.form_dict.get("listing_type")
-	min_price = frappe.form_dict.get("min_price")
-	max_price = frappe.form_dict.get("max_price")
-	bedrooms = frappe.form_dict.get("bedrooms")
-	area = frappe.form_dict.get("area")
-	city = frappe.form_dict.get("city")
-	agent = frappe.form_dict.get("agent")
+	page_size = max(1, min(page_size, 100))
+	offset = (page - 1) * page_size
 
-	filters: list[list[Any]] = [["Property", "status", "=", "Active"]]
+	property_dt = DocType("Property")
+	area_dt = DocType("Area")
+	developer_dt = DocType("Developer")
 
+	conditions = [property_dt.status == "Active"]
+
+	listing_type = (frappe.form_dict.get("listing_type") or "").strip()
 	if listing_type:
-		filters.append(["Property", "listing_type", "=", listing_type])
-	if min_price:
-		filters.append(["Property", "price", ">=", float(min_price)])
-	if max_price:
-		filters.append(["Property", "price", "<=", float(max_price)])
-	if bedrooms:
-		filters.append(["Property", "bedrooms", "=", cint(bedrooms)])
-	if area:
-		filters.append(["Property", "area", "=", area])
-	if city:
-		filters.append(["Property", "city", "=", city])
+		conditions.append(property_dt.listing_type == listing_type)
+
+	property_types = _get_list_param("property_types") or _get_list_param("property_type")
+	if property_types:
+		conditions.append(property_dt.property_type.isin(property_types))
+
+	min_price = _get_float_param("min_price")
+	if min_price is not None:
+		conditions.append(property_dt.price >= min_price)
+	max_price = _get_float_param("max_price")
+	if max_price is not None:
+		conditions.append(property_dt.price <= max_price)
+
+	bedroom_values = _get_int_list_param("bedrooms")
+	if bedroom_values:
+		conditions.append(property_dt.bedrooms.isin(bedroom_values))
+
+	min_bedrooms = _get_int_param("min_bedrooms")
+	if min_bedrooms is not None:
+		conditions.append(property_dt.bedrooms >= min_bedrooms)
+	max_bedrooms = _get_int_param("max_bedrooms")
+	if max_bedrooms is not None:
+		conditions.append(property_dt.bedrooms <= max_bedrooms)
+
+	bathroom_values = _get_int_list_param("bathrooms")
+	if bathroom_values:
+		conditions.append(property_dt.bathrooms.isin(bathroom_values))
+
+	min_bathrooms = _get_int_param("min_bathrooms")
+	if min_bathrooms is not None:
+		conditions.append(property_dt.bathrooms >= min_bathrooms)
+	max_bathrooms = _get_int_param("max_bathrooms")
+	if max_bathrooms is not None:
+		conditions.append(property_dt.bathrooms <= max_bathrooms)
+
+	min_area = _get_float_param("min_area") or _get_float_param("min_area_sqft")
+	if min_area is not None:
+		conditions.append(property_dt.area_sqft >= min_area)
+	max_area = _get_float_param("max_area") or _get_float_param("max_area_sqft")
+	if max_area is not None:
+		conditions.append(property_dt.area_sqft <= max_area)
+
+	area_ids = _get_list_param("area_id") or _get_list_param("area_ids")
+	if area_ids:
+		conditions.append(property_dt.area.isin(area_ids))
+
+	developer_ids = _get_list_param("developer_id") or _get_list_param("developer")
+	if developer_ids:
+		conditions.append(property_dt.developer.isin(developer_ids))
+
+	agent = (frappe.form_dict.get("agent") or "").strip()
 	if agent:
-		filters.append(["Property", "agent", "=", agent])
+		conditions.append(property_dt.agent == agent)
 
-	result = utils.get_paginated_list(
-		"Property",
-		filters=filters,
-		fields=SUMMARY_FIELDS,
-		page=page,
-		page_size=page_size,
-		order_by="modified desc",
+	furnishing_values = _get_list_param("furnishing") or _get_list_param("furnishings")
+	if furnishing_values:
+		conditions.append(property_dt.furnishing_status.isin(furnishing_values))
+
+	amenities = _get_list_param("amenities")
+	if amenities:
+		property_ids_with_amenities = _get_property_ids_with_all_amenities(amenities)
+		if not property_ids_with_amenities:
+			return {
+				"items": [],
+				"page": page,
+				"page_size": page_size,
+				"total_items": 0,
+				"total_pages": 0,
+			}
+		conditions.append(property_dt.name.isin(list(property_ids_with_amenities)))
+
+	location = (frappe.form_dict.get("location") or "").strip()
+	if location:
+		location_like = f"%{location}%"
+		location_condition = (
+			property_dt.city.like(location_like)
+			| property_dt.state.like(location_like)
+			| property_dt.country.like(location_like)
+			| property_dt.address_line1.like(location_like)
+			| property_dt.address_line2.like(location_like)
+			| property_dt.title.like(location_like)
+			| property_dt.description.like(location_like)
+		)
+
+		area_matches = frappe.get_all(
+			"Area",
+			filters=[["area_name", "like", location_like]],
+			pluck="name",
+		)
+		if area_matches:
+			location_condition = location_condition | property_dt.area.isin(area_matches)
+		conditions.append(location_condition)
+
+	restrict, agent_id = _resolve_agent_scope()
+	if restrict:
+		if not agent_id:
+			frappe.throw(_("Agent profile not found."), frappe.PermissionError)
+		conditions.append(property_dt.agent == agent_id)
+
+	summary_query = (
+		frappe.qb.from_(property_dt)
+		.left_join(area_dt)
+		.on(property_dt.area == area_dt.name)
+		.left_join(developer_dt)
+		.on(property_dt.developer == developer_dt.name)
+		.select(
+			property_dt.name.as_("name"),
+			property_dt.title,
+			property_dt.listing_type,
+			property_dt.property_type,
+			property_dt.price,
+			property_dt.currency,
+			property_dt.bedrooms,
+			property_dt.bathrooms,
+			property_dt.area_sqft,
+			property_dt.city,
+			property_dt.area,
+			property_dt.developer,
+			property_dt.furnishing_status,
+			property_dt.state,
+			property_dt.country,
+			property_dt.primary_image,
+			property_dt.status,
+			area_dt.area_name.as_("area_name"),
+			developer_dt.developer_name.as_("developer_name"),
+		)
 	)
-	result["items"] = [serialize_property_summary(row) for row in result["items"]]
-	return result
+
+	for condition in conditions:
+		summary_query = summary_query.where(condition)
+
+	summary_query = (
+		summary_query.orderby(property_dt.modified, order=Order.desc)
+		.offset(offset)
+		.limit(page_size)
+	)
+
+	rows = summary_query.run(as_dict=True)
+
+	count_query = frappe.qb.from_(property_dt).select(fn.Count(property_dt.name))
+	for condition in conditions:
+		count_query = count_query.where(condition)
+
+	total_items = count_query.run()[0][0]
+	total_pages = math.ceil(total_items / page_size) if page_size else 0
+
+	return {
+		"items": [serialize_property_summary(row) for row in rows],
+		"page": page,
+		"page_size": page_size,
+		"total_items": total_items,
+		"total_pages": total_pages,
+	}
 
 
-@frappe.whitelist()
-@utils.require_jwt()
+@frappe.whitelist(allow_guest=True)
 def get_property(property_id: str) -> dict[str, Any]:
-	doc = frappe.get_doc("Property", property_id)
-	doc.check_permission("read")
-	if doc.status != "Active":
-		frappe.throw(_("Property is not active."), frappe.PermissionError)
-	return serialize_property_detail(doc)
+	with utils.maybe_authenticate_jwt() as user:
+		doc = frappe.get_doc("Property", property_id)
+		if not user and doc.status != "Active":
+			frappe.throw(_("Property is not active."), frappe.PermissionError)
+
+		_enforce_agent_property_scope(doc)
+		return serialize_property_detail(doc)
 
 
 @frappe.whitelist()
@@ -97,8 +235,10 @@ def create_property() -> dict[str, Any]:
 			"currency": data["currency"],
 			"bedrooms": data.get("bedrooms"),
 			"bathrooms": data.get("bathrooms"),
+			"furnishing_status": data.get("furnishing_status") or data.get("furnishing"),
 			"area_sqft": data.get("area_sqft"),
 			"area": data.get("area_id"),
+			"developer": data.get("developer_id") or data.get("developer"),
 			"address_line1": data.get("address_line1"),
 			"address_line2": data.get("address_line2"),
 			"city": data.get("city"),
@@ -155,8 +295,16 @@ def update_property(property_id: str) -> dict[str, Any]:
 			"currency": data.get("currency") or doc.currency,
 			"bedrooms": data.get("bedrooms", doc.bedrooms),
 			"bathrooms": data.get("bathrooms", doc.bathrooms),
+			"furnishing_status": data.get(
+				"furnishing_status", data.get("furnishing", doc.furnishing_status)
+			),
 			"area_sqft": data.get("area_sqft", doc.area_sqft),
 			"area": data.get("area_id", doc.area),
+			"developer": (
+				data["developer_id"]
+				if "developer_id" in data
+				else data.get("developer", doc.developer)
+			),
 			"address_line1": data.get("address_line1", doc.address_line1),
 			"address_line2": data.get("address_line2", doc.address_line2),
 			"city": data.get("city", doc.city),
@@ -220,9 +368,21 @@ def get_whatsapp_link(property_id: str) -> dict[str, str]:
 
 
 def serialize_property_summary(row: dict[str, Any]) -> dict[str, Any]:
-	area_name = None
-	if row.get("area"):
+	area_name = row.get("area_name")
+	if area_name is None and row.get("area"):
 		area_name = frappe.db.get_value("Area", row["area"], "area_name")
+
+	developer_id = row.get("developer")
+	developer_name = row.get("developer_name")
+	if developer_name is None and developer_id:
+		developer_name = frappe.db.get_value("Developer", developer_id, "developer_name")
+
+	location = _build_location_label(
+		area_name,
+		row.get("city"),
+		row.get("state"),
+		row.get("country"),
+	)
 
 	return {
 		"id": row.get("name"),
@@ -237,13 +397,19 @@ def serialize_property_summary(row: dict[str, Any]) -> dict[str, Any]:
 		"city": row.get("city"),
 		"area": row.get("area"),
 		"area_name": area_name,
+		"developer": developer_id,
+		"developer_name": developer_name,
+		"location": location,
 		"primary_image_url": row.get("primary_image"),
+		"furnishing_status": row.get("furnishing_status"),
 	}
 
 
 def serialize_property_detail(doc) -> dict[str, Any]:
 	agent_doc = frappe.get_doc("Agent", doc.agent)
 	area_name = frappe.db.get_value("Area", doc.area, "area_name") if doc.area else None
+	location = _build_location_label(area_name, doc.city, doc.state, doc.country)
+	developer = _get_developer_profile(doc.developer)
 
 	link = None
 	if agent_doc.whatsapp_number or agent_doc.phone:
@@ -263,6 +429,7 @@ def serialize_property_detail(doc) -> dict[str, Any]:
 		"bathrooms": doc.bathrooms,
 		"area_sqft": doc.area_sqft,
 		"city": doc.city,
+		"location": location,
 		"state": doc.state,
 		"country": doc.country,
 		"pincode": doc.pincode,
@@ -271,6 +438,10 @@ def serialize_property_detail(doc) -> dict[str, Any]:
 		"description": doc.description,
 		"area": doc.area,
 		"area_name": area_name,
+		"developer_id": developer["id"] if developer else None,
+		"developer_name": developer["name"] if developer else None,
+		"developer": developer,
+		"furnishing_status": doc.furnishing_status,
 		"primary_image_url": doc.primary_image,
 		"amenities": [row.amenity_name for row in doc.amenities],
 		"gallery": [
@@ -294,5 +465,210 @@ def _validate_property_owner(doc):
 
 	agent_name = frappe.db.get_value("Agent", {"user": current_user}, "name")
 	if not agent_name or doc.agent != agent_name:
+		frappe.throw(_("You can only access properties you own."), frappe.PermissionError)
+
+
+def _build_location_label(
+	area_name: str | None,
+	city: str | None,
+	state: str | None,
+	country: str | None,
+) -> str | None:
+	components: list[str] = []
+	for value in (area_name, city, state, country):
+		text = _clean_str(value)
+		if text and text not in components:
+			components.append(text)
+	return ", ".join(components) if components else None
+
+
+def _get_developer_profile(developer_id: str | None) -> dict[str, Any] | None:
+	if not developer_id:
+		return None
+
+	data = frappe.db.get_value(
+		"Developer",
+		developer_id,
+		[
+			"name",
+			"developer_name",
+			"status",
+			"email",
+			"phone",
+			"website",
+			"logo",
+			"address_line1",
+			"address_line2",
+			"city",
+			"state",
+			"country",
+			"pincode",
+		],
+		as_dict=True,
+	)
+	if not data:
+		return None
+
+	location = _build_location_label(None, data.get("city"), data.get("state"), data.get("country"))
+	return {
+		"id": data.get("name"),
+		"name": data.get("developer_name"),
+		"status": data.get("status"),
+		"email": data.get("email"),
+		"phone": data.get("phone"),
+		"website": data.get("website"),
+		"logo": data.get("logo"),
+		"address_line1": data.get("address_line1"),
+		"address_line2": data.get("address_line2"),
+		"city": data.get("city"),
+		"state": data.get("state"),
+		"country": data.get("country"),
+		"pincode": data.get("pincode"),
+		"location": location,
+	}
+
+
+def _get_list_param(param: str) -> list[str]:
+	raw_values: list[Any] = []
+	if hasattr(frappe.form_dict, "getlist"):
+		raw_values = list(frappe.form_dict.getlist(param) or [])
+	if not raw_values:
+		value = frappe.form_dict.get(param)
+		if value is None:
+			return []
+		if isinstance(value, list):
+			raw_values = value
+		else:
+			text = str(value).strip()
+			if not text:
+				return []
+			try:
+				parsed = json.loads(text)
+			except (TypeError, ValueError):
+				raw_values = [item.strip() for item in text.split(",") if item.strip()]
+			else:
+				if isinstance(parsed, list):
+					raw_values = parsed
+				else:
+					raw_values = [parsed]
+
+	values: list[str] = []
+	for entry in raw_values:
+		if isinstance(entry, (list, tuple)):
+			for nested in entry:
+				text = _clean_str(nested)
+				if text:
+					values.append(text)
+		else:
+			text = _clean_str(entry)
+			if text:
+				values.append(text)
+	return values
+
+
+def _get_float_param(param: str) -> float | None:
+	value = frappe.form_dict.get(param)
+	if value in (None, "", []):
+		return None
+
+	candidates = value if isinstance(value, (list, tuple)) else [value]
+	for candidate in candidates:
+		if candidate in (None, ""):
+			continue
+		try:
+			return float(candidate)
+		except (TypeError, ValueError):
+			continue
+	return None
+
+
+def _get_int_param(param: str) -> int | None:
+	value = frappe.form_dict.get(param)
+	if value in (None, "", []):
+		return None
+
+	candidates = value if isinstance(value, (list, tuple)) else [value]
+	for candidate in candidates:
+		if candidate in (None, ""):
+			continue
+		try:
+			return cint(candidate)
+		except (TypeError, ValueError):
+			continue
+	return None
+
+
+def _get_int_list_param(param: str) -> list[int]:
+	values = []
+	for entry in _get_list_param(param):
+		try:
+			values.append(cint(entry))
+		except (TypeError, ValueError):
+			continue
+	return values
+
+
+def _get_property_ids_with_all_amenities(amenities: list[str]) -> set[str]:
+	names = {_clean_str(amenity) for amenity in amenities}
+	names.discard(None)
+	if not names:
+		return set()
+
+	property_ids: set[str] | None = None
+	for amenity in names:
+		matching = set(
+			frappe.get_all(
+				"Property Amenity",
+				filters={"amenity_name": amenity},
+				pluck="parent",
+			)
+		)
+		if property_ids is None:
+			property_ids = matching
+		else:
+			property_ids &= matching
+
+		if not property_ids:
+			return set()
+
+	return property_ids or set()
+
+
+def _clean_str(value: Any) -> str | None:
+	if value is None:
+		return None
+	text = str(value).strip()
+	return text or None
+
+
+def _resolve_agent_scope() -> tuple[bool, str | None]:
+	user = utils.get_current_user()
+	if user == "Administrator":
+		return False, None
+
+	user_roles = set(frappe.get_roles(user))
+	if "System Manager" in user_roles:
+		return False, None
+
+	if "Agent" in user_roles:
+		agent_id = frappe.db.get_value("Agent", {"user": user}, "name")
+		return True, agent_id
+
+	return False, None
+
+
+def resolve_agent_scope() -> tuple[bool, str | None]:
+	return _resolve_agent_scope()
+
+
+def _enforce_agent_property_scope(doc):
+	restrict, agent_id = _resolve_agent_scope()
+	if not restrict:
+		return
+
+	if not agent_id:
+		frappe.throw(_("Agent profile not found."), frappe.PermissionError)
+
+	if doc.agent != agent_id:
 		frappe.throw(_("You can only access properties you own."), frappe.PermissionError)
 
