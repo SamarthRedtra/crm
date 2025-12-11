@@ -214,6 +214,7 @@ def list_properties() -> dict[str, Any]:
 			"total_items": total_items,
 			"total_pages": total_pages,
 		}
+	
 @frappe.whitelist(allow_guest=True)
 def get_property(property_id: str) -> dict[str, Any]:
 	with utils.maybe_authenticate_jwt() as user:
@@ -561,8 +562,9 @@ def _get_developer_profile(developer_id: str | None) -> dict[str, Any] | None:
 
 def _get_list_param(param: str) -> list[str]:
 	raw_values: list[Any] = []
-	if hasattr(frappe.form_dict, "getlist"):
-		raw_values = list(frappe.form_dict.getlist(param) or [])
+	getlist = getattr(frappe.form_dict, "getlist", None)
+	if callable(getlist):
+		raw_values = list(getlist(param) or [])
 	if not raw_values:
 		value = frappe.form_dict.get(param)
 		if value is None:

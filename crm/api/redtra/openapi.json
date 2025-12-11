@@ -34,6 +34,15 @@
     },
     {
       "name": "Notifications"
+    },
+    {
+      "name": "Agents"
+    },
+    {
+      "name": "Home"
+    },
+    {
+      "name": "Media"
     }
   ],
   "components": {
@@ -1207,6 +1216,149 @@
           "whatsapp_chat_link": {
             "type": "string",
             "format": "uri"
+          }
+        }
+      },
+      "FileUploadRequest": {
+        "type": "object",
+        "required": [
+          "file_name",
+          "filedata"
+        ],
+        "properties": {
+          "file_name": {
+            "type": "string",
+            "example": "living-room.jpg"
+          },
+          "filedata": {
+            "type": "string",
+            "description": "Base64 encoded file payload (data URI or raw base64)."
+          }
+        }
+      },
+      "FileUploadResponse": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "file_name": {
+            "type": "string"
+          },
+          "file_url": {
+            "type": "string",
+            "format": "uri"
+          },
+          "is_private": {
+            "type": "boolean"
+          }
+        }
+      },
+      "AgentSummary": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "example": "AGENT-0001"
+          },
+          "name": {
+            "type": "string",
+            "example": "Ayesha Khan"
+          },
+          "status": {
+            "type": "string",
+            "example": "Verified"
+          },
+          "bio": {
+            "type": "string",
+            "example": "Dubai Marina specialist with 10 years of experience."
+          },
+          "phone": {
+            "type": "string",
+            "example": "+971500000123"
+          },
+          "whatsapp_number": {
+            "type": "string",
+            "example": "+971500000123"
+          },
+          "profile_image": {
+            "type": "string",
+            "format": "uri",
+            "example": "https://cdn.example.com/agents/agent-1.png"
+          },
+          "property_count": {
+            "type": "integer",
+            "example": 12
+          }
+        }
+      },
+      "AgentDetail": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/AgentSummary"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "properties": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/PropertySummary"
+                }
+              }
+            }
+          }
+        ]
+      },
+      "PaginatedAgentList": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AgentSummary"
+            }
+          },
+          "page": {
+            "type": "integer"
+          },
+          "page_size": {
+            "type": "integer"
+          },
+          "total_items": {
+            "type": "integer"
+          },
+          "total_pages": {
+            "type": "integer"
+          }
+        }
+      },
+      "HomeData": {
+        "type": "object",
+        "properties": {
+          "featured_properties": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PropertySummary"
+            }
+          },
+          "areas": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Area"
+            }
+          },
+          "developers": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/DeveloperSummary"
+            }
+          },
+          "agents": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AgentSummary"
+            }
           }
         }
       }
@@ -3606,6 +3758,208 @@
           },
           "401": {
             "$ref": "#/components/responses/UnauthorizedError"
+          }
+        }
+      }
+    },
+    "/api/user/profile/photo": {
+      "post": {
+        "tags": [
+          "Media"
+        ],
+        "summary": "Upload profile photo",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FileUploadRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Photo uploaded",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FileUploadResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/UnauthorizedError"
+          },
+          "403": {
+            "$ref": "#/components/responses/ForbiddenError"
+          }
+        }
+      }
+    },
+    "/api/properties/{property_id}/images": {
+      "post": {
+        "tags": [
+          "Media"
+        ],
+        "summary": "Upload property image",
+        "description": "Uploads a base64 encoded image and attaches it to the property gallery (max 10 attachments).",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "property_id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FileUploadRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Image uploaded",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FileUploadResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/ValidationError"
+          },
+          "401": {
+            "$ref": "#/components/responses/UnauthorizedError"
+          },
+          "403": {
+            "$ref": "#/components/responses/ForbiddenError"
+          }
+        }
+      }
+    },
+    "/api/agents": {
+      "get": {
+        "tags": [
+          "Agents"
+        ],
+        "summary": "List agents",
+        "security": [],
+        "parameters": [
+          {
+            "in": "query",
+            "name": "page",
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "page_size",
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "status",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "search",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Paginated agents",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PaginatedAgentList"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/agents/{agent_id}": {
+      "get": {
+        "tags": [
+          "Agents"
+        ],
+        "summary": "Get agent detail",
+        "security": [],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "agent_id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Agent detail",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AgentDetail"
+                }
+              }
+            }
+          },
+          "403": {
+            "$ref": "#/components/responses/ForbiddenError"
+          }
+        }
+      }
+    },
+    "/api/home": {
+      "get": {
+        "tags": [
+          "Home"
+        ],
+        "summary": "Get public homepage data",
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "Aggregated homepage content",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HomeData"
+                }
+              }
+            }
           }
         }
       }

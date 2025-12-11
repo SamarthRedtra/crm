@@ -4,7 +4,18 @@ from werkzeug.routing import Rule
 
 from frappe.api.v1 import url_rules
 
-from . import appointments, areas, auth, developers, favorites, notifications, properties
+from . import (
+	appointments,
+	areas,
+	agents,
+	auth,
+	developers,
+	favorites,
+	home,
+	media,
+	notifications,
+	properties,
+)
 
 
 def register_routes():
@@ -15,6 +26,7 @@ def register_routes():
 		Rule("/auth/logout", methods=["POST"], endpoint=auth.logout),
 		Rule("/user/profile", methods=["GET"], endpoint=auth.get_profile),
 		Rule("/user/profile", methods=["PUT"], endpoint=auth.update_profile),
+		Rule("/user/profile/photo", methods=["POST"], endpoint=media.upload_profile_photo),
 		Rule("/areas", methods=["GET"], endpoint=areas.list_areas),
 		Rule("/areas/<string:area_id>", methods=["GET"], endpoint=areas.get_area),
 		Rule(
@@ -35,6 +47,11 @@ def register_routes():
 			"/properties/<string:property_id>/whatsapp-link",
 			methods=["GET"],
 			endpoint=properties.get_whatsapp_link,
+		),
+		Rule(
+			"/properties/<string:property_id>/images",
+			methods=["POST"],
+			endpoint=media.upload_property_image,
 		),
 		Rule("/developers", methods=["GET"], endpoint=developers.list_developers),
 		Rule("/developers", methods=["POST"], endpoint=developers.create_developer),
@@ -78,6 +95,9 @@ def register_routes():
 			methods=["DELETE"],
 			endpoint=appointments.cancel_appointment,
 		),
+		Rule("/agents", methods=["GET"], endpoint=agents.list_agents),
+		Rule("/agents/<string:agent_id>", methods=["GET"], endpoint=agents.get_agent),
+		Rule("/home", methods=["GET"], endpoint=home.get_home),
 	]
 
 	existing = {(rule.rule, tuple(sorted(rule.methods or []))) for rule in url_rules}

@@ -69,7 +69,7 @@ def login() -> dict[str, Any]:
 	}
 
 
-@frappe.whitelist(methods=["POST"])
+@frappe.whitelist(methods=["POST"],allow_guest=True)
 @utils.require_jwt()
 def forgot_password() -> dict[str, Any]:
 	data = utils.get_request_json(["email", "password", "new_password"])

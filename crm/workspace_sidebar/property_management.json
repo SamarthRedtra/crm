@@ -1,0 +1,96 @@
+{
+ "app": "crm",
+ "creation": "2025-12-10 18:59:04.084171",
+ "docstatus": 0,
+ "doctype": "Workspace Sidebar",
+ "header_icon": "home",
+ "idx": 0,
+ "items": [
+  {
+   "child": 0,
+   "collapsible": 1,
+   "indent": 0,
+   "keep_closed": 0,
+   "label": "Home",
+   "link_to": "Property Management",
+   "link_type": "Workspace",
+   "show_arrow": 0,
+   "type": "Link"
+  },
+  {
+   "child": 0,
+   "collapsible": 1,
+   "icon": "home",
+   "indent": 0,
+   "keep_closed": 0,
+   "label": "Properties",
+   "link_to": "Property",
+   "link_type": "DocType",
+   "show_arrow": 0,
+   "type": "Link"
+  },
+  {
+   "child": 0,
+   "collapsible": 1,
+   "icon": "\ud83e\uddd1\u200d\ud83d\udcbb",
+   "indent": 0,
+   "keep_closed": 0,
+   "label": "Property Appointments",
+   "link_to": "Property Appointment",
+   "link_type": "DocType",
+   "show_arrow": 0,
+   "type": "Link"
+  },
+  {
+   "child": 0,
+   "collapsible": 1,
+   "icon": "heart-active",
+   "indent": 0,
+   "keep_closed": 0,
+   "label": "Favorite Properties",
+   "link_to": "Favorite Property",
+   "link_type": "DocType",
+   "show_arrow": 0,
+   "type": "Link"
+  },
+  {
+   "child": 0,
+   "collapsible": 1,
+   "indent": 0,
+   "keep_closed": 0,
+   "label": "Developers",
+   "link_to": "Developer",
+   "link_type": "DocType",
+   "show_arrow": 0,
+   "type": "Link"
+  },
+  {
+   "child": 0,
+   "collapsible": 1,
+   "indent": 0,
+   "keep_closed": 0,
+   "label": "Areas",
+   "link_to": "Area",
+   "link_type": "DocType",
+   "show_arrow": 0,
+   "type": "Link"
+  },
+  {
+   "child": 0,
+   "collapsible": 1,
+   "indent": 0,
+   "keep_closed": 0,
+   "label": "Agents",
+   "link_to": "Agent",
+   "link_type": "DocType",
+   "show_arrow": 0,
+   "type": "Link"
+  }
+ ],
+ "modified": "2025-12-10 19:36:19.366593",
+ "modified_by": "Administrator",
+ "module": "FCRM",
+ "name": "Property Management",
+ "owner": "Administrator",
+ "title": "Property Management"
+}
