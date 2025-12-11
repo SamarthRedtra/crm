@@ -8,6 +8,7 @@
   "defaults_tab",
   "restore_defaults",
   "enable_forecasting",
+  "max_agents_per_property_code",
   "currency_tab",
   "currency",
   "exchange_rate_provider_section",
@@ -70,6 +71,13 @@
    "fieldname": "enable_forecasting",
    "fieldtype": "Check",
    "label": "Enable Forecasting"
+  },
+  {
+   "fieldname": "max_agents_per_property_code",
+   "fieldtype": "Int",
+   "label": "Max Agents per Property Code",
+   "default": "3",
+   "description": "Maximum number of distinct agents allowed per property code. Set 0 to disable the limit."
   },
   {
    "fieldname": "currency",

@@ -88,7 +88,7 @@
             },
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"full_name\": \"Anwar Khan\",\n  \"email\": \"anwar@example.com\",\n  \"password\": \"StrongPassword123!\",\n  \"phone\": \"+971500000000\",\n  \"is_agent\": false\n}",
+              "raw": "{\n  \"full_name\": \"Anwar Khan\",\n  \"email\": \"anwar@example.com\",\n  \"password\": \"StrongPassword123!\",\n  \"phone\": \"+971500000000\",\n  \"is_agent\": false,\n  \"remember_me\": true\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -124,7 +124,7 @@
             },
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"full_name\": \"Fatima Ali\",\n  \"email\": \"fatima.agent@example.com\",\n  \"password\": \"StrongPassword123!\",\n  \"phone\": \"+971500000010\",\n  \"is_agent\": true,\n  \"agent_id\": \"{{agent_id}}\",\n  \"whatsapp_number\": \"+971500000011\",\n  \"bio\": \"Specialist in luxury villas across Dubai.\",\n  \"max_daily_appointments\": 6\n}",
+              "raw": "{\n  \"full_name\": \"Fatima Ali\",\n  \"email\": \"fatima.agent@example.com\",\n  \"password\": \"StrongPassword123!\",\n  \"phone\": \"+971500000010\",\n  \"is_agent\": true,\n  \"agent_id\": \"{{agent_id}}\",\n  \"whatsapp_number\": \"+971500000011\",\n  \"bio\": \"Specialist in luxury villas across Dubai.\",\n  \"max_daily_appointments\": 6,\n  \"remember_me\": true\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -516,6 +516,26 @@
                 {
                   "key": "is_featured",
                   "value": "true",
+                  "disabled": true
+                },
+                {
+                  "key": "furnished",
+                  "value": "true",
+                  "disabled": true
+                },
+                {
+                  "key": "is_furnished",
+                  "value": "true",
+                  "disabled": true
+                },
+                {
+                  "key": "min_area_sq_ft",
+                  "value": "1000",
+                  "disabled": true
+                },
+                {
+                  "key": "max_area_sq_ft",
+                  "value": "5000",
                   "disabled": true
                 }
               ]

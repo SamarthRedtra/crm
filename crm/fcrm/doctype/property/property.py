@@ -5,6 +5,7 @@ from datetime import datetime
 import frappe
 from frappe import _
 from frappe.model.document import Document
+from frappe.utils import cint
 
 
 class Property(Document):
@@ -27,6 +28,7 @@ class Property(Document):
 		self._validate_status_transition()
 		self._ensure_active_developer()
 		self._ensure_verified_agent()
+		self._enforce_property_code_rules()
 
 	def _set_property_code(self):
 		if not self.property_code:
@@ -77,5 +79,55 @@ class Property(Document):
 		if status != "Active":
 			frappe.throw(
 				_("Developer {0} must be active before the property can be saved.").format(self.developer)
+			)
+
+	def _enforce_property_code_rules(self):
+		if not self.property_code or not self.agent:
+			return
+
+		filters = {
+			"property_code": self.property_code,
+			"agent": self.agent,
+		}
+		if not self.is_new():
+			filters["name"] = ["!=", self.name]
+
+		if frappe.db.exists("Property", filters):
+			frappe.throw(
+				_("Agent {0} already has a property with code {1}.").format(
+					frappe.bold(self.agent),
+					frappe.bold(self.property_code),
+				)
+			)
+
+		settings = frappe.get_cached_doc("FCRM Settings", "FCRM Settings")
+		limit = cint(getattr(settings, "max_agents_per_property_code", 0) or 0)
+		if limit <= 0:
+			return
+
+		existing_agents = set(
+			agent
+			for agent in frappe.get_all(
+				"Property",
+				filters={
+					"property_code": self.property_code,
+					"name": ["!=", self.name],
+				},
+				pluck="agent",
+				distinct=True,
+			)
+			if agent
+		)
+
+		existing_agents.add(self.agent)
+
+		if len(existing_agents) > limit:
+			agents_display = ", ".join(sorted(existing_agents))
+			frappe.throw(
+				_("Property code {0} cannot be assigned to more than {1} agents. Currently assigned to: {2}.").format(
+					frappe.bold(self.property_code),
+					limit,
+					agents_display,
+				)
 			)
 

@@ -57,8 +57,7 @@
   {
    "fieldname": "property_code",
    "fieldtype": "Data",
-   "label": "Property Code",
-   "unique": 1
+   "label": "Property Code"
   },
   {
    "fieldname": "listing_type",

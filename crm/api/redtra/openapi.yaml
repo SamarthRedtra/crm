@@ -90,6 +90,10 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/AgentKYCDocumentInput'
+        remember_me:
+          type: boolean
+          description: Remember the user for future logins.
+          example: true
     LoginRequest:
       type: object
       required:
@@ -1306,6 +1310,26 @@ paths:
         description: Set to true to return only featured properties.
         schema:
           type: boolean
+      - in: query
+        name: furnished
+        description: When true, return only fully furnished properties.
+        schema:
+          type: boolean
+      - in: query
+        name: is_furnished
+        description: Alias for furnished filter.
+        schema:
+          type: boolean
+      - in: query
+        name: min_area_sq_ft
+        description: Minimum built-up area in square feet.
+        schema:
+          type: number
+      - in: query
+        name: max_area_sq_ft
+        description: Maximum built-up area in square feet.
+        schema:
+          type: number
       responses:
         '200':
           description: Paginated properties
