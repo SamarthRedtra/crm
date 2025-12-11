@@ -3,17 +3,20 @@ info:
   title: Redtra Property Booking API
   version: 1.0.0
 servers:
-  - url: https://your-domain.com
-    description: Production
+- url: https://your-domain.com
+  description: Production
 tags:
-  - name: Authentication
-  - name: Users
-  - name: Areas
-  - name: Properties
-  - name: Developers
-  - name: Favorites
-  - name: Appointments
-  - name: Notifications
+- name: Authentication
+- name: Users
+- name: Areas
+- name: Properties
+- name: Developers
+- name: Favorites
+- name: Appointments
+- name: Notifications
+- name: Agents
+- name: Home
+- name: Media
 components:
   securitySchemes:
     bearerAuth:
@@ -48,48 +51,50 @@ components:
             fieldname: property_id
     RegisterRequest:
       type: object
-      required: [full_name, email, password]
+      required:
+      - full_name
+      - email
+      - password
       properties:
         full_name:
           type: string
-          example: "Anwar Khan"
+          example: Anwar Khan
         email:
           type: string
           format: email
-          example: "anwar@example.com"
+          example: anwar@example.com
         password:
           type: string
           format: password
-          example: "StrongPassword123!"
+          example: StrongPassword123!
         phone:
           type: string
-          example: "+91-9876543210"
+          example: +91-9876543210
         is_agent:
           type: boolean
           description: Pass true to create an Agent account instead of a Customer.
           example: false
         whatsapp_number:
           type: string
-          example: "+971500000001"
+          example: '+971500000001'
         bio:
           type: string
-          example: "Dubai Marina specialist with 10 years of experience."
+          example: Dubai Marina specialist with 10 years of experience.
         max_daily_appointments:
           type: integer
         agent_id:
           type: string
-          description: Optional DFD registration ID; ignored if the agent already has one.
-          example: 8
+          description: Optional DFD registration ID that links the signup to an existing
+            Agent.
         kyc_documents:
           type: array
           items:
             $ref: '#/components/schemas/AgentKYCDocumentInput'
-        agent_id:
-          type: string
-          description: Optional DFD registration ID that links the signup to an existing Agent.
     LoginRequest:
       type: object
-      required: [email, password]
+      required:
+      - email
+      - password
       properties:
         email:
           type: string
@@ -99,12 +104,15 @@ components:
           format: password
     ForgotPasswordRequest:
       type: object
-      required: [email, password, new_password]
+      required:
+      - email
+      - password
+      - new_password
       properties:
         email:
           type: string
           format: email
-          example: "anwar@example.com"
+          example: anwar@example.com
         password:
           type: string
           format: password
@@ -223,39 +231,41 @@ components:
           type: integer
     AgentKYCDocumentInput:
       type: object
-      required: [document_type, document_file]
+      required:
+      - document_type
+      - document_file
       properties:
         document_type:
           type: string
-          example: "License"
+          example: License
         document_file:
           type: string
           format: uri
-          example: "https://cdn.example.com/agents/documents/license.pdf"
+          example: https://cdn.example.com/agents/documents/license.pdf
         remarks:
           type: string
-          example: "Expires 2026"
+          example: Expires 2026
     Area:
       type: object
       properties:
         id:
           type: string
-          example: "AREA-0001"
+          example: AREA-0001
         area_name:
           type: string
-          example: "Indiranagar"
+          example: Indiranagar
         city:
           type: string
-          example: "Bangalore"
+          example: Bangalore
         state:
           type: string
-          example: "Karnataka"
+          example: Karnataka
         country:
           type: string
-          example: "India"
+          example: India
         pincode:
           type: string
-          example: "560038"
+          example: '560038'
         latitude:
           type: number
           format: float
@@ -289,14 +299,14 @@ components:
       properties:
         amenity_name:
           type: string
-          example: "Gym"
+          example: Gym
     PropertyImage:
       type: object
       properties:
         image:
           type: string
           format: uri
-          example: "https://cdn.example.com/properties/PROP-00001/1.jpg"
+          example: https://cdn.example.com/properties/PROP-00001/1.jpg
         caption:
           type: string
         sort_order:
@@ -306,26 +316,31 @@ components:
       properties:
         id:
           type: string
-          example: "PROP-00001"
+          example: PROP-00001
         title:
           type: string
-          example: "2 BHK Apartment in Indiranagar"
+          example: 2 BHK Apartment in Indiranagar
         listing_type:
           type: string
-          enum: [Sale, Lease]
+          enum:
+          - Sale
+          - Lease
         property_type:
           type: string
-          example: "Apartment"
+          example: Apartment
         property_category:
           type: string
-          enum: [Residential, Commercial, Mixed Use]
+          enum:
+          - Residential
+          - Commercial
+          - Mixed Use
         price:
           type: number
           format: float
           example: 7500000
         currency:
           type: string
-          example: "INR"
+          example: INR
         bedrooms:
           type: integer
           example: 2
@@ -338,106 +353,110 @@ components:
           example: 1150
         city:
           type: string
-          example: "Bangalore"
+          example: Bangalore
         area:
           type: string
-          example: "AREA-0001"
+          example: AREA-0001
         area_name:
           type: string
-          example: "Indiranagar"
+          example: Indiranagar
         developer:
           type: string
-          example: "DEV-0001"
+          example: DEV-0001
           description: Developer ID if assigned.
         developer_name:
           type: string
-          example: "Sunrise Builders"
+          example: Sunrise Builders
         primary_image_url:
           type: string
           format: uri
-          example: "https://cdn.example.com/properties/PROP-00001/main.jpg"
+          example: https://cdn.example.com/properties/PROP-00001/main.jpg
         location:
           type: string
-          example: "Indiranagar, Bangalore"
+          example: Indiranagar, Bangalore
         furnishing_status:
           type: string
-          example: "Furnished"
+          example: Furnished
         is_featured:
           type: boolean
           example: true
     PropertyDetail:
       allOf:
-        - $ref: '#/components/schemas/PropertySummary'
-        - type: object
-          properties:
-            status:
+      - $ref: '#/components/schemas/PropertySummary'
+      - type: object
+        properties:
+          status:
+            type: string
+            enum:
+            - Draft
+            - Under Verification
+            - Active
+            - Inactive
+          description:
+            type: string
+          latitude:
+            type: number
+            format: float
+          longitude:
+            type: number
+            format: float
+          address_line1:
+            type: string
+          address_line2:
+            type: string
+          state:
+            type: string
+          country:
+            type: string
+          pincode:
+            type: string
+          amenities:
+            type: array
+            items:
               type: string
-              enum: [Draft, Under Verification, Active, Inactive]
-            description:
-              type: string
-            latitude:
-              type: number
-              format: float
-            longitude:
-              type: number
-              format: float
-            address_line1:
-              type: string
-            address_line2:
-              type: string
-            state:
-              type: string
-            country:
-              type: string
-            pincode:
-              type: string
-            amenities:
-              type: array
-              items:
+          gallery:
+            type: array
+            items:
+              $ref: '#/components/schemas/PropertyImage'
+          agent:
+            type: object
+            properties:
+              id:
                 type: string
-            gallery:
-              type: array
-              items:
-                $ref: '#/components/schemas/PropertyImage'
-            agent:
-              type: object
-              properties:
-                id:
-                  type: string
-                  example: "AGENT-0005"
-                name:
-                  type: string
-                  example: "Rahul Sharma"
-                phone:
-                  type: string
-                  example: "+91-9876543210"
-                whatsapp_number:
-                  type: string
-                  example: "+91-9876543210"
-            developer_id:
-              type: string
-              nullable: true
-              description: Developer ID if assigned.
-            developer_name:
-              type: string
-              nullable: true
-            developer:
-              nullable: true
-              allOf:
-                - $ref: '#/components/schemas/DeveloperDetail'
-            whatsapp_chat_link:
-              type: string
-              format: uri
-              nullable: true
-              example: "https://wa.me/919876543210?text=Hi%20I%20am%20interested%20in%20PROP-00001"
+                example: AGENT-0005
+              name:
+                type: string
+                example: Rahul Sharma
+              phone:
+                type: string
+                example: +91-9876543210
+              whatsapp_number:
+                type: string
+                example: +91-9876543210
+          developer_id:
+            type: string
+            nullable: true
+            description: Developer ID if assigned.
+          developer_name:
+            type: string
+            nullable: true
+          developer:
+            nullable: true
+            allOf:
+            - $ref: '#/components/schemas/DeveloperDetail'
+          whatsapp_chat_link:
+            type: string
+            format: uri
+            nullable: true
+            example: https://wa.me/919876543210?text=Hi%20I%20am%20interested%20in%20PROP-00001
     PropertyCreateRequest:
       type: object
       required:
-        - title
-        - listing_type
-        - property_type
-        - price
-        - currency
+      - title
+      - listing_type
+      - property_type
+      - price
+      - currency
       properties:
         title:
           type: string
@@ -445,7 +464,9 @@ components:
           type: string
         listing_type:
           type: string
-          enum: [Sale, Lease]
+          enum:
+          - Sale
+          - Lease
         property_type:
           type: string
         price:
@@ -455,14 +476,20 @@ components:
           type: string
         property_category:
           type: string
-          enum: [Residential, Commercial, Mixed Use]
+          enum:
+          - Residential
+          - Commercial
+          - Mixed Use
         bedrooms:
           type: integer
         bathrooms:
           type: integer
         furnishing_status:
           type: string
-          enum: [Furnished, Semi-Furnished, Unfurnished]
+          enum:
+          - Furnished
+          - Semi-Furnished
+          - Unfurnished
         area_sqft:
           type: number
           format: float
@@ -494,8 +521,8 @@ components:
           type: array
           items:
             oneOf:
-              - type: string
-              - $ref: '#/components/schemas/PropertyAmenity'
+            - type: string
+            - $ref: '#/components/schemas/PropertyAmenity'
         gallery:
           type: array
           items:
@@ -507,7 +534,7 @@ components:
           description: Optional explicit Agent ID (defaults to logged-in agent)
     PropertyUpdateRequest:
       allOf:
-        - $ref: '#/components/schemas/PropertyCreateRequest'
+      - $ref: '#/components/schemas/PropertyCreateRequest'
     PaginatedPropertyList:
       type: object
       properties:
@@ -528,65 +555,71 @@ components:
       properties:
         id:
           type: string
-          example: "DEV-0001"
+          example: DEV-0001
         name:
           type: string
-          example: "Sunrise Builders"
+          example: Sunrise Builders
         status:
           type: string
-          enum: [Active, Inactive]
+          enum:
+          - Active
+          - Inactive
         city:
           type: string
-          example: "Dubai"
+          example: Dubai
         state:
           type: string
-          example: "Dubai"
+          example: Dubai
         country:
           type: string
-          example: "UAE"
+          example: UAE
         website:
           type: string
           format: uri
-          example: "https://sunrise.example.com"
+          example: https://sunrise.example.com
         logo:
           type: string
           format: uri
-          example: "https://cdn.example.com/developers/DEV-0001/logo.png"
+          example: https://cdn.example.com/developers/DEV-0001/logo.png
         location:
           type: string
-          example: "Dubai, UAE"
+          example: Dubai, UAE
         property_count:
           type: integer
-          description: Number of active properties associated with this developer (when requested).
+          description: Number of active properties associated with this developer
+            (when requested).
     DeveloperDetail:
       allOf:
-        - $ref: '#/components/schemas/DeveloperSummary'
-        - type: object
-          properties:
-            email:
-              type: string
-              format: email
-              example: "info@sunrise.example.com"
-            phone:
-              type: string
-              example: "+971500000001"
-            address_line1:
-              type: string
-            address_line2:
-              type: string
-            pincode:
-              type: string
-            description:
-              type: string
+      - $ref: '#/components/schemas/DeveloperSummary'
+      - type: object
+        properties:
+          email:
+            type: string
+            format: email
+            example: info@sunrise.example.com
+          phone:
+            type: string
+            example: '+971500000001'
+          address_line1:
+            type: string
+          address_line2:
+            type: string
+          pincode:
+            type: string
+          description:
+            type: string
     DeveloperCreateRequest:
       type: object
-      required: [developer_name]
+      required:
+      - developer_name
       properties:
         developer_name:
           type: string
         status:
           type: string
-          enum: [Active, Inactive]
+          enum:
+          - Active
+          - Inactive
         email:
           type: string
           format: email
@@ -677,7 +710,8 @@ components:
       properties:
         notification_ids:
           type: array
-          description: Optional list of notification IDs to mark as read. If omitted, all unread notifications are updated.
+          description: Optional list of notification IDs to mark as read. If omitted,
+            all unread notifications are updated.
           items:
             type: string
     MarkNotificationsReadResponse:
@@ -695,29 +729,33 @@ components:
           $ref: '#/components/schemas/PropertySummary'
     FavoriteCreateRequest:
       type: object
-      required: [property_id]
+      required:
+      - property_id
       properties:
         property_id:
           type: string
-          example: "PROP-00001"
+          example: PROP-00001
     AppointmentRequest:
       type: object
-      required: [property_id, start_datetime, end_datetime]
+      required:
+      - property_id
+      - start_datetime
+      - end_datetime
       properties:
         property_id:
           type: string
-          example: "PROP-00001"
+          example: PROP-00001
         agent:
           type: string
-          description: Deprecated – property agent is assigned automatically.
+          description: "Deprecated \u2013 property agent is assigned automatically."
         start_datetime:
           type: string
           format: date-time
-          example: "2025-12-10T10:00:00Z"
+          example: '2025-12-10T10:00:00Z'
         end_datetime:
           type: string
           format: date-time
-          example: "2025-12-10T11:00:00Z"
+          example: '2025-12-10T11:00:00Z'
         notes:
           type: string
     AppointmentUpdateRequest:
@@ -736,10 +774,14 @@ components:
       properties:
         id:
           type: string
-          example: "APPT-0001"
+          example: APPT-0001
         status:
           type: string
-          enum: [Scheduled, Completed, Cancelled, No-show]
+          enum:
+          - Scheduled
+          - Completed
+          - Cancelled
+          - No-show
         start_datetime:
           type: string
           format: date-time
@@ -750,7 +792,10 @@ components:
           type: string
         source:
           type: string
-          enum: [Mobile App, Web, Admin]
+          enum:
+          - Mobile App
+          - Web
+          - Admin
         customer:
           type: object
           properties:
@@ -785,6 +830,101 @@ components:
         whatsapp_chat_link:
           type: string
           format: uri
+    FileUploadRequest:
+      type: object
+      required:
+      - file_name
+      - filedata
+      properties:
+        file_name:
+          type: string
+          example: living-room.jpg
+        filedata:
+          type: string
+          description: Base64 encoded file payload (data URI or raw base64).
+    FileUploadResponse:
+      type: object
+      properties:
+        id:
+          type: string
+        file_name:
+          type: string
+        file_url:
+          type: string
+          format: uri
+        is_private:
+          type: boolean
+    AgentSummary:
+      type: object
+      properties:
+        id:
+          type: string
+          example: AGENT-0001
+        name:
+          type: string
+          example: Ayesha Khan
+        status:
+          type: string
+          example: Verified
+        bio:
+          type: string
+          example: Dubai Marina specialist with 10 years of experience.
+        phone:
+          type: string
+          example: '+971500000123'
+        whatsapp_number:
+          type: string
+          example: '+971500000123'
+        profile_image:
+          type: string
+          format: uri
+          example: https://cdn.example.com/agents/agent-1.png
+        property_count:
+          type: integer
+          example: 12
+    AgentDetail:
+      allOf:
+      - $ref: '#/components/schemas/AgentSummary'
+      - type: object
+        properties:
+          properties:
+            type: array
+            items:
+              $ref: '#/components/schemas/PropertySummary'
+    PaginatedAgentList:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/AgentSummary'
+        page:
+          type: integer
+        page_size:
+          type: integer
+        total_items:
+          type: integer
+        total_pages:
+          type: integer
+    HomeData:
+      type: object
+      properties:
+        featured_properties:
+          type: array
+          items:
+            $ref: '#/components/schemas/PropertySummary'
+        areas:
+          type: array
+          items:
+            $ref: '#/components/schemas/Area'
+        developers:
+          type: array
+          items:
+            $ref: '#/components/schemas/DeveloperSummary'
+        agents:
+          type: array
+          items:
+            $ref: '#/components/schemas/AgentSummary'
   responses:
     UnauthorizedError:
       description: Authentication failed
@@ -807,7 +947,8 @@ components:
 paths:
   /api/auth/register:
     post:
-      tags: [Authentication]
+      tags:
+      - Authentication
       summary: Register a new customer
       security: []
       requestBody:
@@ -827,7 +968,8 @@ paths:
           $ref: '#/components/responses/ValidationError'
   /api/auth/login:
     post:
-      tags: [Authentication]
+      tags:
+      - Authentication
       summary: Login and get JWT token
       security: []
       requestBody:
@@ -847,7 +989,8 @@ paths:
           $ref: '#/components/responses/UnauthorizedError'
   /api/auth/forgot-password:
     post:
-      tags: [Authentication]
+      tags:
+      - Authentication
       summary: Reset password
       description: Directly sets a new password for the specified account.
       security: []
@@ -866,10 +1009,11 @@ paths:
                 $ref: '#/components/schemas/MessageResponse'
   /api/auth/logout:
     post:
-      tags: [Authentication]
+      tags:
+      - Authentication
       summary: Revoke the current JWT token
       security:
-        - bearerAuth: []
+      - bearerAuth: []
       responses:
         '200':
           description: Logged out
@@ -881,10 +1025,11 @@ paths:
           $ref: '#/components/responses/UnauthorizedError'
   /api/user/profile:
     get:
-      tags: [Users]
+      tags:
+      - Users
       summary: Get current user profile
       security:
-        - bearerAuth: []
+      - bearerAuth: []
       responses:
         '200':
           description: Current profile
@@ -895,10 +1040,11 @@ paths:
         '401':
           $ref: '#/components/responses/UnauthorizedError'
     put:
-      tags: [Users]
+      tags:
+      - Users
       summary: Update current user profile
       security:
-        - bearerAuth: []
+      - bearerAuth: []
       requestBody:
         required: true
         content:
@@ -916,26 +1062,27 @@ paths:
           $ref: '#/components/responses/UnauthorizedError'
   /api/areas:
     get:
-      tags: [Areas]
+      tags:
+      - Areas
       summary: List areas
       security:
-        - bearerAuth: []
+      - bearerAuth: []
       parameters:
-        - in: query
-          name: page
-          schema:
-            type: integer
-            minimum: 1
-        - in: query
-          name: page_size
-          schema:
-            type: integer
-            minimum: 1
-            maximum: 100
-        - in: query
-          name: city
-          schema:
-            type: string
+      - in: query
+        name: page
+        schema:
+          type: integer
+          minimum: 1
+      - in: query
+        name: page_size
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 100
+      - in: query
+        name: city
+        schema:
+          type: string
       responses:
         '200':
           description: List of areas
@@ -945,16 +1092,17 @@ paths:
                 $ref: '#/components/schemas/PaginatedAreaList'
   /api/areas/{area_id}:
     get:
-      tags: [Areas]
+      tags:
+      - Areas
       summary: Get area
       security:
-        - bearerAuth: []
+      - bearerAuth: []
       parameters:
-        - in: path
-          name: area_id
-          required: true
-          schema:
-            type: string
+      - in: path
+        name: area_id
+        required: true
+        schema:
+          type: string
       responses:
         '200':
           description: Area detail
@@ -964,35 +1112,36 @@ paths:
                 $ref: '#/components/schemas/Area'
   /api/areas/{area_id}/properties:
     get:
-      tags: [Areas]
+      tags:
+      - Areas
       summary: List properties in an area
       security:
-        - bearerAuth: []
+      - bearerAuth: []
       parameters:
-        - in: path
-          name: area_id
-          required: true
-          schema:
-            type: string
-        - in: query
-          name: page
-          schema:
-            type: integer
-            minimum: 1
-        - in: query
-          name: page_size
-          schema:
-            type: integer
-            minimum: 1
-            maximum: 100
-        - in: query
-          name: min_price
-          schema:
-            type: number
-        - in: query
-          name: max_price
-          schema:
-            type: number
+      - in: path
+        name: area_id
+        required: true
+        schema:
+          type: string
+      - in: query
+        name: page
+        schema:
+          type: integer
+          minimum: 1
+      - in: query
+        name: page_size
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 100
+      - in: query
+        name: min_price
+        schema:
+          type: number
+      - in: query
+        name: max_price
+        schema:
+          type: number
       responses:
         '200':
           description: Properties in area
@@ -1004,150 +1153,159 @@ paths:
           $ref: '#/components/responses/UnauthorizedError'
   /api/properties:
     get:
-      tags: [Properties]
+      tags:
+      - Properties
       summary: List properties
       description: Retrieve a paginated list of active properties with optional filters.
       security:
-        - bearerAuth: []
+      - bearerAuth: []
       parameters:
-        - in: query
-          name: page
-          schema:
-            type: integer
-            minimum: 1
-        - in: query
-          name: page_size
-          schema:
-            type: integer
-            minimum: 1
-            maximum: 100
-        - in: query
-          name: listing_type
-          schema:
+      - in: query
+        name: page
+        schema:
+          type: integer
+          minimum: 1
+      - in: query
+        name: page_size
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 100
+      - in: query
+        name: listing_type
+        schema:
+          type: string
+          enum:
+          - Sale
+          - Lease
+      - in: query
+        name: min_price
+        schema:
+          type: number
+      - in: query
+        name: max_price
+        schema:
+          type: number
+      - in: query
+        name: property_types
+        description: Filter by one or more property types.
+        schema:
+          type: array
+          items:
             type: string
-            enum: [Sale, Lease]
-        - in: query
-          name: min_price
-          schema:
-            type: number
-        - in: query
-          name: max_price
-          schema:
-            type: number
-        - in: query
-          name: property_types
-          description: Filter by one or more property types.
-          schema:
-            type: array
-            items:
-              type: string
-          style: form
-          explode: true
-        - in: query
-          name: bedrooms
-          description: Include properties matching any of the supplied bedroom counts.
-          schema:
-            type: array
-            items:
-              type: integer
-          style: form
-          explode: true
-        - in: query
-          name: min_bedrooms
-          schema:
+        style: form
+        explode: true
+      - in: query
+        name: bedrooms
+        description: Include properties matching any of the supplied bedroom counts.
+        schema:
+          type: array
+          items:
             type: integer
-        - in: query
-          name: max_bedrooms
-          schema:
+        style: form
+        explode: true
+      - in: query
+        name: min_bedrooms
+        schema:
+          type: integer
+      - in: query
+        name: max_bedrooms
+        schema:
+          type: integer
+      - in: query
+        name: bathrooms
+        description: Include properties matching any of the supplied bathroom counts.
+        schema:
+          type: array
+          items:
             type: integer
-        - in: query
-          name: bathrooms
-          description: Include properties matching any of the supplied bathroom counts.
-          schema:
-            type: array
-            items:
-              type: integer
-          style: form
-          explode: true
-        - in: query
-          name: min_bathrooms
-          schema:
-            type: integer
-        - in: query
-          name: max_bathrooms
-          schema:
-            type: integer
-        - in: query
-          name: min_area
-          description: Minimum built-up area (sq.ft).
-          schema:
-            type: number
-        - in: query
-          name: max_area
-          description: Maximum built-up area (sq.ft).
-          schema:
-            type: number
-        - in: query
-          name: furnishing
-          description: Filter by furnishing status (repeat parameter for multiple values).
-          schema:
-            type: array
-            items:
-              type: string
-              enum: [Furnished, Semi-Furnished, Unfurnished]
-          style: form
-          explode: true
-        - in: query
-          name: amenities
-          description: Require all of the specified amenities.
-          schema:
-            type: array
-            items:
-              type: string
-          style: form
-          explode: true
-        - in: query
-          name: location
-          description: Text search across area, city, state, country, and address.
-          schema:
+        style: form
+        explode: true
+      - in: query
+        name: min_bathrooms
+        schema:
+          type: integer
+      - in: query
+        name: max_bathrooms
+        schema:
+          type: integer
+      - in: query
+        name: min_area
+        description: Minimum built-up area (sq.ft).
+        schema:
+          type: number
+      - in: query
+        name: max_area
+        description: Maximum built-up area (sq.ft).
+        schema:
+          type: number
+      - in: query
+        name: furnishing
+        description: Filter by furnishing status (repeat parameter for multiple values).
+        schema:
+          type: array
+          items:
             type: string
-        - in: query
-          name: area_id
-          description: Filter by area ID (repeat parameter for multiple values).
-          schema:
-            type: array
-            items:
-              type: string
-          style: form
-          explode: true
-        - in: query
-          name: property_category
-          description: Filter by property category (Residential, Commercial, Mixed Use).
-          schema:
-            type: array
-            items:
-              type: string
-              enum: [Residential, Commercial, Mixed Use]
-          style: form
-          explode: true
-        - in: query
-          name: developer_id
-          description: Filter by developer ID (repeat parameter for multiple values).
-          schema:
-            type: array
-            items:
-              type: string
-          style: form
-          explode: true
-        - in: query
-          name: agent
-          schema:
+            enum:
+            - Furnished
+            - Semi-Furnished
+            - Unfurnished
+        style: form
+        explode: true
+      - in: query
+        name: amenities
+        description: Require all of the specified amenities.
+        schema:
+          type: array
+          items:
             type: string
-        - in: query
-          name: is_featured
-          description: Set to true to return only featured properties.
-          schema:
-            type: boolean
+        style: form
+        explode: true
+      - in: query
+        name: location
+        description: Text search across area, city, state, country, and address.
+        schema:
+          type: string
+      - in: query
+        name: area_id
+        description: Filter by area ID (repeat parameter for multiple values).
+        schema:
+          type: array
+          items:
+            type: string
+        style: form
+        explode: true
+      - in: query
+        name: property_category
+        description: Filter by property category (Residential, Commercial, Mixed Use).
+        schema:
+          type: array
+          items:
+            type: string
+            enum:
+            - Residential
+            - Commercial
+            - Mixed Use
+        style: form
+        explode: true
+      - in: query
+        name: developer_id
+        description: Filter by developer ID (repeat parameter for multiple values).
+        schema:
+          type: array
+          items:
+            type: string
+        style: form
+        explode: true
+      - in: query
+        name: agent
+        schema:
+          type: string
+      - in: query
+        name: is_featured
+        description: Set to true to return only featured properties.
+        schema:
+          type: boolean
       responses:
         '200':
           description: Paginated properties
@@ -1158,11 +1316,12 @@ paths:
         '401':
           $ref: '#/components/responses/UnauthorizedError'
     post:
-      tags: [Properties]
+      tags:
+      - Properties
       summary: Create property
       description: Create a new property listing (agents only).
       security:
-        - bearerAuth: []
+      - bearerAuth: []
       requestBody:
         required: true
         content:
@@ -1182,15 +1341,16 @@ paths:
           $ref: '#/components/responses/ValidationError'
   /api/properties/{property_id}:
     get:
-      tags: [Properties]
+      tags:
+      - Properties
       summary: Get property detail
       security: []
       parameters:
-        - in: path
-          name: property_id
-          required: true
-          schema:
-            type: string
+      - in: path
+        name: property_id
+        required: true
+        schema:
+          type: string
       responses:
         '200':
           description: Property detail
@@ -1203,16 +1363,17 @@ paths:
         '403':
           $ref: '#/components/responses/ForbiddenError'
     put:
-      tags: [Properties]
+      tags:
+      - Properties
       summary: Update property
       security:
-        - bearerAuth: []
+      - bearerAuth: []
       parameters:
-        - in: path
-          name: property_id
-          required: true
-          schema:
-            type: string
+      - in: path
+        name: property_id
+        required: true
+        schema:
+          type: string
       requestBody:
         required: true
         content:
@@ -1229,17 +1390,18 @@ paths:
         '401':
           $ref: '#/components/responses/UnauthorizedError'
     delete:
-      tags: [Properties]
+      tags:
+      - Properties
       summary: Deactivate property
       description: Soft delete by marking property as Inactive.
       security:
-        - bearerAuth: []
+      - bearerAuth: []
       parameters:
-        - in: path
-          name: property_id
-          required: true
-          schema:
-            type: string
+      - in: path
+        name: property_id
+        required: true
+        schema:
+          type: string
       responses:
         '204':
           description: Property deactivated
@@ -1247,16 +1409,17 @@ paths:
           $ref: '#/components/responses/UnauthorizedError'
   /api/properties/{property_id}/whatsapp-link:
     get:
-      tags: [Properties]
+      tags:
+      - Properties
       summary: Get WhatsApp link for property agent
       security:
-        - bearerAuth: []
+      - bearerAuth: []
       parameters:
-        - in: path
-          name: property_id
-          required: true
-          schema:
-            type: string
+      - in: path
+        name: property_id
+        required: true
+        schema:
+          type: string
       responses:
         '200':
           description: WhatsApp chat link
@@ -1268,50 +1431,53 @@ paths:
           $ref: '#/components/responses/UnauthorizedError'
   /api/developers:
     get:
-      tags: [Developers]
+      tags:
+      - Developers
       summary: List developers
       security: []
       parameters:
-        - in: query
-          name: page
-          schema:
-            type: integer
-        - in: query
-          name: page_size
-          schema:
-            type: integer
-        - in: query
-          name: status
-          schema:
+      - in: query
+        name: page
+        schema:
+          type: integer
+      - in: query
+        name: page_size
+        schema:
+          type: integer
+      - in: query
+        name: status
+        schema:
+          type: string
+          enum:
+          - Active
+          - Inactive
+      - in: query
+        name: city
+        schema:
+          type: string
+      - in: query
+        name: search
+        schema:
+          type: string
+      - in: query
+        name: include_property_stats
+        description: When true, include property_count in each developer summary.
+        schema:
+          type: boolean
+      - in: query
+        name: has_properties
+        description: Return only developers with at least one active property.
+        schema:
+          type: boolean
+      - in: query
+        name: property_ids
+        description: Filter developers to those referenced by the given property IDs.
+        schema:
+          type: array
+          items:
             type: string
-            enum: [Active, Inactive]
-        - in: query
-          name: city
-          schema:
-            type: string
-        - in: query
-          name: search
-          schema:
-            type: string
-        - in: query
-          name: include_property_stats
-          description: When true, include property_count in each developer summary.
-          schema:
-            type: boolean
-        - in: query
-          name: has_properties
-          description: Return only developers with at least one active property.
-          schema:
-            type: boolean
-        - in: query
-          name: property_ids
-          description: Filter developers to those referenced by the given property IDs.
-          schema:
-            type: array
-            items:
-              type: string
-          style: form
-          explode: true
+        style: form
+        explode: true
       responses:
         '200':
           description: Paginated developers
@@ -1320,10 +1486,11 @@ paths:
               schema:
                 $ref: '#/components/schemas/PaginatedDeveloperList'
     post:
-      tags: [Developers]
+      tags:
+      - Developers
       summary: Create developer
       security:
-        - bearerAuth: []
+      - bearerAuth: []
       requestBody:
         required: true
         content:
@@ -1345,15 +1512,16 @@ paths:
           $ref: '#/components/responses/ForbiddenError'
   /api/developers/{developer_id}:
     get:
-      tags: [Developers]
+      tags:
+      - Developers
       summary: Get developer detail
       security: []
       parameters:
-        - in: path
-          name: developer_id
-          required: true
-          schema:
-            type: string
+      - in: path
+        name: developer_id
+        required: true
+        schema:
+          type: string
       responses:
         '200':
           description: Developer detail
@@ -1367,26 +1535,27 @@ paths:
           $ref: '#/components/responses/ForbiddenError'
   /api/developers/{developer_id}/properties:
     get:
-      tags: [Developers]
+      tags:
+      - Developers
       summary: List properties for developer
       security: []
       parameters:
-        - in: path
-          name: developer_id
-          required: true
-          schema:
-            type: string
-        - in: query
-          name: page
-          schema:
-            type: integer
-            minimum: 1
-        - in: query
-          name: page_size
-          schema:
-            type: integer
-            minimum: 1
-            maximum: 100
+      - in: path
+        name: developer_id
+        required: true
+        schema:
+          type: string
+      - in: query
+        name: page
+        schema:
+          type: integer
+          minimum: 1
+      - in: query
+        name: page_size
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 100
       responses:
         '200':
           description: Properties grouped under the developer
@@ -1400,26 +1569,27 @@ paths:
           $ref: '#/components/responses/ForbiddenError'
   /api/notifications:
     get:
-      tags: [Notifications]
+      tags:
+      - Notifications
       summary: List notifications
       security:
-        - bearerAuth: []
+      - bearerAuth: []
       parameters:
-        - in: query
-          name: page
-          schema:
-            type: integer
-            minimum: 1
-        - in: query
-          name: page_size
-          schema:
-            type: integer
-            minimum: 1
-            maximum: 100
-        - in: query
-          name: unread_only
-          schema:
-            type: boolean
+      - in: query
+        name: page
+        schema:
+          type: integer
+          minimum: 1
+      - in: query
+        name: page_size
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 100
+      - in: query
+        name: unread_only
+        schema:
+          type: boolean
       responses:
         '200':
           description: Notifications for the authenticated user
@@ -1431,10 +1601,11 @@ paths:
           $ref: '#/components/responses/UnauthorizedError'
   /api/notifications/mark-read:
     post:
-      tags: [Notifications]
+      tags:
+      - Notifications
       summary: Mark notifications as read
       security:
-        - bearerAuth: []
+      - bearerAuth: []
       requestBody:
         required: false
         content:
@@ -1452,10 +1623,11 @@ paths:
           $ref: '#/components/responses/UnauthorizedError'
   /api/favorites:
     get:
-      tags: [Favorites]
+      tags:
+      - Favorites
       summary: List favorite properties for current user
       security:
-        - bearerAuth: []
+      - bearerAuth: []
       responses:
         '200':
           description: Favorites
@@ -1468,10 +1640,11 @@ paths:
         '401':
           $ref: '#/components/responses/UnauthorizedError'
     post:
-      tags: [Favorites]
+      tags:
+      - Favorites
       summary: Add property to favorites
       security:
-        - bearerAuth: []
+      - bearerAuth: []
       requestBody:
         required: true
         content:
@@ -1491,16 +1664,17 @@ paths:
           $ref: '#/components/responses/UnauthorizedError'
   /api/favorites/{property_id}:
     delete:
-      tags: [Favorites]
+      tags:
+      - Favorites
       summary: Remove property from favorites
       security:
-        - bearerAuth: []
+      - bearerAuth: []
       parameters:
-        - in: path
-          name: property_id
-          required: true
-          schema:
-            type: string
+      - in: path
+        name: property_id
+        required: true
+        schema:
+          type: string
       responses:
         '204':
           description: Removed
@@ -1508,10 +1682,11 @@ paths:
           $ref: '#/components/responses/UnauthorizedError'
   /api/appointments:
     get:
-      tags: [Appointments]
+      tags:
+      - Appointments
       summary: List appointments for current user
       security:
-        - bearerAuth: []
+      - bearerAuth: []
       responses:
         '200':
           description: List of appointments
@@ -1524,10 +1699,11 @@ paths:
         '401':
           $ref: '#/components/responses/UnauthorizedError'
     post:
-      tags: [Appointments]
+      tags:
+      - Appointments
       summary: Create an appointment for a property
       security:
-        - bearerAuth: []
+      - bearerAuth: []
       requestBody:
         required: true
         content:
@@ -1547,16 +1723,17 @@ paths:
           $ref: '#/components/responses/UnauthorizedError'
   /api/appointments/{appointment_id}:
     get:
-      tags: [Appointments]
+      tags:
+      - Appointments
       summary: Get appointment detail
       security:
-        - bearerAuth: []
+      - bearerAuth: []
       parameters:
-        - in: path
-          name: appointment_id
-          required: true
-          schema:
-            type: string
+      - in: path
+        name: appointment_id
+        required: true
+        schema:
+          type: string
       responses:
         '200':
           description: Appointment
@@ -1567,16 +1744,17 @@ paths:
         '401':
           $ref: '#/components/responses/UnauthorizedError'
     put:
-      tags: [Appointments]
+      tags:
+      - Appointments
       summary: Reschedule appointment
       security:
-        - bearerAuth: []
+      - bearerAuth: []
       parameters:
-        - in: path
-          name: appointment_id
-          required: true
-          schema:
-            type: string
+      - in: path
+        name: appointment_id
+        required: true
+        schema:
+          type: string
       requestBody:
         required: true
         content:
@@ -1595,16 +1773,17 @@ paths:
         '401':
           $ref: '#/components/responses/UnauthorizedError'
     delete:
-      tags: [Appointments]
+      tags:
+      - Appointments
       summary: Cancel appointment
       security:
-        - bearerAuth: []
+      - bearerAuth: []
       parameters:
-        - in: path
-          name: appointment_id
-          required: true
-          schema:
-            type: string
+      - in: path
+        name: appointment_id
+        required: true
+        schema:
+          type: string
       responses:
         '204':
           description: Cancelled
@@ -1612,7 +1791,8 @@ paths:
           $ref: '#/components/responses/UnauthorizedError'
   /api/method/crm.api.redtra.auth.register:
     post:
-      tags: [Authentication]
+      tags:
+      - Authentication
       summary: Register a new customer
       security: []
       requestBody:
@@ -1632,7 +1812,8 @@ paths:
           $ref: '#/components/responses/ValidationError'
   /api/method/crm.api.redtra.auth.login:
     post:
-      tags: [Authentication]
+      tags:
+      - Authentication
       summary: Login and get JWT token
       security: []
       requestBody:
@@ -1652,10 +1833,11 @@ paths:
           $ref: '#/components/responses/UnauthorizedError'
   /api/method/crm.api.redtra.auth.forgot_password:
     post:
-      tags: [Authentication]
+      tags:
+      - Authentication
       summary: Reset password
       security:
-        - bearerAuth: []
+      - bearerAuth: []
       requestBody:
         required: true
         content:
@@ -1671,7 +1853,8 @@ paths:
                 $ref: '#/components/schemas/MessageResponse'
   /api/method/crm.api.redtra.auth.logout:
     post:
-      tags: [Authentication]
+      tags:
+      - Authentication
       summary: Revoke the current JWT token
       responses:
         '200':
@@ -1684,7 +1867,8 @@ paths:
           $ref: '#/components/responses/UnauthorizedError'
   /api/method/crm.api.redtra.auth.get_profile:
     get:
-      tags: [Users]
+      tags:
+      - Users
       summary: Get current user profile
       responses:
         '200':
@@ -1697,7 +1881,8 @@ paths:
           $ref: '#/components/responses/UnauthorizedError'
   /api/method/crm.api.redtra.auth.update_profile:
     post:
-      tags: [Users]
+      tags:
+      - Users
       summary: Update current user profile
       requestBody:
         required: true
@@ -1716,26 +1901,27 @@ paths:
           $ref: '#/components/responses/UnauthorizedError'
   /api/method/crm.api.redtra.areas.list_areas:
     get:
-      tags: [Areas]
+      tags:
+      - Areas
       summary: List areas
       security:
-        - bearerAuth: []
+      - bearerAuth: []
       parameters:
-        - in: query
-          name: page
-          schema:
-            type: integer
-            minimum: 1
-        - in: query
-          name: page_size
-          schema:
-            type: integer
-            minimum: 1
-            maximum: 100
-        - in: query
-          name: city
-          schema:
-            type: string
+      - in: query
+        name: page
+        schema:
+          type: integer
+          minimum: 1
+      - in: query
+        name: page_size
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 100
+      - in: query
+        name: city
+        schema:
+          type: string
       responses:
         '200':
           description: List of areas
@@ -1745,16 +1931,17 @@ paths:
                 $ref: '#/components/schemas/PaginatedAreaList'
   /api/method/crm.api.redtra.areas.get_area:
     get:
-      tags: [Areas]
+      tags:
+      - Areas
       summary: Get area
       security:
-        - bearerAuth: []
+      - bearerAuth: []
       parameters:
-        - in: query
-          name: area_id
-          required: true
-          schema:
-            type: string
+      - in: query
+        name: area_id
+        required: true
+        schema:
+          type: string
       responses:
         '200':
           description: Area detail
@@ -1764,33 +1951,34 @@ paths:
                 $ref: '#/components/schemas/Area'
   /api/method/crm.api.redtra.areas.list_area_properties:
     get:
-      tags: [Areas]
+      tags:
+      - Areas
       summary: List properties in an area
       parameters:
-        - in: query
-          name: area_id
-          required: true
-          schema:
-            type: string
-        - in: query
-          name: page
-          schema:
-            type: integer
-            minimum: 1
-        - in: query
-          name: page_size
-          schema:
-            type: integer
-            minimum: 1
-            maximum: 100
-        - in: query
-          name: min_price
-          schema:
-            type: number
-        - in: query
-          name: max_price
-          schema:
-            type: number
+      - in: query
+        name: area_id
+        required: true
+        schema:
+          type: string
+      - in: query
+        name: page
+        schema:
+          type: integer
+          minimum: 1
+      - in: query
+        name: page_size
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 100
+      - in: query
+        name: min_price
+        schema:
+          type: number
+      - in: query
+        name: max_price
+        schema:
+          type: number
       responses:
         '200':
           description: Properties in area
@@ -1802,124 +1990,130 @@ paths:
           $ref: '#/components/responses/UnauthorizedError'
   /api/method/crm.api.redtra.properties.list_properties:
     get:
-      tags: [Properties]
+      tags:
+      - Properties
       summary: List properties
       description: Retrieve a paginated list of active properties with optional filters.
       parameters:
-        - in: query
-          name: page
-          schema:
-            type: integer
-            minimum: 1
-        - in: query
-          name: page_size
-          schema:
-            type: integer
-            minimum: 1
-            maximum: 100
-        - in: query
-          name: listing_type
-          schema:
+      - in: query
+        name: page
+        schema:
+          type: integer
+          minimum: 1
+      - in: query
+        name: page_size
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 100
+      - in: query
+        name: listing_type
+        schema:
+          type: string
+          enum:
+          - Sale
+          - Lease
+      - in: query
+        name: min_price
+        schema:
+          type: number
+      - in: query
+        name: max_price
+        schema:
+          type: number
+      - in: query
+        name: property_types
+        description: Filter by one or more property types.
+        schema:
+          type: array
+          items:
             type: string
-            enum: [Sale, Lease]
-        - in: query
-          name: min_price
-          schema:
-            type: number
-        - in: query
-          name: max_price
-          schema:
-            type: number
-        - in: query
-          name: property_types
-          description: Filter by one or more property types.
-          schema:
-            type: array
-            items:
-              type: string
-          style: form
-          explode: true
-        - in: query
-          name: bedrooms
-          description: Include properties matching any of the supplied bedroom counts.
-          schema:
-            type: array
-            items:
-              type: integer
-          style: form
-          explode: true
-        - in: query
-          name: min_bedrooms
-          schema:
+        style: form
+        explode: true
+      - in: query
+        name: bedrooms
+        description: Include properties matching any of the supplied bedroom counts.
+        schema:
+          type: array
+          items:
             type: integer
-        - in: query
-          name: max_bedrooms
-          schema:
+        style: form
+        explode: true
+      - in: query
+        name: min_bedrooms
+        schema:
+          type: integer
+      - in: query
+        name: max_bedrooms
+        schema:
+          type: integer
+      - in: query
+        name: bathrooms
+        description: Include properties matching any of the supplied bathroom counts.
+        schema:
+          type: array
+          items:
             type: integer
-        - in: query
-          name: bathrooms
-          description: Include properties matching any of the supplied bathroom counts.
-          schema:
-            type: array
-            items:
-              type: integer
-          style: form
-          explode: true
-        - in: query
-          name: min_bathrooms
-          schema:
-            type: integer
-        - in: query
-          name: max_bathrooms
-          schema:
-            type: integer
-        - in: query
-          name: min_area
-          description: Minimum built-up area (sq.ft).
-          schema:
-            type: number
-        - in: query
-          name: max_area
-          description: Maximum built-up area (sq.ft).
-          schema:
-            type: number
-        - in: query
-          name: furnishing
-          description: Filter by furnishing status (repeat parameter for multiple values).
-          schema:
-            type: array
-            items:
-              type: string
-              enum: [Furnished, Semi-Furnished, Unfurnished]
-          style: form
-          explode: true
-        - in: query
-          name: amenities
-          description: Require all of the specified amenities.
-          schema:
-            type: array
-            items:
-              type: string
-          style: form
-          explode: true
-        - in: query
-          name: location
-          description: Text search across area, city, state, country, and address.
-          schema:
+        style: form
+        explode: true
+      - in: query
+        name: min_bathrooms
+        schema:
+          type: integer
+      - in: query
+        name: max_bathrooms
+        schema:
+          type: integer
+      - in: query
+        name: min_area
+        description: Minimum built-up area (sq.ft).
+        schema:
+          type: number
+      - in: query
+        name: max_area
+        description: Maximum built-up area (sq.ft).
+        schema:
+          type: number
+      - in: query
+        name: furnishing
+        description: Filter by furnishing status (repeat parameter for multiple values).
+        schema:
+          type: array
+          items:
             type: string
-        - in: query
-          name: area_id
-          description: Filter by area ID (repeat parameter for multiple values).
-          schema:
-            type: array
-            items:
-              type: string
-          style: form
-          explode: true
-        - in: query
-          name: agent
-          schema:
+            enum:
+            - Furnished
+            - Semi-Furnished
+            - Unfurnished
+        style: form
+        explode: true
+      - in: query
+        name: amenities
+        description: Require all of the specified amenities.
+        schema:
+          type: array
+          items:
             type: string
+        style: form
+        explode: true
+      - in: query
+        name: location
+        description: Text search across area, city, state, country, and address.
+        schema:
+          type: string
+      - in: query
+        name: area_id
+        description: Filter by area ID (repeat parameter for multiple values).
+        schema:
+          type: array
+          items:
+            type: string
+        style: form
+        explode: true
+      - in: query
+        name: agent
+        schema:
+          type: string
       responses:
         '200':
           description: Paginated properties
@@ -1931,7 +2125,8 @@ paths:
           $ref: '#/components/responses/UnauthorizedError'
   /api/method/crm.api.redtra.properties.create_property:
     post:
-      tags: [Properties]
+      tags:
+      - Properties
       summary: Create property
       description: Create a new property listing (agents only).
       requestBody:
@@ -1953,14 +2148,15 @@ paths:
           $ref: '#/components/responses/ValidationError'
   /api/method/crm.api.redtra.properties.get_property:
     get:
-      tags: [Properties]
+      tags:
+      - Properties
       summary: Get property detail
       parameters:
-        - in: query
-          name: property_id
-          required: true
-          schema:
-            type: string
+      - in: query
+        name: property_id
+        required: true
+        schema:
+          type: string
       responses:
         '200':
           description: Property detail
@@ -1972,14 +2168,15 @@ paths:
           $ref: '#/components/responses/UnauthorizedError'
   /api/method/crm.api.redtra.properties.update_property:
     post:
-      tags: [Properties]
+      tags:
+      - Properties
       summary: Update property
       parameters:
-        - in: query
-          name: property_id
-          required: true
-          schema:
-            type: string
+      - in: query
+        name: property_id
+        required: true
+        schema:
+          type: string
       requestBody:
         required: true
         content:
@@ -1997,15 +2194,16 @@ paths:
           $ref: '#/components/responses/UnauthorizedError'
   /api/method/crm.api.redtra.properties.deactivate_property:
     post:
-      tags: [Properties]
+      tags:
+      - Properties
       summary: Deactivate property
       description: Soft delete by marking property as Inactive.
       parameters:
-        - in: query
-          name: property_id
-          required: true
-          schema:
-            type: string
+      - in: query
+        name: property_id
+        required: true
+        schema:
+          type: string
       responses:
         '204':
           description: Property deactivated
@@ -2013,14 +2211,15 @@ paths:
           $ref: '#/components/responses/UnauthorizedError'
   /api/method/crm.api.redtra.properties.get_whatsapp_link:
     get:
-      tags: [Properties]
+      tags:
+      - Properties
       summary: Get WhatsApp link for property agent
       parameters:
-        - in: query
-          name: property_id
-          required: true
-          schema:
-            type: string
+      - in: query
+        name: property_id
+        required: true
+        schema:
+          type: string
       responses:
         '200':
           description: WhatsApp chat link
@@ -2032,7 +2231,8 @@ paths:
           $ref: '#/components/responses/UnauthorizedError'
   /api/method/crm.api.redtra.favorites.list_favorites:
     get:
-      tags: [Favorites]
+      tags:
+      - Favorites
       summary: List favorite properties for current user
       responses:
         '200':
@@ -2047,7 +2247,8 @@ paths:
           $ref: '#/components/responses/UnauthorizedError'
   /api/method/crm.api.redtra.favorites.add_favorite:
     post:
-      tags: [Favorites]
+      tags:
+      - Favorites
       summary: Add property to favorites
       requestBody:
         required: true
@@ -2068,14 +2269,15 @@ paths:
           $ref: '#/components/responses/UnauthorizedError'
   /api/method/crm.api.redtra.favorites.remove_favorite:
     post:
-      tags: [Favorites]
+      tags:
+      - Favorites
       summary: Remove property from favorites
       parameters:
-        - in: query
-          name: property_id
-          required: true
-          schema:
-            type: string
+      - in: query
+        name: property_id
+        required: true
+        schema:
+          type: string
       responses:
         '204':
           description: Removed
@@ -2083,7 +2285,8 @@ paths:
           $ref: '#/components/responses/UnauthorizedError'
   /api/method/crm.api.redtra.appointments.list_appointments:
     get:
-      tags: [Appointments]
+      tags:
+      - Appointments
       summary: List appointments for current user
       responses:
         '200':
@@ -2098,7 +2301,8 @@ paths:
           $ref: '#/components/responses/UnauthorizedError'
   /api/method/crm.api.redtra.appointments.create_appointment:
     post:
-      tags: [Appointments]
+      tags:
+      - Appointments
       summary: Create an appointment for a property
       requestBody:
         required: true
@@ -2119,14 +2323,15 @@ paths:
           $ref: '#/components/responses/UnauthorizedError'
   /api/method/crm.api.redtra.appointments.get_appointment:
     get:
-      tags: [Appointments]
+      tags:
+      - Appointments
       summary: Get appointment detail
       parameters:
-        - in: query
-          name: appointment_id
-          required: true
-          schema:
-            type: string
+      - in: query
+        name: appointment_id
+        required: true
+        schema:
+          type: string
       responses:
         '200':
           description: Appointment
@@ -2138,14 +2343,15 @@ paths:
           $ref: '#/components/responses/UnauthorizedError'
   /api/method/crm.api.redtra.appointments.update_appointment:
     post:
-      tags: [Appointments]
+      tags:
+      - Appointments
       summary: Reschedule appointment
       parameters:
-        - in: query
-          name: appointment_id
-          required: true
-          schema:
-            type: string
+      - in: query
+        name: appointment_id
+        required: true
+        schema:
+          type: string
       requestBody:
         required: true
         content:
@@ -2165,19 +2371,141 @@ paths:
           $ref: '#/components/responses/UnauthorizedError'
   /api/method/crm.api.redtra.appointments.cancel_appointment:
     post:
-      tags: [Appointments]
+      tags:
+      - Appointments
       summary: Cancel appointment
       parameters:
-        - in: query
-          name: appointment_id
-          required: true
-          schema:
-            type: string
+      - in: query
+        name: appointment_id
+        required: true
+        schema:
+          type: string
       responses:
         '204':
           description: Cancelled
         '401':
           $ref: '#/components/responses/UnauthorizedError'
+  /api/user/profile/photo:
+    post:
+      tags:
+      - Media
+      summary: Upload profile photo
+      security:
+      - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/FileUploadRequest'
+      responses:
+        '201':
+          description: Photo uploaded
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FileUploadResponse'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+  /api/properties/{property_id}/images:
+    post:
+      tags:
+      - Media
+      summary: Upload property image
+      description: Uploads a base64 encoded image and attaches it to the property
+        gallery (max 10 attachments).
+      security:
+      - bearerAuth: []
+      parameters:
+      - in: path
+        name: property_id
+        required: true
+        schema:
+          type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/FileUploadRequest'
+      responses:
+        '201':
+          description: Image uploaded
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FileUploadResponse'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+  /api/agents:
+    get:
+      tags:
+      - Agents
+      summary: List agents
+      security: []
+      parameters:
+      - in: query
+        name: page
+        schema:
+          type: integer
+      - in: query
+        name: page_size
+        schema:
+          type: integer
+      - in: query
+        name: status
+        schema:
+          type: string
+      - in: query
+        name: search
+        schema:
+          type: string
+      responses:
+        '200':
+          description: Paginated agents
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedAgentList'
+  /api/agents/{agent_id}:
+    get:
+      tags:
+      - Agents
+      summary: Get agent detail
+      security: []
+      parameters:
+      - in: path
+        name: agent_id
+        required: true
+        schema:
+          type: string
+      responses:
+        '200':
+          description: Agent detail
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AgentDetail'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+  /api/home:
+    get:
+      tags:
+      - Home
+      summary: Get public homepage data
+      security: []
+      responses:
+        '200':
+          description: Aggregated homepage content
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HomeData'
 security:
-  - bearerAuth: []
-
+- bearerAuth: []

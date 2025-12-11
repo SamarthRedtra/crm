@@ -1,11 +1,11 @@
 {
   "info": {
     "name": "Redtra Property Booking API",
-    "description": "Comprehensive Postman collection mirroring all Redtra routes.",
+    "description": "Comprehensive Postman collection for all routes exposed under crm.api.redtra.routes",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
     "version": {
       "major": 1,
-      "minor": 2,
+      "minor": 3,
       "patch": 0
     }
   },
@@ -49,6 +49,16 @@
       "key": "appointment_id",
       "value": "APPT-2025-00001",
       "type": "string"
+    },
+    {
+      "key": "agent_id",
+      "value": "AGENT-0005",
+      "type": "string"
+    },
+    {
+      "key": "base64_image",
+      "value": "iVBORw0KGgoAAAANSUhEUgAAAAUA",
+      "type": "string"
     }
   ],
   "item": [
@@ -76,9 +86,6 @@
                 "register"
               ]
             },
-            "auth": {
-              "type": "noauth"
-            },
             "body": {
               "mode": "raw",
               "raw": "{\n  \"full_name\": \"Anwar Khan\",\n  \"email\": \"anwar@example.com\",\n  \"password\": \"StrongPassword123!\",\n  \"phone\": \"+971500000000\",\n  \"is_agent\": false\n}",
@@ -87,6 +94,9 @@
                   "language": "json"
                 }
               }
+            },
+            "auth": {
+              "type": "noauth"
             }
           },
           "response": []
@@ -112,17 +122,17 @@
                 "register"
               ]
             },
-            "auth": {
-              "type": "noauth"
-            },
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"full_name\": \"Fatima Ali\",\n  \"email\": \"fatima.agent@example.com\",\n  \"password\": \"StrongPassword123!\",\n  \"phone\": \"+971500000010\",\n  \"is_agent\": true,\n  \"agent_id\": \"DFD-12345\",\n  \"whatsapp_number\": \"+971500000011\",\n  \"bio\": \"Specialist in luxury villas across Dubai.\",\n  \"max_daily_appointments\": 6\n}",
+              "raw": "{\n  \"full_name\": \"Fatima Ali\",\n  \"email\": \"fatima.agent@example.com\",\n  \"password\": \"StrongPassword123!\",\n  \"phone\": \"+971500000010\",\n  \"is_agent\": true,\n  \"agent_id\": \"{{agent_id}}\",\n  \"whatsapp_number\": \"+971500000011\",\n  \"bio\": \"Specialist in luxury villas across Dubai.\",\n  \"max_daily_appointments\": 6\n}",
               "options": {
                 "raw": {
                   "language": "json"
                 }
               }
+            },
+            "auth": {
+              "type": "noauth"
             }
           },
           "response": []
@@ -148,9 +158,6 @@
                 "login"
               ]
             },
-            "auth": {
-              "type": "noauth"
-            },
             "body": {
               "mode": "raw",
               "raw": "{\n  \"email\": \"anwar@example.com\",\n  \"password\": \"StrongPassword123!\"\n}",
@@ -159,6 +166,9 @@
                   "language": "json"
                 }
               }
+            },
+            "auth": {
+              "type": "noauth"
             }
           },
           "response": []
@@ -171,11 +181,6 @@
               {
                 "key": "Content-Type",
                 "value": "application/json"
-              },
-              {
-                "key": "Authorization",
-                "value": "Bearer {{token}}",
-                "type": "text"
               }
             ],
             "url": {
@@ -197,6 +202,9 @@
                   "language": "json"
                 }
               }
+            },
+            "auth": {
+              "type": "noauth"
             }
           },
           "response": []
@@ -285,6 +293,45 @@
             "body": {
               "mode": "raw",
               "raw": "{\n  \"full_name\": \"Anwar Khan\",\n  \"phone\": \"+971500000000\",\n  \"whatsapp_number\": \"+971500000001\",\n  \"preferred_city\": \"Dubai\",\n  \"about_me\": \"15 years experience with waterfront properties.\",\n  \"profile_image\": \"https://cdn.example.com/agents/anwar.png\",\n  \"max_daily_appointments\": 12\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Upload Profile Photo",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/user/profile/photo",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "user",
+                "profile",
+                "photo"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"file_name\": \"profile.png\",\n  \"filedata\": \"data:image/png;base64,{{base64_image}}\"\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -528,7 +575,7 @@
             },
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"title\": \"2 BHK Apartment in Al Jaddaf\",\n  \"listing_type\": \"Sale\",\n  \"property_type\": \"Apartment\",\n  \"property_category\": \"Residential\",\n  \"price\": 350000.0,\n  \"currency\": \"AED\",\n  \"bedrooms\": 2,\n  \"bathrooms\": 2,\n  \"furnishing_status\": \"Furnished\",\n  \"area_sqft\": 1200,\n  \"area_id\": \"{{area_id}}\",\n  \"developer_id\": \"{{developer_id}}\",\n  \"amenities\": [\n    \"Pool\",\n    \"Gym\"\n  ],\n  \"is_featured\": true\n}",
+              "raw": "{\n  \"title\": \"2 BHK Apartment in Al Jaddaf\",\n  \"listing_type\": \"Sale\",\n  \"property_type\": \"Apartment\",\n  \"property_category\": \"Residential\",\n  \"price\": 350000,\n  \"currency\": \"AED\",\n  \"bedrooms\": 2,\n  \"bathrooms\": 2,\n  \"furnishing_status\": \"Furnished\",\n  \"area_sqft\": 1200,\n  \"area_id\": \"{{area_id}}\",\n  \"developer_id\": \"{{developer_id}}\",\n  \"amenities\": [\n    \"Pool\",\n    \"Gym\"\n  ],\n  \"is_featured\": true\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -566,7 +613,7 @@
             },
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"price\": 360000.0,\n  \"property_category\": \"Commercial\",\n  \"furnishing_status\": \"Semi-Furnished\",\n  \"amenities\": [\n    \"Pool\",\n    \"Gym\",\n    \"Parking\"\n  ]\n}",
+              "raw": "{\n  \"price\": 360000,\n  \"property_category\": \"Commercial\",\n  \"furnishing_status\": \"Semi-Furnished\",\n  \"amenities\": [\n    \"Pool\",\n    \"Gym\",\n    \"Parking\"\n  ]\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -623,6 +670,45 @@
                 "{{property_id}}",
                 "whatsapp-link"
               ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Upload Property Image",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/properties/{{property_id}}/images",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "properties",
+                "{{property_id}}",
+                "images"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"file_name\": \"living-room.jpg\",\n  \"filedata\": \"data:image/jpeg;base64,{{base64_image}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
             }
           },
           "response": []
@@ -781,6 +867,74 @@
                   "language": "json"
                 }
               }
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Agents",
+      "item": [
+        {
+          "name": "List Agents",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/agents",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "agents"
+              ],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "page_size",
+                  "value": "20"
+                },
+                {
+                  "key": "status",
+                  "value": "Verified",
+                  "disabled": true
+                },
+                {
+                  "key": "search",
+                  "value": "Ayesha",
+                  "disabled": true
+                }
+              ]
+            },
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Agent",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/agents/{{agent_id}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "agents",
+                "{{agent_id}}"
+              ]
+            },
+            "auth": {
+              "type": "noauth"
             }
           },
           "response": []
@@ -1068,7 +1222,8 @@
               "query": [
                 {
                   "key": "unread_only",
-                  "value": "true"
+                  "value": "true",
+                  "disabled": true
                 }
               ]
             }
@@ -1109,6 +1264,115 @@
                   "language": "json"
                 }
               }
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Media",
+      "item": [
+        {
+          "name": "Upload Property Image",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/properties/{{property_id}}/images",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "properties",
+                "{{property_id}}",
+                "images"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"file_name\": \"living-room.jpg\",\n  \"filedata\": \"data:image/jpeg;base64,{{base64_image}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Upload Profile Photo",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/user/profile/photo",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "user",
+                "profile",
+                "photo"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"file_name\": \"profile.png\",\n  \"filedata\": \"data:image/png;base64,{{base64_image}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Home",
+      "item": [
+        {
+          "name": "Get Home Data",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/home",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "home"
+              ]
+            },
+            "auth": {
+              "type": "noauth"
             }
           },
           "response": []
