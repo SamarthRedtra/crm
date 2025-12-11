@@ -1,0 +1,22 @@
+{
+ "app": "crm",
+ "creation": "2025-12-10 18:59:03.966328",
+ "docstatus": 0,
+ "doctype": "Desktop Icon",
+ "hidden": 0,
+ "icon": "home",
+ "icon_type": "App",
+ "idx": 0,
+ "label": "Property Management",
+ "link_to": "Property Management",
+ "link_type": "Workspace",
+ "logo_url": "/files/property_2243704.png",
+ "modified": "2025-12-10 19:52:22.708775",
+ "modified_by": "Administrator",
+ "name": "Property Management",
+ "owner": "Administrator",
+ "parent_icon": "",
+ "roles": [],
+ "sidebar": "Property Management",
+ "standard": 1
+}

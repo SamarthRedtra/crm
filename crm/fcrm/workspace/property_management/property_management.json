@@ -1,0 +1,85 @@
+{
+ "charts": [],
+ "content": "[{\"id\": \"headerPropMgmt\", \"type\": \"header\", \"data\": {\"text\": \"<span class=\\\"h5\\\"><b>Property Management</b></span>\", \"col\": 12}}, {\"id\": \"descPropMgmt\", \"type\": \"paragraph\", \"data\": {\"text\": \"Centralize listings, developer records, and viewing appointments.\", \"col\": 12}}, {\"id\": \"spacerOne\", \"type\": \"spacer\", \"data\": {\"col\": 12}}, {\"id\": \"operationsLabel\", \"type\": \"paragraph\", \"data\": {\"text\": \"<b>OPERATIONS</b>\", \"col\": 12}}, {\"id\": \"shortcutProperties\", \"type\": \"shortcut\", \"data\": {\"shortcut_name\": \"Properties\", \"col\": 3}}, {\"id\": \"shortcutAppointments\", \"type\": \"shortcut\", \"data\": {\"shortcut_name\": \"Property Appointments\", \"col\": 3}}, {\"id\": \"shortcutFavorites\", \"type\": \"shortcut\", \"data\": {\"shortcut_name\": \"Favorite Properties\", \"col\": 3}}, {\"id\": \"spacerTwo\", \"type\": \"spacer\", \"data\": {\"col\": 12}}, {\"id\": \"mastersLabel\", \"type\": \"paragraph\", \"data\": {\"text\": \"<b>MASTER DATA</b>\", \"col\": 12}}, {\"id\": \"shortcutDevelopers\", \"type\": \"shortcut\", \"data\": {\"shortcut_name\": \"Developers\", \"col\": 3}}, {\"id\": \"shortcutAreas\", \"type\": \"shortcut\", \"data\": {\"shortcut_name\": \"Areas\", \"col\": 3}}, {\"id\": \"shortcutAgents\", \"type\": \"shortcut\", \"data\": {\"shortcut_name\": \"Agents\", \"col\": 3}}]",
+ "creation": "2025-12-10 00:00:00.000000",
+ "custom_blocks": [],
+ "docstatus": 0,
+ "doctype": "Workspace",
+ "for_user": "",
+ "hide_custom": 0,
+ "icon": "home",
+ "idx": 0,
+ "indicator_color": "",
+ "is_hidden": 0,
+ "label": "Property Management",
+ "links": [],
+ "modified": "2025-12-10 00:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "FCRM",
+ "name": "Property Management",
+ "number_cards": [],
+ "owner": "Administrator",
+ "parent_page": "",
+ "public": 1,
+ "quick_lists": [],
+ "roles": [
+  {
+   "role": "System Manager"
+  },
+  {
+   "role": "Agent"
+  }
+ ],
+ "sequence_id": 2.0,
+ "shortcuts": [
+  {
+   "color": "Blue",
+   "doc_view": "List",
+   "label": "Properties",
+   "link_to": "Property",
+   "stats_filter": "[[\"Property\",\"status\",\"=\",\"Active\",false]]",
+   "type": "DocType"
+  },
+  {
+   "color": "Green",
+   "doc_view": "List",
+   "label": "Property Appointments",
+   "link_to": "Property Appointment",
+   "stats_filter": "[]",
+   "type": "DocType"
+  },
+  {
+   "color": "Cyan",
+   "doc_view": "List",
+   "label": "Favorite Properties",
+   "link_to": "Favorite Property",
+   "stats_filter": "[]",
+   "type": "DocType"
+  },
+  {
+   "color": "Teal",
+   "doc_view": "List",
+   "label": "Developers",
+   "link_to": "Developer",
+   "stats_filter": "[[\"Developer\",\"status\",\"=\",\"Active\",false]]",
+   "type": "DocType"
+  },
+  {
+   "color": "Purple",
+   "doc_view": "List",
+   "label": "Areas",
+   "link_to": "Area",
+   "stats_filter": "[]",
+   "type": "DocType"
+  },
+  {
+   "color": "Orange",
+   "doc_view": "List",
+   "label": "Agents",
+   "link_to": "Agent",
+   "stats_filter": "[[\"Agent\",\"status\",\"=\",\"Verified\",false]]",
+   "type": "DocType"
+  }
+ ],
+ "title": "Property Management"
+}
