@@ -9,6 +9,7 @@
   "restore_defaults",
   "enable_forecasting",
   "max_agents_per_property_code",
+  "auto_update_expected_deal_value",
   "currency_tab",
   "currency",
   "exchange_rate_provider_section",
@@ -113,12 +114,19 @@
   {
    "fieldname": "column_break_vqck",
    "fieldtype": "Column Break"
+  },
+  {
+   "default": "1",
+   "description": "Automatically update \"Expected Deal Value\" based on the total value of associated products in a deal",
+   "fieldname": "auto_update_expected_deal_value",
+   "fieldtype": "Check",
+   "label": "Auto Update Expected Deal Value"
   }
  ],
  "index_web_pages_for_search": 1,
  "issingle": 1,
  "links": [],
- "modified": "2025-07-29 11:26:50.420614",
+ "modified": "2025-09-16 17:33:26.406549",
  "modified_by": "Administrator",
  "module": "FCRM",
  "name": "FCRM Settings",
