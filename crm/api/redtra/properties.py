@@ -91,10 +91,18 @@ def list_properties() -> dict[str, Any]:
 		if max_bathrooms is not None:
 			conditions.append(property_dt.bathrooms <= max_bathrooms)
 
-		min_area = _get_float_param("min_area") or _get_float_param("min_area_sqft")
+		min_area = (
+			_get_float_param("min_area")
+			or _get_float_param("min_area_sqft")
+			or _get_float_param("min_area_sq_ft")
+		)
 		if min_area is not None:
 			conditions.append(property_dt.area_sqft >= min_area)
-		max_area = _get_float_param("max_area") or _get_float_param("max_area_sqft")
+		max_area = (
+			_get_float_param("max_area")
+			or _get_float_param("max_area_sqft")
+			or _get_float_param("max_area_sq_ft")
+		)
 		if max_area is not None:
 			conditions.append(property_dt.area_sqft <= max_area)
 
@@ -113,6 +121,14 @@ def list_properties() -> dict[str, Any]:
 		furnishing_values = _get_list_param("furnishing") or _get_list_param("furnishings")
 		if furnishing_values:
 			conditions.append(property_dt.furnishing_status.isin(furnishing_values))
+
+		if (furnished := frappe.form_dict.get("furnished")) is not None:
+			is_furnished_bool = _coerce_bool(furnished)
+			conditions.append(property_dt.furnishing_status == "Furnished" if is_furnished_bool else property_dt.furnishing_status != "Furnished")
+
+		if (is_furnished := frappe.form_dict.get("is_furnished")) is not None:
+			is_furnished_flag = _coerce_bool(is_furnished)
+			conditions.append(property_dt.furnishing_status == "Furnished" if is_furnished_flag else property_dt.furnishing_status != "Furnished")
 
 		amenities = _get_list_param("amenities")
 		if amenities:

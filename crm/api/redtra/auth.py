@@ -18,6 +18,7 @@ def register() -> dict[str, Any]:
 	email = data["email"].strip().lower()
 	is_agent = _coerce_bool(data.get("is_agent"))
 	agent_id = (data.get("agent_id") or "").strip() or None
+	remember_me = _coerce_bool(data.get("remember_me"))
 
 	if frappe.db.exists("User", email):
 		frappe.throw(_("Email {0} is already registered.").format(email), frappe.DuplicateEntryError)
@@ -34,6 +35,7 @@ def register() -> dict[str, Any]:
 	user.flags.ignore_permissions = True
 	user.flags.no_welcome_mail = True
 	user.new_password = data["password"]
+	user.remember_me_opt_in = 1 if remember_me else 0
 	if phone := data.get("phone"):
 		user.mobile_no = phone
 
@@ -70,19 +72,18 @@ def login() -> dict[str, Any]:
 
 
 @frappe.whitelist(methods=["POST"],allow_guest=True)
-@utils.require_jwt()
 def forgot_password() -> dict[str, Any]:
-	data = utils.get_request_json(["email", "password", "new_password"])
+	data = utils.get_request_json(["email", "new_password", "confirm_password"])
 	email = data["email"].strip().lower()
-	new_password = data["password"]
-	confirm_password = data["new_password"]
+	new_password = data["new_password"]
+	confirm_password = data["confirm_password"]
 
 	if new_password != confirm_password:
 		frappe.throw(_("Password and new password must match."), frappe.ValidationError)
 
-	current_user = utils.get_current_user()
-	if frappe.session.user != "Administrator" and current_user.lower() != email:
-		frappe.throw(_("You can only reset your own password."), frappe.PermissionError)
+	# current_user = utils.get_current_user()
+	# if frappe.session.user != "Administrator" and current_user.lower() != email:
+	# 	frappe.throw(_("You can only reset your own password."), frappe.PermissionError)
 
 	user_name = frappe.db.exists("User", {"name": email})
 	if not user_name:

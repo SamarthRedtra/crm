@@ -114,6 +114,8 @@ The backend validates that the supplied `developer_id` exists and is `Active` be
 - `amenities` (requires all specified values)
 - `developer_id`, `area_id`, `agent`
 - `is_featured` flag for curated listings
+- `furnished` / `is_furnished` booleans filter fully furnished homes (false excludes them).
+- `min_area_sq_ft` and `max_area_sq_ft` are aliases for square-foot filtering alongside `min_area`/`max_area`.
 - Free-text `location` search covering area, city, state, country, address, and title
 
 ## Developers
@@ -150,6 +152,7 @@ The new `Developer` DocType powers dedicated developer endpoints.
 ## Registration & Profile
 
 - `POST /auth/register` now accepts an optional `agent_id` so invitation-driven signups can bind to pre-created Agent records.
+- `remember_me` flag lets the frontend remember a customer or agent during registration (mirrors the new checkbox field).
 - `GET /user/profile` returns richer agent analytics:
   - `agent_profile` (status, about me, profile image, max daily appointments)
   - `appointments_today` (scheduled slots for the current day)
