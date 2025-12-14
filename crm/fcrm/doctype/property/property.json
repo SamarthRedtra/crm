@@ -1,19 +1,25 @@
 {
  "actions": [],
  "allow_import": 1,
- "allow_rename": 0,
  "autoname": "format:PROP-{YYYY}-{#####}",
- "creation": "2025-12-02 00:00:00.000000",
+ "creation": "2025-12-02 00:00:00",
  "default_view": "List",
  "doctype": "DocType",
  "engine": "InnoDB",
  "field_order": [
+  "details_section",
   "title",
-  "property_code",
-  "listing_type",
-  "property_type",
-  "property_category",
+  "developer",
+  "agent",
   "status",
+  "column_break_aabd",
+  "property_category",
+  "listing_type",
+  "property_code",
+  "property_type",
+  "section_break_content",
+  "description",
+  "pricing_tab",
   "section_break_pricing",
   "price",
   "currency",
@@ -22,7 +28,9 @@
   "bathrooms",
   "furnishing_status",
   "area_sqft",
+  "amenties_tab",
   "amenities",
+  "location_tab",
   "section_break_location",
   "area",
   "address_line1",
@@ -34,10 +42,7 @@
   "column_break_location",
   "latitude",
   "longitude",
-  "section_break_content",
-  "description",
-  "developer",
-  "agent",
+  "media_tab",
   "section_break_media",
   "primary_image",
   "gallery",
@@ -64,7 +69,7 @@
    "fieldtype": "Select",
    "in_standard_filter": 1,
    "label": "Listing Type",
-   "options": "Sale\nLease",
+   "options": "Buy\nRent\nOff Plan",
    "reqd": 1
   },
   {
@@ -106,7 +111,6 @@
    "reqd": 1
   },
   {
-   "default": "",
    "fieldname": "currency",
    "fieldtype": "Link",
    "label": "Currency",
@@ -259,13 +263,46 @@
    "fieldtype": "Int",
    "label": "Views Count",
    "read_only": 1
+  },
+  {
+   "fieldname": "details_section",
+   "fieldtype": "Section Break",
+   "label": "Details"
+  },
+  {
+   "fieldname": "column_break_aabd",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "pricing_tab",
+   "fieldtype": "Tab Break",
+   "label": "Pricing"
+  },
+  {
+   "fieldname": "amenties_tab",
+   "fieldtype": "Tab Break",
+   "label": "Amenties"
+  },
+  {
+   "fieldname": "location_tab",
+   "fieldtype": "Tab Break",
+   "label": "Location"
+  },
+  {
+   "fieldname": "media_tab",
+   "fieldtype": "Tab Break",
+   "label": "Media"
   }
  ],
+ "image_field": "primary_image",
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2025-12-02 00:00:00.000000",
+ "make_attachments_public": 1,
+ "modified": "2025-12-15 01:48:16.510757",
+ "modified_by": "Administrator",
  "module": "FCRM",
  "name": "Property",
+ "naming_rule": "Expression",
  "owner": "Administrator",
  "permissions": [
   {
@@ -291,14 +328,14 @@
   }
  ],
  "quick_entry": 1,
+ "row_format": "Dynamic",
  "sort_field": "modified",
  "sort_order": "DESC",
  "states": [
   {
-   "doc_status": 0,
+   "color": "Blue",
    "title": "Draft"
   }
  ],
  "track_changes": 1
 }
-

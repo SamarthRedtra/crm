@@ -101,7 +101,7 @@ def _create_file(
 			"attached_to_name": attached_to_name,
 			"content": filedata,
 			"decode": 1,
-			"is_private": is_private,
+			"is_private": 0,
 		}
 	)
 	file_doc.save(ignore_permissions=True)

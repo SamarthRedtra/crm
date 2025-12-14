@@ -283,11 +283,11 @@ def create_property() -> dict[str, Any]:
 
 	for amenity in data.get("amenities") or []:
 		if isinstance(amenity, dict):
-			value = amenity.get("amenity_name")
+			value = amenity.get("amenity_name") or amenity.get("amenity")
 		else:
 			value = amenity
-		if value:
-			doc.append("amenities", {"amenity_name": value})
+		if amenity_name := _ensure_amenity_master(value):
+			doc.append("amenities", {"amenity_name": amenity_name})
 
 	for image in data.get("gallery") or []:
 		if isinstance(image, dict):
@@ -355,8 +355,8 @@ def update_property(property_id: str) -> dict[str, Any]:
 		doc.set("amenities", [])
 		for amenity in data.get("amenities") or []:
 			value = amenity.get("amenity_name") if isinstance(amenity, dict) else amenity
-			if value:
-				doc.append("amenities", {"amenity_name": value})
+			if amenity_name := _ensure_amenity_master(value):
+				doc.append("amenities", {"amenity_name": amenity_name})
 
 	if "gallery" in data:
 		doc.set("gallery", [])
@@ -479,7 +479,10 @@ def serialize_property_detail(doc) -> dict[str, Any]:
 		"furnishing_status": doc.furnishing_status,
 		"primary_image_url": doc.primary_image,
 		"is_featured": bool(doc.is_featured),
-		"amenities": [row.amenity_name for row in doc.amenities],
+		"amenities": [
+			frappe.db.get_value("Amenity", row.amenity_name, "amenity_name") or row.amenity_name
+			for row in doc.amenities
+		],
 		"gallery": [
 			{"image": row.image, "caption": row.caption, "sort_order": row.sort_order}
 			for row in doc.gallery
@@ -658,7 +661,7 @@ def _get_int_list_param(param: str) -> list[int]:
 
 
 def _get_property_ids_with_all_amenities(amenities: list[str]) -> set[str]:
-	names = {_clean_str(amenity) for amenity in amenities}
+	names = {_find_existing_amenity(amenity) for amenity in amenities}
 	names.discard(None)
 	if not names:
 		return set()
@@ -720,4 +723,31 @@ def _enforce_agent_property_scope(doc):
 
 	if doc.agent != agent_id:
 		frappe.throw(_("You can only access properties you own."), frappe.PermissionError)
+
+
+def _ensure_amenity_master(value: Any) -> str | None:
+	name = _clean_str(value)
+	if not name:
+		return None
+
+	docname = frappe.db.exists("Amenity", {"name": name}) or frappe.db.exists(
+		"Amenity", {"amenity_name": name}
+	)
+	if docname:
+		return docname
+
+	doc = frappe.get_doc({"doctype": "Amenity", "amenity_name": name})
+	doc.flags.ignore_permissions = True
+	doc.insert()
+	return doc.name
+
+
+def _find_existing_amenity(value: Any) -> str | None:
+	name = _clean_str(value)
+	if not name:
+		return None
+	return frappe.db.exists("Amenity", {"name": name}) or frappe.db.exists(
+		"Amenity", {"amenity_name": name}
+	)
+
 
