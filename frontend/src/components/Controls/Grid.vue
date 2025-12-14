@@ -70,6 +70,7 @@
           :delay="isTouchScreenDevice() ? 200 : 0"
           group="rows"
           item-key="name"
+          @end="reorder"
         >
           <template #item="{ element: row, index }">
             <div
@@ -177,21 +178,27 @@
                       @change="(e) => fieldChange(e.target.checked, field, row)"
                     />
                   </div>
+                  <TimePicker
+                    v-else-if="field.fieldtype === 'Time'"
+                    :value="row[field.fieldname]"
+                    variant="outline"
+                    :format="getFormat('', '', false, true, false)"
+                    input-class="border-none text-sm text-ink-gray-8"
+                    @change="(v) => fieldChange(v, field, row)"
+                  />
                   <DatePicker
                     v-else-if="field.fieldtype === 'Date'"
                     :value="row[field.fieldname]"
-                    icon-left=""
                     variant="outline"
-                    :formatter="(date) => getFormat(date, '', true)"
+                    :format="getFormat('', '', true, false, false)"
                     input-class="border-none text-sm text-ink-gray-8"
                     @change="(v) => fieldChange(v, field, row)"
                   />
                   <DateTimePicker
                     v-else-if="field.fieldtype === 'Datetime'"
                     :value="row[field.fieldname]"
-                    icon-left=""
                     variant="outline"
-                    :formatter="(date) => getFormat(date, '', true, true)"
+                    :format="getFormat('', '', true, true, false)"
                     input-class="border-none text-sm text-ink-gray-8"
                     @change="(v) => fieldChange(v, field, row)"
                   />
@@ -263,6 +270,16 @@
                     "
                     :disabled="Boolean(field.read_only)"
                     @change="fieldChange(flt($event.target.value), field, row)"
+                  />
+                  <Autocomplete
+                    v-else-if="field.fieldtype === 'Autocomplete'"
+                    class="text-sm text-ink-gray-8"
+                    :modelValue="row[field.fieldname]"
+                    @update:modelValue="(v) => row[field.fieldname] = typeof v == 'object' ? v.value : v"
+                    @change="(v) => fieldChange(typeof v == 'object' ? v.value : v, field, row)"
+                    :options="field.options"
+                    :placeholder="field.placeholder"
+                    :disabled="Boolean(field.read_only)"
                   />
                   <FormControl
                     v-else
@@ -348,10 +365,12 @@ import { createDocument } from '@/composables/document'
 import {
   FormControl,
   Checkbox,
+  TimePicker,
   DateTimePicker,
   DatePicker,
   Tooltip,
   dayjs,
+  Autocomplete
 } from 'frappe-ui'
 import Draggable from 'vuedraggable'
 import { ref, reactive, computed, inject, provide } from 'vue'
@@ -373,6 +392,10 @@ const props = defineProps({
     type: String,
     required: true,
   },
+  overrides: {
+    type: Object,
+    default: () => ({}),
+  }
 })
 
 const triggerOnChange = inject('triggerOnChange', () => {})
@@ -441,10 +464,17 @@ function getFieldObj(field) {
     })
   }
 
-  return {
+  const fieldObjWithFilters ={
     ...field,
     filters: field.link_filters && JSON.parse(field.link_filters),
     placeholder: field.placeholder || field.label,
+  }
+  
+  return {
+    ...fieldObjWithFilters,
+    ...props.overrides.fields?.find(
+      (f) => f.fieldname === field.fieldname,
+    ),
   }
 }
 
@@ -514,6 +544,13 @@ const deleteRows = () => {
   showRowList.value.pop()
   selectedRows.clear()
 }
+
+const reorder = () => {
+  rows.value.forEach((row, index) => {
+    row.idx = index + 1
+  })
+}
+
 
 function fieldChange(value, field, row) {
   triggerOnChange(field.fieldname, value, row)
