@@ -15,6 +15,7 @@ from . import (
 	media,
 	notifications,
 	properties,
+	amenties,
 )
 
 
@@ -95,6 +96,7 @@ def register_routes():
 			methods=["DELETE"],
 			endpoint=appointments.cancel_appointment,
 		),
+		Rule("/amenties", methods=["GET"], endpoint=amenties.get_amenities),
 		Rule("/agents", methods=["GET"], endpoint=agents.list_agents),
 		Rule("/agents/<string:agent_id>", methods=["GET"], endpoint=agents.get_agent),
 		Rule("/home", methods=["GET"], endpoint=home.get_home),
