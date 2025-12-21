@@ -31,12 +31,15 @@ Redtra uses JWT bearer tokens for protected routes.
 
 Some endpoints allow unauthenticated (guest) access for read-only data:
 
-- `GET /properties` (listing)
-- `GET /properties/{property_id}` (returns expanded detail, including developer info)
+- `GET /properties` (listing) - **Now includes amenities and gallery in response**
+- `GET /properties/{property_id}` (returns expanded detail, including developer info, amenities, and gallery)
 - `GET /areas`
 - `GET /areas/{area_id}`
 - `GET /developers`
 - `GET /developers/{developer_id}` *(active developers only for guests)*
+- `GET /agents` - **NEW: List agents (public)**
+- `GET /agents/{agent_id}` - **NEW: Get agent details (public)**
+- `GET /agents/{agent_id}/available-slots` - **NEW: Get agent availability slots (public)**
 
 Any other endpoint requires a valid bearer token. System Manager permissions are required for certain actions (see below).
 
@@ -185,24 +188,70 @@ If `agent_id` is omitted, the API creates a fresh Agent record for the new user.
 | `/favorites` | `POST` | Bearer | Adds a property to the favorites list (`property_id` required). |
 | `/favorites/{property_id}` | `DELETE` | Bearer | Removes a property from favorites. |
 
+## Agents
+
+| Endpoint | Method | Auth | Notes |
+| --- | --- | --- | --- |
+| `/agents` | `GET` | None | Public endpoint to list verified agents. Supports `page`, `page_size`, `status`, and `search` filters. |
+| `/agents/{agent_id}` | `GET` | None | Public endpoint to get agent details including availability slots, max appointment minutes, and properties. |
+| `/agents/{agent_id}/available-slots` | `GET` | None | **NEW:** Public endpoint to get available appointment slots for an agent. Supports `start_date` and `end_date` query parameters. Returns only slots that are not already booked. |
+| `/agents/availability` | `POST` | Agent | **NEW:** Update agent's availability schedule and max appointment minutes. Requires authentication as the agent. |
+
+### Agent Availability Slots
+
+Agents can define their weekly availability schedule:
+
+```json
+{
+  "max_appointment_minutes": 30,
+  "availability_slots": [
+    {
+      "day_of_week": "Monday",
+      "start_time": "09:00:00",
+      "end_time": "17:00:00"
+    },
+    {
+      "day_of_week": "Tuesday",
+      "start_time": "09:00:00",
+      "end_time": "17:00:00"
+    }
+  ]
+}
+```
+
+- `day_of_week`: Must be Monday, Tuesday, Wednesday, Thursday, Friday, Saturday, or Sunday
+- `start_time` / `end_time`: Time format "HH:MM:SS" or "HH:MM"
+- `max_appointment_minutes`: Duration for each appointment slot (default: 30)
+
 ## Appointments
 
 | Endpoint | Method | Auth | Notes |
 | --- | --- | --- | --- |
 | `/appointments` | `GET` | Bearer | Paginated list of appointments scoped to the current user. |
-| `/appointments` | `POST` | Bearer | Creates an appointment for a property. |
+| `/appointments` | `POST` | Bearer | Creates an appointment for a property. **Validates against agent availability slots and appointment duration.** |
 | `/appointments/{appointment_id}` | `GET` | Bearer | Retrieves appointment details. |
 | `/appointments/{appointment_id}` | `PUT` | Bearer | Updates timing or notes for an appointment. |
 | `/appointments/{appointment_id}` | `DELETE` | Bearer | Cancels an appointment. |
+| `/agents/{agent_id}/available-slots` | `GET` | None | **NEW:** Get available appointment slots for an agent (public endpoint). |
 
-Every confirmed booking automatically creates/maintains a linked `Event` (`calendar_event`) on the property, so schedule changes and cancellations stay visible in the CRM calendar.
+Every confirmed booking:
+- Validates against agent's availability schedule
+- Checks for appointment duration match (`max_appointment_minutes`)
+- Validates slot is not already booked
+- Automatically creates notifications for both customer and agent
+- Creates/maintains a linked `Event` (`calendar_event`) on the property, so schedule changes and cancellations stay visible in the CRM calendar
 
 ## Notifications
 
 | Endpoint | Method | Auth | Notes |
 | --- | --- | --- | --- |
-| `/notifications` | `GET` | Bearer | Paginated notifications; use `unread_only=true` to focus on pending items. |
+| `/notifications` | `GET` | Bearer | Paginated notifications; use `unread_only=true` to focus on pending items. **Returns appointment booking notifications.** |
 | `/notifications/mark-read` | `POST` | Bearer | Marks specific (or all) notifications as read. |
+
+**Notification Types:**
+- **Appointment Booked:** Both customer and agent receive notifications when an appointment is created
+- Customer receives: Confirmation notification with appointment details
+- Agent receives: New appointment notification with customer details
 
 Refer to the OpenAPI document or Postman examples for payload structures and expected responses.
 
@@ -219,3 +268,38 @@ Refer to the OpenAPI document or Postman examples for payload structures and exp
 - When integrating on the frontend, cache static datasets (areas, developers) and refresh periodically to minimize load.
 
 For deeper schema details, inspect the OpenAPI spec or DocType definitions under `apps/crm/crm/fcrm/doctype/`.
+
+## New Features (Latest Updates)
+
+### 1. Property List/Detail Enhancement
+- Property list API now includes `amenities` and `gallery` arrays in the response
+- Property detail API already included these; now consistent across endpoints
+
+### 2. Agent Availability Management
+- Agents can define weekly availability slots via `POST /api/agents/availability`
+- Each slot defines: day of week, start time, end time
+- Agents set `max_appointment_minutes` to define appointment duration
+- Availability is agent-specific (stored in child table)
+
+### 3. Smart Appointment Booking
+- `GET /api/agents/{agent_id}/available-slots` returns only available (unbooked) slots
+- Appointment creation validates against agent's availability schedule
+- Prevents double-booking and enforces appointment duration rules
+
+### 4. Automatic Notifications
+- Appointment booking automatically creates notifications for customer and agent
+- Notifications appear in `GET /api/notifications` endpoint
+- Includes appointment details and reference links
+
+### 5. Agent Verification Control
+- Controlled by `mandate_agent_verification` setting in Property Settings
+- When enabled: Only verified agents can be accessed/booked
+- When disabled: All agents are accessible regardless of verification status
+
+---
+
+## Developer Guide
+
+For a comprehensive developer guide with code examples, workflows, and best practices, see:
+- **Developer Guide:** `apps/crm/crm/api/redtra/DEVELOPER_GUIDE.md`
+- **Sequence Diagrams:** `apps/crm/crm/api/redtra/SEQUENCE_DIAGRAMS.md` (Visual workflow diagrams)
