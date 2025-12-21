@@ -34,8 +34,8 @@ def list_agents() -> dict[str, Any]:
 	filters: list[list[Any]] = []
 	if status:
 		filters.append(["Agent", "status", "=", status])
-	else:
-		filters.append(["Agent", "status", "=", "Verified"])
+	# else:
+	# 	filters.append(["Agent", "status", "=", "Verified"])
 
 	if search:
 		filters.append(["Agent", "full_name", "like", f"%{search}%"])
@@ -50,7 +50,15 @@ def list_agents() -> dict[str, Any]:
 		ignore_permissions=True,
 	)
 
-	total_items = frappe.db.count("Agent", filters, cache=True, ignore_permissions=True)
+	# For public API, we need to bypass permissions for count
+	# frappe.db.count() doesn't support ignore_permissions, so we temporarily set user to Administrator
+	# This ensures we get the same filtered count as the items above
+	original_user = frappe.session.user
+	try:
+		frappe.set_user("Administrator")
+		total_items = frappe.db.count("Agent", filters, cache=False)
+	finally:
+		frappe.set_user(original_user)
 	total_pages = (total_items + page_size - 1) // page_size if page_size else 0
 
 	property_counts = _get_agent_property_counts([row["name"] for row in items])
