@@ -96,9 +96,15 @@ def register_routes():
 			methods=["DELETE"],
 			endpoint=appointments.cancel_appointment,
 		),
+		Rule(
+			"/agents/<string:agent_id>/available-slots",
+			methods=["GET"],
+			endpoint=appointments.get_agent_available_slots,
+		),
 		Rule("/amenties", methods=["GET"], endpoint=amenties.get_amenities),
 		Rule("/agents", methods=["GET"], endpoint=agents.list_agents),
 		Rule("/agents/<string:agent_id>", methods=["GET"], endpoint=agents.get_agent),
+		Rule("/agents/availability", methods=["POST"], endpoint=agents.update_agent_availability),
 		Rule("/home", methods=["GET"], endpoint=home.get_home),
 	]
 

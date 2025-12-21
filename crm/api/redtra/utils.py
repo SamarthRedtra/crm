@@ -228,3 +228,13 @@ def ensure_agent_role(user: str):
 		doc.flags.ignore_permissions = True
 		doc.add_roles("Agent")
 
+
+def get_mandate_agent_verification() -> bool:
+	"""Get the mandate_agent_verification setting from Property Setting"""
+	try:
+		setting = frappe.get_single("Property Setting")
+		return bool(getattr(setting, "mandate_agent_verification", False))
+	except Exception:
+		# If Property Setting doesn't exist or field doesn't exist, default to False
+		return False
+
