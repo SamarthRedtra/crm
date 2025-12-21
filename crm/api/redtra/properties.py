@@ -416,8 +416,36 @@ def serialize_property_summary(row: dict[str, Any]) -> dict[str, Any]:
 		row.get("country"),
 	)
 
+	property_id = row.get("name")
+	amenities = []
+	gallery = []
+	
+	if property_id:
+		# Fetch amenities
+		amenity_rows = frappe.get_all(
+			"Property Amenity",
+			filters={"parent": property_id},
+			fields=["amenity_name"],
+		)
+		amenities = [
+			frappe.db.get_value("Amenity", row.amenity_name, "amenity_name") or row.amenity_name
+			for row in amenity_rows
+		]
+		
+		# Fetch gallery
+		gallery_rows = frappe.get_all(
+			"Property Image",
+			filters={"parent": property_id},
+			fields=["image", "caption", "sort_order"],
+			order_by="sort_order asc",
+		)
+		gallery = [
+			{"image": row.image, "caption": row.caption, "sort_order": row.sort_order}
+			for row in gallery_rows
+		]
+
 	return {
-		"id": row.get("name"),
+		"id": property_id,
 		"title": row.get("title"),
 		"listing_type": row.get("listing_type"),
 		"property_type": row.get("property_type"),
@@ -436,6 +464,8 @@ def serialize_property_summary(row: dict[str, Any]) -> dict[str, Any]:
 		"location": location,
 		"primary_image_url": row.get("primary_image"),
 		"furnishing_status": row.get("furnishing_status"),
+		"amenities": amenities,
+		"gallery": gallery,
 	}
 
 

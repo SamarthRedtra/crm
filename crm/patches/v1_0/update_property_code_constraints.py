@@ -32,3 +32,5 @@ def _ensure_property_code_limit_setting() -> None:
 
     if current_value is None:
         frappe.db.set_single_value("FCRM Settings", "max_agents_per_property_code", 3)
+
+

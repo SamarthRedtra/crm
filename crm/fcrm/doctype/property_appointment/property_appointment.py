@@ -6,6 +6,8 @@ import frappe
 from frappe import _
 from frappe.model.document import Document
 from frappe.utils import getdate
+from crm.api.redtra.utils import get_mandate_agent_verification
+
 
 
 class PropertyAppointment(Document):
@@ -39,7 +41,7 @@ class PropertyAppointment(Document):
 			frappe.throw(_("Agent is required for the appointment."))
 
 		agent_status = frappe.db.get_value("Agent", self.agent, "status")
-		if agent_status != "Verified":
+		if get_mandate_agent_verification() and agent_status != "Verified":
 			frappe.throw(_("Agent {0} must be verified to receive appointments.").format(self.agent))
 
 	def _prevent_overlap(self):

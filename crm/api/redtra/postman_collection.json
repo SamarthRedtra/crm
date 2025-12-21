@@ -958,6 +958,79 @@
             }
           },
           "response": []
+        },
+        {
+          "name": "Get Agent Available Slots",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/agents/{{agent_id}}/available-slots",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "agents",
+                "{{agent_id}}",
+                "available-slots"
+              ],
+              "query": [
+                {
+                  "key": "start_date",
+                  "value": "2025-12-15",
+                  "disabled": true
+                },
+                {
+                  "key": "end_date",
+                  "value": "2025-12-22",
+                  "disabled": true
+                }
+              ]
+            },
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Update Agent Availability",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/agents/availability",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "agents",
+                "availability"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"max_appointment_minutes\": 30,\n  \"availability_slots\": [\n    {\n      \"day_of_week\": \"Monday\",\n      \"start_time\": \"09:00:00\",\n      \"end_time\": \"17:00:00\"\n    },\n    {\n      \"day_of_week\": \"Tuesday\",\n      \"start_time\": \"09:00:00\",\n      \"end_time\": \"17:00:00\"\n    },\n    {\n      \"day_of_week\": \"Wednesday\",\n      \"start_time\": \"09:00:00\",\n      \"end_time\": \"17:00:00\"\n    },\n    {\n      \"day_of_week\": \"Thursday\",\n      \"start_time\": \"09:00:00\",\n      \"end_time\": \"17:00:00\"\n    },\n    {\n      \"day_of_week\": \"Friday\",\n      \"start_time\": \"09:00:00\",\n      \"end_time\": \"17:00:00\"\n    }\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
         }
       ]
     },

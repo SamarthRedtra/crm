@@ -6,6 +6,7 @@ import frappe
 from frappe import _
 from frappe.model.document import Document
 from frappe.utils import cint
+from crm.api.redtra.utils import get_mandate_agent_verification
 
 
 class Property(Document):
@@ -58,6 +59,9 @@ class Property(Document):
 			)
 
 	def _ensure_verified_agent(self):
+		if not get_mandate_agent_verification():
+			return
+
 		if not self.agent:
 			return
 

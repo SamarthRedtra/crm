@@ -6,6 +6,31 @@ from frappe.model.document import Document
 
 
 class Agent(Document):
+	# begin: auto-generated types
+	# This code is auto-generated. Do not modify anything in this block.
+
+	from typing import TYPE_CHECKING
+
+	if TYPE_CHECKING:
+		from crm.fcrm.doctype.agent_availability_slot.agent_availability_slot import AgentAvailabilitySlot
+		from crm.fcrm.doctype.agent_kyc_document.agent_kyc_document import AgentKYCDocument
+		from frappe.types import DF
+
+		availability_slots: DF.Table[AgentAvailabilitySlot]
+		bio: DF.SmallText | None
+		dfd_registration_id: DF.Data
+		email: DF.Data | None
+		full_name: DF.Data | None
+		kyc_documents: DF.Table[AgentKYCDocument]
+		max_appointment_minutes: DF.Int
+		max_daily_appointments: DF.Int
+		phone: DF.Data | None
+		profile_image: DF.AttachImage | None
+		status: DF.Literal["Draft", "Pending Verification", "Verified", "Rejected"]
+		user: DF.Link
+		whatsapp_number: DF.Data | None
+	# end: auto-generated types
+
 	STATUS_FLOW = {
 		"Draft": {"Draft", "Pending Verification"},
 		"Pending Verification": {"Draft", "Pending Verification", "Verified", "Rejected"},

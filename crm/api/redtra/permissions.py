@@ -47,3 +47,5 @@ def has_property_permission(doc, user: str) -> bool:
 
 	return doc.agent == agent_id
 
+
+

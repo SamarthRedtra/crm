@@ -1,10 +1,11 @@
 from __future__ import annotations
 
+from datetime import datetime, timedelta
 from typing import Any
 
 import frappe
 from frappe import _
-from frappe.utils import get_datetime
+from frappe.utils import get_datetime, getdate, get_time, add_to_date, format_datetime
 
 from . import properties, utils
 
@@ -46,6 +47,41 @@ def list_appointments() -> list[dict[str, Any]]:
 	return [serialize_appointment(record["name"]) for record in records]
 
 
+@frappe.whitelist(allow_guest=True)
+def get_agent_available_slots(agent_id: str) -> dict[str, Any]:
+	"""Public API to get available appointment slots for an agent - no authentication required"""
+	agent_doc = frappe.get_doc("Agent", agent_id)
+	agent_doc.flags.ignore_permissions = True
+	
+	# Check agent verification only if mandate_agent_verification setting is enabled
+	if utils.get_mandate_agent_verification():
+		if agent_doc.status != "Verified":
+			frappe.throw(_("Agent is not verified or not available."), frappe.PermissionError)
+
+	start_date = frappe.form_dict.get("start_date")
+	end_date = frappe.form_dict.get("end_date")
+	
+	if start_date:
+		start_date = getdate(start_date)
+	else:
+		start_date = getdate()
+	
+	if end_date:
+		end_date = getdate(end_date)
+	else:
+		end_date = add_to_date(start_date, days=7)
+
+	available_slots = _calculate_available_slots(agent_doc, start_date, end_date)
+	
+	return {
+		"agent_id": agent_id,
+		"max_appointment_minutes": agent_doc.max_appointment_minutes or 30,
+		"start_date": str(start_date),
+		"end_date": str(end_date),
+		"available_slots": available_slots,
+	}
+
+
 @frappe.whitelist()
 @utils.require_jwt()
 def create_appointment() -> dict[str, Any]:
@@ -60,12 +96,22 @@ def create_appointment() -> dict[str, Any]:
 	if not agent_name:
 		frappe.throw(_("Property {0} is not assigned to an agent.").format(prop.name))
 
+	agent_doc = frappe.get_doc("Agent", agent_name)
+	
+	# Check agent verification only if mandate_agent_verification setting is enabled
+	if utils.get_mandate_agent_verification():
+		if agent_doc.status != "Verified":
+			frappe.throw(_("Agent is not verified."))
+
 	customer = utils.get_customer_by_user(utils.get_current_user())
 	if not customer:
 		frappe.throw(_("Customer profile is required to book an appointment."))
 
 	start_datetime = get_datetime(data["start_datetime"])
 	end_datetime = get_datetime(data["end_datetime"])
+
+	# Validate slot availability
+	_validate_slot_availability(agent_doc, start_datetime, end_datetime)
 
 	doc = frappe.get_doc(
 		{
@@ -84,6 +130,9 @@ def create_appointment() -> dict[str, Any]:
 	event_name = _create_calendar_event(doc, prop, customer)
 	if event_name:
 		doc.db_set("calendar_event", event_name, update_modified=False)
+
+	# Create notifications for customer and agent
+	_create_appointment_notifications(doc, prop, customer, agent_doc)
 
 	frappe.response.http_status_code = 201
 	return serialize_appointment(doc.name)
@@ -264,4 +313,263 @@ def _build_event_description(appointment_doc, property_doc, customer_doc) -> str
 		lines.append(_("Notes: {0}").format(appointment_doc.notes))
 
 	return "\n".join(lines)
+
+
+def _create_appointment_notifications(appointment_doc, property_doc, customer_doc, agent_doc):
+	"""Create notifications for both customer and agent when appointment is booked"""
+	customer_user = getattr(customer_doc, "user", None)
+	agent_user = frappe.db.get_value("Agent", agent_doc.name, "user")
+	
+	if not customer_user or not agent_user:
+		return
+	
+	property_title = property_doc.title or property_doc.name
+	appointment_time = format_datetime(appointment_doc.start_datetime, "dd MMM yyyy, hh:mm a")
+	
+	# Notification for customer (confirmation)
+	customer_notification_text = _("Appointment confirmed for {0}").format(property_title)
+	customer_message = _(
+		"Your appointment for <b>{0}</b> has been confirmed for <b>{1}</b>. "
+		"Agent: {2}"
+	).format(
+		property_title,
+		appointment_time,
+		agent_doc.full_name or agent_user,
+	)
+	
+	_create_notification(
+		from_user=agent_user,  # Notification comes from agent
+		to_user=customer_user,
+		notification_type="Assignment",
+		notification_text=customer_notification_text,
+		message=customer_message,
+		reference_doctype="Property Appointment",
+		reference_docname=appointment_doc.name,
+	)
+	
+	# Notification for agent
+	agent_notification_text = _("New appointment booked: {0}").format(property_title)
+	agent_message = _(
+		"New appointment booked for <b>{0}</b> on <b>{1}</b>. "
+		"Customer: {2}"
+	).format(
+		property_title,
+		appointment_time,
+		customer_doc.full_name,
+	)
+	
+	_create_notification(
+		from_user=customer_user,
+		to_user=agent_user,
+		notification_type="Assignment",
+		notification_text=agent_notification_text,
+		message=agent_message,
+		reference_doctype="Property Appointment",
+		reference_docname=appointment_doc.name,
+	)
+
+
+def _create_notification(
+	from_user: str,
+	to_user: str,
+	notification_type: str,
+	notification_text: str,
+	message: str,
+	reference_doctype: str,
+	reference_docname: str,
+):
+	"""Helper function to create a CRM Notification"""
+	try:
+		notification_doc = frappe.get_doc(
+			{
+				"doctype": "CRM Notification",
+				"from_user": from_user,
+				"to_user": to_user,
+				"type": notification_type,
+				"notification_text": notification_text,
+				"message": message,
+				"notification_type_doctype": reference_doctype,
+				"notification_type_doc": reference_docname,
+				"reference_doctype": reference_doctype,
+				"reference_name": reference_docname,
+				"read": 0,
+			}
+		)
+		notification_doc.insert(ignore_permissions=True)
+	except Exception as e:
+		# Log error but don't fail the appointment creation
+		frappe.log_error(f"Failed to create notification: {str(e)}", "Appointment Notification Error")
+
+
+def _calculate_available_slots(agent_doc, start_date, end_date) -> list[dict[str, Any]]:
+	"""
+	Calculate available appointment slots based on agent availability and existing appointments.
+	
+	Note: Availability slots are agent-specific - each agent has their own availability_slots
+	child table entries. This function only calculates slots for the provided agent_doc.
+	"""
+	available_slots = []
+	max_minutes = agent_doc.max_appointment_minutes or 30
+	
+	# Get THIS specific agent's availability slots from their child table
+	# Each agent has their own independent availability schedule
+	availability_slots = agent_doc.get("availability_slots", [])
+	if not availability_slots:
+		return []
+	
+	# Get existing scheduled appointments
+	existing_appointments = frappe.get_all(
+		"Property Appointment",
+		filters={
+			"agent": agent_doc.name,
+			"status": "Scheduled",
+			"start_datetime": [">=", datetime.combine(start_date, datetime.min.time())],
+			"end_datetime": ["<=", datetime.combine(end_date, datetime.max.time())],
+		},
+		fields=["start_datetime", "end_datetime"],
+	)
+	
+	# Create a set of booked time ranges
+	booked_ranges = [
+		(get_datetime(apt.start_datetime), get_datetime(apt.end_datetime))
+		for apt in existing_appointments
+	]
+	
+	# Map day names to weekday numbers (Monday = 0, Sunday = 6)
+	day_map = {
+		"Monday": 0,
+		"Tuesday": 1,
+		"Wednesday": 2,
+		"Thursday": 3,
+		"Friday": 4,
+		"Saturday": 5,
+		"Sunday": 6,
+	}
+	
+	# Generate slots for each day in the range
+	current_date = start_date
+	while current_date <= end_date:
+		weekday = current_date.weekday()
+		
+		# Find availability slots for this day
+		for avail_slot in availability_slots:
+			if day_map.get(avail_slot.day_of_week) == weekday:
+				slot_start_time = get_time(avail_slot.start_time)
+				slot_end_time = get_time(avail_slot.end_time)
+				
+				slot_start_datetime = datetime.combine(current_date, slot_start_time)
+				slot_end_datetime = datetime.combine(current_date, slot_end_time)
+				
+				# Generate appointment slots within this availability window
+				current_slot_start = slot_start_datetime
+				while current_slot_start + timedelta(minutes=max_minutes) <= slot_end_datetime:
+					current_slot_end = current_slot_start + timedelta(minutes=max_minutes)
+					
+					# Check if this slot conflicts with existing appointments
+					is_available = True
+					for booked_start, booked_end in booked_ranges:
+						if not (current_slot_end <= booked_start or current_slot_start >= booked_end):
+							is_available = False
+							break
+					
+					if is_available:
+						available_slots.append({
+							"start_datetime": current_slot_start.strftime("%Y-%m-%d %H:%M:%S"),
+							"end_datetime": current_slot_end.strftime("%Y-%m-%d %H:%M:%S"),
+							"date": str(current_date),
+							"time": current_slot_start.strftime("%H:%M"),
+						})
+					
+					# Move to next slot (increment by appointment duration)
+					current_slot_start += timedelta(minutes=max_minutes)
+		
+		current_date += timedelta(days=1)
+	
+	# Sort by datetime
+	available_slots.sort(key=lambda x: x["start_datetime"])
+	return available_slots
+
+
+def _validate_slot_availability(agent_doc, start_datetime: datetime, end_datetime: datetime):
+	"""
+	Validate that the requested slot is available for the specific agent.
+	
+	Note: Availability validation is agent-specific - it checks against the provided
+	agent_doc's availability_slots child table entries.
+	"""
+	max_minutes = agent_doc.max_appointment_minutes or 30
+	
+	# Check duration
+	duration_minutes = (end_datetime - start_datetime).total_seconds() / 60
+	if abs(duration_minutes - max_minutes) > 0.1:  # Allow small floating point differences
+		frappe.throw(
+			_("Appointment duration must be exactly {0} minutes.").format(max_minutes),
+			frappe.ValidationError,
+		)
+	
+	# Check if THIS specific agent has availability slots defined
+	# Availability slots are stored in the agent's child table, so they're agent-specific
+	availability_slots = agent_doc.get("availability_slots", [])
+	if not availability_slots:
+		frappe.throw(_("Agent has no availability slots configured."), frappe.ValidationError)
+	
+	# Map day names to weekday numbers
+	day_map = {
+		"Monday": 0,
+		"Tuesday": 1,
+		"Wednesday": 2,
+		"Thursday": 3,
+		"Friday": 4,
+		"Saturday": 5,
+		"Sunday": 6,
+	}
+	
+	requested_date = start_datetime.date()
+	requested_weekday = requested_date.weekday()
+	requested_start_time = start_datetime.time()
+	requested_end_time = end_datetime.time()
+	
+	# Check if slot falls within agent's availability and aligns with slot boundaries
+	is_valid_slot = False
+	for avail_slot in availability_slots:
+		if day_map.get(avail_slot.day_of_week) == requested_weekday:
+			slot_start_time = get_time(avail_slot.start_time)
+			slot_end_time = get_time(avail_slot.end_time)
+			
+			# Check if requested time falls within availability window
+			if slot_start_time <= requested_start_time and requested_end_time <= slot_end_time:
+				# Check if slot start aligns with appointment duration boundaries
+				# Calculate how many minutes from availability start
+				slot_start_datetime = datetime.combine(requested_date, slot_start_time)
+				minutes_from_start = (start_datetime - slot_start_datetime).total_seconds() / 60
+				
+				# Check if minutes_from_start is a multiple of max_minutes
+				if minutes_from_start >= 0 and (minutes_from_start % max_minutes) < 0.1:
+					is_valid_slot = True
+					break
+	
+	if not is_valid_slot:
+		frappe.throw(
+			_("The requested time slot is not within the agent's available hours or does not align with available slot boundaries."),
+			frappe.ValidationError,
+		)
+	
+	# Check for conflicts with existing appointments
+	conflicting = frappe.db.sql(
+		"""
+		select name
+		from `tabProperty Appointment`
+		where agent = %s
+		  and status = 'Scheduled'
+		  and start_datetime < %s
+		  and end_datetime > %s
+		""",
+		(agent_doc.name, end_datetime, start_datetime),
+	)
+	
+	if conflicting:
+		frappe.throw(
+			_("The requested time slot conflicts with an existing appointment."),
+			frappe.ValidationError,
+		)
 
