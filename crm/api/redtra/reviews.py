@@ -163,9 +163,9 @@ def get_agent_rating_stats(agent_id: str) -> dict[str, Any]:
 	
 	# Calculate averages
 	total_count = len(reviews)
-		overall_sum = sum(float(r.get("overall_rating") or 0) if r.get("overall_rating") else 0.0 for r in reviews)
-		agent_sum = sum(float(r.get("agent_rating") or 0) if r.get("agent_rating") else 0.0 for r in reviews)
-		property_sum = sum(float(r.get("property_rating") or 0) if r.get("property_rating") else 0.0 for r in reviews)
+	overall_sum = sum(float(r.get("overall_rating") or 0) for r in reviews)
+	agent_sum = sum(float(r.get("agent_rating") or 0) for r in reviews)
+	property_sum = sum(float(r.get("property_rating") or 0) for r in reviews)
 	
 	# Get all reviews for accurate averages (not just recent 10)
 	all_reviews_count = frappe.db.count(
