@@ -189,6 +189,19 @@ def serialize_appointment(name: str) -> dict[str, Any]:
 	)
 	agent_doc = frappe.get_doc("Agent", doc.agent) if doc.agent else None
 
+	# Check if review exists for this appointment
+	has_review = False
+	review_id = None
+	if doc.status == "Completed":
+		review_name = frappe.db.get_value(
+			"Review and Rating",
+			{"appointment": doc.name},
+			"name"
+		)
+		if review_name:
+			has_review = True
+			review_id = review_name
+
 	return {
 		"id": doc.name,
 		"status": doc.status,
@@ -210,6 +223,11 @@ def serialize_appointment(name: str) -> dict[str, Any]:
 		},
 		"property": property_summary,
 		"calendar_event": doc.calendar_event,
+		"review": {
+			"has_review": has_review,
+			"review_id": review_id,
+			"can_review": doc.status == "Completed" and not has_review,
+		},
 	}
 
 

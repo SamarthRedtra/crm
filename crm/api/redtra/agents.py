@@ -276,6 +276,20 @@ def _serialize_agent_detail(doc) -> dict[str, Any]:
 			# Field might not exist if migration hasn't run yet
 			pass
 
+	# Get rating statistics
+	try:
+		from . import reviews
+		rating_stats = reviews.get_agent_rating_stats(doc.name)
+	except Exception:
+		# If reviews module not available or error, return empty stats
+		rating_stats = {
+			"average_overall_rating": 0.0,
+			"average_agent_rating": 0.0,
+			"average_property_rating": 0.0,
+			"total_reviews": 0,
+			"recent_reviews": [],
+		}
+
 	return {
 		"id": doc.name,
 		"name": doc.full_name or doc.name,
@@ -289,6 +303,7 @@ def _serialize_agent_detail(doc) -> dict[str, Any]:
 		"availability_slots": availability_slots,
 		"property_count": len(properties_list),
 		"properties": [properties.serialize_property_summary(row) for row in properties_list],
+		"ratings": rating_stats,
 	}
 
 
