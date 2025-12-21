@@ -5,7 +5,7 @@ from typing import Any
 
 import frappe
 from frappe import _
-from frappe.utils import get_datetime, getdate, get_time, add_to_date, format_datetime
+from frappe.utils import get_datetime, getdate, get_time, add_to_date
 
 from . import properties, utils
 
@@ -131,8 +131,8 @@ def create_appointment() -> dict[str, Any]:
 	if event_name:
 		doc.db_set("calendar_event", event_name, update_modified=False)
 
-	# Create notifications for customer and agent
-	_create_appointment_notifications(doc, prop, customer, agent_doc)
+	# Notifications are automatically created in Property Appointment doctype controller
+	# (after_insert method handles creation notifications)
 
 	frappe.response.http_status_code = 201
 	return serialize_appointment(doc.name)
@@ -162,6 +162,8 @@ def update_appointment(appointment_id: str) -> dict[str, Any]:
 
 	doc.save(ignore_permissions=True)
 	_update_calendar_event(doc)
+	# Notifications for reschedule are automatically created in Property Appointment doctype controller
+	# (on_update method detects datetime changes and sends reschedule notifications)
 	return serialize_appointment(doc.name)
 
 
@@ -172,6 +174,8 @@ def cancel_appointment(appointment_id: str) -> dict[str, Any]:
 	doc.status = "Cancelled"
 	doc.save(ignore_permissions=True)
 	_update_calendar_event(doc)
+	# Notifications for cancellation are automatically created in Property Appointment doctype controller
+	# (on_update method detects status changes and sends cancellation notifications)
 	frappe.response.http_status_code = 204
 	return {}
 
@@ -313,92 +317,6 @@ def _build_event_description(appointment_doc, property_doc, customer_doc) -> str
 		lines.append(_("Notes: {0}").format(appointment_doc.notes))
 
 	return "\n".join(lines)
-
-
-def _create_appointment_notifications(appointment_doc, property_doc, customer_doc, agent_doc):
-	"""Create notifications for both customer and agent when appointment is booked"""
-	customer_user = getattr(customer_doc, "user", None)
-	agent_user = frappe.db.get_value("Agent", agent_doc.name, "user")
-	
-	if not customer_user or not agent_user:
-		return
-	
-	property_title = property_doc.title or property_doc.name
-	appointment_time = format_datetime(appointment_doc.start_datetime, "dd MMM yyyy, hh:mm a")
-	
-	# Notification for customer (confirmation)
-	customer_notification_text = _("Appointment confirmed for {0}").format(property_title)
-	customer_message = _(
-		"Your appointment for <b>{0}</b> has been confirmed for <b>{1}</b>. "
-		"Agent: {2}"
-	).format(
-		property_title,
-		appointment_time,
-		agent_doc.full_name or agent_user,
-	)
-	
-	_create_notification(
-		from_user=agent_user,  # Notification comes from agent
-		to_user=customer_user,
-		notification_type="Assignment",
-		notification_text=customer_notification_text,
-		message=customer_message,
-		reference_doctype="Property Appointment",
-		reference_docname=appointment_doc.name,
-	)
-	
-	# Notification for agent
-	agent_notification_text = _("New appointment booked: {0}").format(property_title)
-	agent_message = _(
-		"New appointment booked for <b>{0}</b> on <b>{1}</b>. "
-		"Customer: {2}"
-	).format(
-		property_title,
-		appointment_time,
-		customer_doc.full_name,
-	)
-	
-	_create_notification(
-		from_user=customer_user,
-		to_user=agent_user,
-		notification_type="Assignment",
-		notification_text=agent_notification_text,
-		message=agent_message,
-		reference_doctype="Property Appointment",
-		reference_docname=appointment_doc.name,
-	)
-
-
-def _create_notification(
-	from_user: str,
-	to_user: str,
-	notification_type: str,
-	notification_text: str,
-	message: str,
-	reference_doctype: str,
-	reference_docname: str,
-):
-	"""Helper function to create a CRM Notification"""
-	try:
-		notification_doc = frappe.get_doc(
-			{
-				"doctype": "CRM Notification",
-				"from_user": from_user,
-				"to_user": to_user,
-				"type": notification_type,
-				"notification_text": notification_text,
-				"message": message,
-				"notification_type_doctype": reference_doctype,
-				"notification_type_doc": reference_docname,
-				"reference_doctype": reference_doctype,
-				"reference_name": reference_docname,
-				"read": 0,
-			}
-		)
-		notification_doc.insert(ignore_permissions=True)
-	except Exception as e:
-		# Log error but don't fail the appointment creation
-		frappe.log_error(f"Failed to create notification: {str(e)}", "Appointment Notification Error")
 
 
 def _calculate_available_slots(agent_doc, start_date, end_date) -> list[dict[str, Any]]:
