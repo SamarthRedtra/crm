@@ -211,3 +211,4 @@ def get_agent_rating_stats(agent_id: str) -> dict[str, Any]:
 		"total_reviews": total_count,
 		"recent_reviews": recent_reviews,
 	}
+

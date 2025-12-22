@@ -64,3 +64,4 @@ class ReviewAndRating(Document):
 					_("{0} cannot be greater than 5.").format(rating_field.replace("_", " ").title()),
 					frappe.ValidationError
 				)
+
