@@ -168,11 +168,10 @@ def list_properties() -> dict[str, Any]:
 				location_condition = location_condition | property_dt.area.isin(area_matches)
 			conditions.append(location_condition)
 
-		restrict, agent_id = _resolve_agent_scope()
-		if restrict:
-			if not agent_id:
-				frappe.throw(_("Agent profile not found."), frappe.PermissionError)
-			conditions.append(property_dt.agent == agent_id)
+		# Note: This is a public endpoint (allow_guest=True), so we don't restrict by agent scope
+		# All active properties should be visible to everyone
+		# Agent scope restriction is only applied when creating/updating properties (not listing)
+		# If you want to filter by a specific agent, use the "agent" query parameter above
 
 		summary_query = (
 			frappe.qb.from_(property_dt)

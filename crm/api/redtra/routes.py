@@ -16,6 +16,7 @@ from . import (
 	notifications,
 	properties,
 	amenties,
+	reviews,
 )
 
 
@@ -105,6 +106,16 @@ def register_routes():
 		Rule("/agents", methods=["GET"], endpoint=agents.list_agents),
 		Rule("/agents/<string:agent_id>", methods=["GET"], endpoint=agents.get_agent),
 		Rule("/agents/availability", methods=["POST"], endpoint=agents.update_agent_availability),
+		Rule(
+			"/appointments/<string:appointment_id>/review",
+			methods=["POST"],
+			endpoint=reviews.submit_appointment_review,
+		),
+		Rule(
+			"/appointments/<string:appointment_id>/review",
+			methods=["GET"],
+			endpoint=reviews.get_appointment_review,
+		),
 		Rule("/home", methods=["GET"], endpoint=home.get_home),
 	]
 
