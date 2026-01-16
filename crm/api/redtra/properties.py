@@ -193,6 +193,7 @@ def list_properties() -> dict[str, Any]:
 				property_dt.city.as_("city"),
 				property_dt.area.as_("area"),
 				property_dt.developer.as_("developer"),
+				property_dt.agent.as_("agent"),
 				property_dt.furnishing_status.as_("furnishing_status"),
 				property_dt.state.as_("state"),
 				property_dt.country.as_("country"),
@@ -404,9 +405,30 @@ def serialize_property_summary(row: dict[str, Any]) -> dict[str, Any]:
 		area_name = frappe.db.get_value("Area", row["area"], "area_name")
 
 	developer_id = row.get("developer")
-	developer_name = row.get("developer_name")
-	if developer_name is None and developer_id:
-		developer_name = frappe.db.get_value("Developer", developer_id, "developer_name")
+	developer = _get_developer_profile(developer_id)
+
+	agent_id = row.get("agent")
+	agent = None
+	if agent_id:
+		try:
+			agent_data = frappe.db.get_value(
+				"Agent",
+				agent_id,
+				["name", "full_name", "user", "phone", "whatsapp_number", "profile_image", "status"],
+				as_dict=True,
+			)
+			if agent_data:
+				agent = {
+					"id": agent_data.get("name"),
+					"name": agent_data.get("full_name") or agent_data.get("user"),
+					"phone": agent_data.get("phone"),
+					"whatsapp_number": agent_data.get("whatsapp_number"),
+					"profile_image": agent_data.get("profile_image"),
+					"status": agent_data.get("status"),
+				}
+		except Exception:
+			# If agent doesn't exist or error, leave as None
+			pass
 
 	location = _build_location_label(
 		area_name,
@@ -473,8 +495,10 @@ def serialize_property_summary(row: dict[str, Any]) -> dict[str, Any]:
 		"area": row.get("area"),
 		"area_name": area_name,
 		"is_featured": bool(row.get("is_featured")),
-		"developer": developer_id,
-		"developer_name": developer_name,
+		"developer": developer,
+		"developer_id": developer["id"] if developer else None,
+		"developer_name": developer["name"] if developer else None,
+		"agent": agent,
 		"location": location,
 		"primary_image_url": row.get("primary_image"),
 		"furnishing_status": row.get("furnishing_status"),
