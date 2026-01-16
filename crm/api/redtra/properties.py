@@ -181,24 +181,24 @@ def list_properties() -> dict[str, Any]:
 			.on(property_dt.developer == developer_dt.name)
 			.select(
 				property_dt.name.as_("name"),
-				property_dt.title,
-				property_dt.listing_type,
-				property_dt.property_type,
-				property_dt.property_category,
-				property_dt.price,
-				property_dt.currency,
-				property_dt.bedrooms,
-				property_dt.bathrooms,
-				property_dt.area_sqft,
-				property_dt.city,
-				property_dt.area,
-				property_dt.developer,
-				property_dt.furnishing_status,
-				property_dt.state,
-				property_dt.country,
-				property_dt.primary_image,
-				property_dt.status,
-				property_dt.is_featured,
+				property_dt.title.as_("title"),
+				property_dt.listing_type.as_("listing_type"),
+				property_dt.property_type.as_("property_type"),
+				property_dt.property_category.as_("property_category"),
+				property_dt.price.as_("price"),
+				property_dt.currency.as_("currency"),
+				property_dt.bedrooms.as_("bedrooms"),
+				property_dt.bathrooms.as_("bathrooms"),
+				property_dt.area_sqft.as_("area_sqft"),
+				property_dt.city.as_("city"),
+				property_dt.area.as_("area"),
+				property_dt.developer.as_("developer"),
+				property_dt.furnishing_status.as_("furnishing_status"),
+				property_dt.state.as_("state"),
+				property_dt.country.as_("country"),
+				property_dt.primary_image.as_("primary_image"),
+				property_dt.status.as_("status"),
+				property_dt.is_featured.as_("is_featured"),
 				area_dt.area_name.as_("area_name"),
 				developer_dt.developer_name.as_("developer_name"),
 			)
@@ -427,8 +427,8 @@ def serialize_property_summary(row: dict[str, Any]) -> dict[str, Any]:
 			fields=["amenity_name"],
 		)
 		amenities = []
-		for row in amenity_rows:
-			amenity_name = row.amenity_name
+		for amenity_row in amenity_rows:
+			amenity_name = amenity_row.amenity_name
 			amenity_doc = None
 			try:
 				amenity_doc = frappe.get_doc("Amenity", amenity_name)
