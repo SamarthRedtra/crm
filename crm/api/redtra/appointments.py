@@ -49,7 +49,17 @@ def list_appointments() -> list[dict[str, Any]]:
 
 @frappe.whitelist(allow_guest=True)
 def get_agent_available_slots(agent_id: str) -> dict[str, Any]:
-	"""Public API to get available appointment slots for an agent - no authentication required"""
+	"""
+	Public API to get available appointment slots for an agent - no authentication required
+	
+	Query Parameters:
+	- date: Single date to filter slots (YYYY-MM-DD format) - returns slots for only this date
+	- start_date: Start date for date range (defaults to today)
+	- end_date: End date for date range (defaults to 7 days from start_date)
+	
+	If 'date' is provided, it takes precedence and returns slots for only that date.
+	Otherwise, uses start_date and end_date for date range filtering.
+	"""
 	agent_doc = frappe.get_doc("Agent", agent_id)
 	agent_doc.flags.ignore_permissions = True
 	
@@ -58,6 +68,33 @@ def get_agent_available_slots(agent_id: str) -> dict[str, Any]:
 		if agent_doc.status != "Verified":
 			frappe.throw(_("Agent is not verified or not available."), frappe.PermissionError)
 
+	# Check for single date filter first
+	single_date = frappe.form_dict.get("date")
+	if single_date:
+		# Single date mode - return slots for only this date
+		target_date = getdate(single_date)
+		available_slots_list = _calculate_available_slots(agent_doc, target_date, target_date)
+		
+		# Group by date (will only have one date in this case)
+		slots_by_date = {}
+		for slot in available_slots_list:
+			slot_date = slot.get("date")
+			if slot_date not in slots_by_date:
+				slots_by_date[slot_date] = []
+			slots_by_date[slot_date].append({
+				"start_datetime": slot.get("start_datetime"),
+				"end_datetime": slot.get("end_datetime"),
+				"time": slot.get("time"),
+			})
+		
+		return {
+			"agent_id": agent_id,
+			"max_appointment_minutes": agent_doc.max_appointment_minutes or 30,
+			"date": str(target_date),
+			"available_slots": slots_by_date,
+		}
+	
+	# Date range mode
 	start_date = frappe.form_dict.get("start_date")
 	end_date = frappe.form_dict.get("end_date")
 	
@@ -71,14 +108,26 @@ def get_agent_available_slots(agent_id: str) -> dict[str, Any]:
 	else:
 		end_date = add_to_date(start_date, days=7)
 
-	available_slots = _calculate_available_slots(agent_doc, start_date, end_date)
+	available_slots_list = _calculate_available_slots(agent_doc, start_date, end_date)
+	
+	# Group slots by date
+	slots_by_date = {}
+	for slot in available_slots_list:
+		slot_date = slot.get("date")
+		if slot_date not in slots_by_date:
+			slots_by_date[slot_date] = []
+		slots_by_date[slot_date].append({
+			"start_datetime": slot.get("start_datetime"),
+			"end_datetime": slot.get("end_datetime"),
+			"time": slot.get("time"),
+		})
 	
 	return {
 		"agent_id": agent_id,
 		"max_appointment_minutes": agent_doc.max_appointment_minutes or 30,
 		"start_date": str(start_date),
 		"end_date": str(end_date),
-		"available_slots": available_slots,
+		"available_slots": slots_by_date,
 	}
 
 

@@ -17,6 +17,8 @@ from . import (
 	properties,
 	amenties,
 	reviews,
+	reminders,
+	icons,
 )
 
 
@@ -105,6 +107,7 @@ def register_routes():
 		Rule("/amenties", methods=["GET"], endpoint=amenties.get_amenities),
 		Rule("/agents", methods=["GET"], endpoint=agents.list_agents),
 		Rule("/agents/<string:agent_id>", methods=["GET"], endpoint=agents.get_agent),
+		Rule("/agents/<string:agent_id>/reviews", methods=["GET"], endpoint=reviews.get_agent_reviews),
 		Rule("/agents/availability", methods=["POST"], endpoint=agents.update_agent_availability),
 		Rule(
 			"/appointments/<string:appointment_id>/review",
@@ -116,7 +119,13 @@ def register_routes():
 			methods=["GET"],
 			endpoint=reviews.get_appointment_review,
 		),
+		Rule(
+			"/appointments/<string:appointment_id>/send-reminder",
+			methods=["POST"],
+			endpoint=reminders.send_appointment_reminder,
+		),
 		Rule("/home", methods=["GET"], endpoint=home.get_home),
+		Rule("/icons/lucide", methods=["GET"], endpoint=icons.list_lucide_icons),
 	]
 
 	existing = {(rule.rule, tuple(sorted(rule.methods or []))) for rule in url_rules}

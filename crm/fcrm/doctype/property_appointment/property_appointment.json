@@ -6,7 +6,7 @@
  "creation": "2025-12-02 00:00:00.000000",
  "doctype": "DocType",
  "engine": "InnoDB",
- "field_order": [
+  "field_order": [
   "customer",
   "agent",
   "property",
@@ -16,7 +16,8 @@
   "status",
   "source",
   "notes",
-  "calendar_event"
+  "calendar_event",
+  "reminder_sent"
  ],
  "fields": [
   {
@@ -87,6 +88,13 @@
    "fieldtype": "Link",
    "label": "Calendar Event",
    "options": "Event",
+   "read_only": 1
+  },
+  {
+   "default": "0",
+   "fieldname": "reminder_sent",
+   "fieldtype": "Check",
+   "label": "Reminder Sent",
    "read_only": 1
   }
  ],

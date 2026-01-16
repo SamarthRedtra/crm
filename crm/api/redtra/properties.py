@@ -420,16 +420,31 @@ def serialize_property_summary(row: dict[str, Any]) -> dict[str, Any]:
 	gallery = []
 	
 	if property_id:
-		# Fetch amenities
+		# Fetch amenities with icons
 		amenity_rows = frappe.get_all(
 			"Property Amenity",
 			filters={"parent": property_id},
 			fields=["amenity_name"],
 		)
-		amenities = [
-			frappe.db.get_value("Amenity", row.amenity_name, "amenity_name") or row.amenity_name
-			for row in amenity_rows
-		]
+		amenities = []
+		for row in amenity_rows:
+			amenity_name = row.amenity_name
+			amenity_doc = None
+			try:
+				amenity_doc = frappe.get_doc("Amenity", amenity_name)
+			except Exception:
+				pass
+			
+			# Icon field now stores Lucide icon name as string
+			icon_name = None
+			if amenity_doc and hasattr(amenity_doc, "icon") and amenity_doc.icon:
+				icon_name = amenity_doc.icon
+			
+			amenity_dict = {
+				"name": amenity_doc.amenity_name if amenity_doc else amenity_name,
+				"icon": icon_name,  # Returns Lucide icon name (e.g., "home", "wifi", "car")
+			}
+			amenities.append(amenity_dict)
 		
 		# Fetch gallery
 		gallery_rows = frappe.get_all(

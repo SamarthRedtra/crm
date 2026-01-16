@@ -28,7 +28,7 @@ export_python_type_annotations = True
 # ------------------
 
 # include js, css files in header of desk.html
-# app_include_css = "/assets/crm/css/crm.css"
+app_include_css = "/assets/crm/css/crm_lucide_icons.css"
 # app_include_js = "/assets/crm/js/crm.js"
 
 # include js, css files in header of web template
@@ -191,10 +191,15 @@ scheduler_events = {
         "*/15 * * * *": [
 			"crm.lead_syncing.background_sync.sync_leads_from_sources_15_minutes"
 		],
+        "*/10 * * * *": [
+			"crm.api.redtra.reminders.send_scheduled_reminders"
+		],
 	}
 }
 app_include_js = [
-    "/assets/crm/apply.js"
+    "/assets/crm/apply.js",
+    "/assets/crm/js/crm_lucide_icons.js",
+    "/assets/crm/js/crm_icon_control.js"
 ]
 
 

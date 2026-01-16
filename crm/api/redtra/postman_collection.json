@@ -1,11 +1,11 @@
 {
   "info": {
-    "name": "Redtra Property Booking API",
-    "description": "Comprehensive Postman collection for all routes exposed under crm.api.redtra.routes",
+    "name": "CRM API - Complete Collection",
+    "description": "Comprehensive Postman collection for all CRM APIs including Redtra Property Booking API, Core CRM APIs, and Lead Syncing APIs. This collection covers all routes exposed under crm.api.redtra.routes as well as all Core CRM endpoints and Lead Syncing functionality.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
     "version": {
-      "major": 1,
-      "minor": 3,
+      "major": 2,
+      "minor": 0,
       "patch": 0
     }
   },
@@ -88,7 +88,7 @@
             },
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"full_name\": \"Anwar Khan\",\n  \"email\": \"anwar@example.com\",\n  \"password\": \"StrongPassword123!\",\n  \"phone\": \"+971500000000\",\n  \"is_agent\": false,\n  \"remember_me\": true\n}",
+              "raw": "{\n  \"full_name\": \"Anwar Khan\",\n  \"email\": \"anwar@example.com\",\n  \"password\": \"StrongPassword123!\",\n  \"phone\": \"+971500000000\",\n  \"is_agent\": false\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -124,7 +124,7 @@
             },
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"full_name\": \"Fatima Ali\",\n  \"email\": \"fatima.agent@example.com\",\n  \"password\": \"StrongPassword123!\",\n  \"phone\": \"+971500000010\",\n  \"is_agent\": true,\n  \"agent_id\": \"{{agent_id}}\",\n  \"whatsapp_number\": \"+971500000011\",\n  \"bio\": \"Specialist in luxury villas across Dubai.\",\n  \"max_daily_appointments\": 6,\n  \"remember_me\": true\n}",
+              "raw": "{\n  \"full_name\": \"Fatima Ali\",\n  \"email\": \"fatima.agent@example.com\",\n  \"password\": \"StrongPassword123!\",\n  \"phone\": \"+971500000010\",\n  \"is_agent\": true,\n  \"agent_id\": \"{{agent_id}}\",\n  \"whatsapp_number\": \"+971500000011\",\n  \"bio\": \"Specialist in luxury villas across Dubai.\",\n  \"max_daily_appointments\": 6\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -160,7 +160,7 @@
             },
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"email\": \"anwar@example.com\",\n  \"password\": \"StrongPassword123!\"\n}",
+              "raw": "{\n  \"email\": \"anwar@example.com\",\n  \"password\": \"StrongPassword123!\",\n  \"remember_me\": true\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -977,13 +977,56 @@
               ],
               "query": [
                 {
+                  "key": "date",
+                  "value": "2025-12-15",
+                  "description": "Single date filter (YYYY-MM-DD). If provided, returns slots for only this date.",
+                  "disabled": true
+                },
+                {
                   "key": "start_date",
                   "value": "2025-12-15",
+                  "description": "Start date for date range (used when 'date' is not provided)",
                   "disabled": true
                 },
                 {
                   "key": "end_date",
                   "value": "2025-12-22",
+                  "description": "End date for date range (defaults to 7 days from start_date)",
+                  "disabled": true
+                }
+              ]
+            },
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Agent Reviews",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/agents/{{agent_id}}/reviews",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "agents",
+                "{{agent_id}}",
+                "reviews"
+              ],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1",
+                  "disabled": true
+                },
+                {
+                  "key": "page_size",
+                  "value": "20",
                   "disabled": true
                 }
               ]
@@ -1286,6 +1329,97 @@
             }
           },
           "response": []
+        },
+        {
+          "name": "Submit Appointment Review",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/appointments/{{appointment_id}}/review",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "appointments",
+                "{{appointment_id}}",
+                "review"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"overall_rating\": 4.5,\n  \"agent_rating\": 5.0,\n  \"property_rating\": 4.0,\n  \"review_text\": \"Great property and excellent agent service!\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Appointment Review",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/appointments/{{appointment_id}}/review",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "appointments",
+                "{{appointment_id}}",
+                "review"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Send Appointment Reminder",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/appointments/{{appointment_id}}/send-reminder",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "appointments",
+                "{{appointment_id}}",
+                "send-reminder"
+              ]
+            }
+          },
+          "response": []
         }
       ]
     },
@@ -1466,6 +1600,1678 @@
             },
             "auth": {
               "type": "noauth"
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Amenities",
+      "item": [
+        {
+          "name": "List Amenities",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/amenties",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "amenties"
+              ],
+              "query": [
+                {
+                  "key": "limit",
+                  "value": "20",
+                  "disabled": true
+                },
+                {
+                  "key": "offset",
+                  "value": "0",
+                  "disabled": true
+                }
+              ]
+            },
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Icons",
+      "item": [
+        {
+          "name": "List Lucide Icons",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/icons/lucide",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "icons",
+                "lucide"
+              ],
+              "query": [
+                {
+                  "key": "search",
+                  "value": "home",
+                  "description": "Optional search term to filter icons",
+                  "disabled": true
+                }
+              ]
+            },
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Core CRM APIs",
+      "item": [
+        {
+          "name": "Document Management",
+          "item": [
+            {
+              "name": "Get Data",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{token}}",
+                    "type": "text"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/api/method/crm.api.doc.get_data?doctype=CRM Lead",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "method",
+                    "crm.api.doc.get_data"
+                  ],
+                  "query": [
+                    {
+                      "key": "doctype",
+                      "value": "CRM Lead",
+                      "description": "Document type"
+                    },
+                    {
+                      "key": "filters",
+                      "value": "",
+                      "disabled": true
+                    },
+                    {
+                      "key": "order_by",
+                      "value": "",
+                      "disabled": true
+                    },
+                    {
+                      "key": "page_length",
+                      "value": "20",
+                      "disabled": true
+                    }
+                  ]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "Get Fields Meta",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{token}}",
+                    "type": "text"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/api/method/crm.api.doc.get_fields_meta?doctype=CRM Lead",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "method",
+                    "crm.api.doc.get_fields_meta"
+                  ],
+                  "query": [
+                    {
+                      "key": "doctype",
+                      "value": "CRM Lead"
+                    }
+                  ]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "Get Fields",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{token}}",
+                    "type": "text"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/api/method/crm.api.doc.get_fields?doctype=CRM Lead",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "method",
+                    "crm.api.doc.get_fields"
+                  ],
+                  "query": [
+                    {
+                      "key": "doctype",
+                      "value": "CRM Lead"
+                    }
+                  ]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "Get Filterable Fields",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{token}}",
+                    "type": "text"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/api/method/crm.api.doc.get_filterable_fields?doctype=CRM Lead",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "method",
+                    "crm.api.doc.get_filterable_fields"
+                  ],
+                  "query": [
+                    {
+                      "key": "doctype",
+                      "value": "CRM Lead"
+                    }
+                  ]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "Get Group By Fields",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{token}}",
+                    "type": "text"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/api/method/crm.api.doc.get_group_by_fields?doctype=CRM Lead",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "method",
+                    "crm.api.doc.get_group_by_fields"
+                  ],
+                  "query": [
+                    {
+                      "key": "doctype",
+                      "value": "CRM Lead"
+                    }
+                  ]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "Get Quick Filters",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{token}}",
+                    "type": "text"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/api/method/crm.api.doc.get_quick_filters?doctype=CRM Lead",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "method",
+                    "crm.api.doc.get_quick_filters"
+                  ],
+                  "query": [
+                    {
+                      "key": "doctype",
+                      "value": "CRM Lead"
+                    }
+                  ]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "Update Quick Filters",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{token}}",
+                    "type": "text"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/api/method/crm.api.doc.update_quick_filters",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "method",
+                    "crm.api.doc.update_quick_filters"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"quick_filters\": \"[\\\"status\\\", \\\"source\\\"]\",\n  \"old_filters\": \"[]\",\n  \"doctype\": \"CRM Lead\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "Get Sort Options",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{token}}",
+                    "type": "text"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/api/method/crm.api.doc.sort_options?doctype=CRM Lead",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "method",
+                    "crm.api.doc.sort_options"
+                  ],
+                  "query": [
+                    {
+                      "key": "doctype",
+                      "value": "CRM Lead"
+                    }
+                  ]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "Get Linked Docs",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{token}}",
+                    "type": "text"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/api/method/crm.api.doc.get_linked_docs_of_document?doctype=CRM Lead&docname=LEAD-00001",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "method",
+                    "crm.api.doc.get_linked_docs_of_document"
+                  ],
+                  "query": [
+                    {
+                      "key": "doctype",
+                      "value": "CRM Lead"
+                    },
+                    {
+                      "key": "docname",
+                      "value": "LEAD-00001"
+                    }
+                  ]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "Remove Linked Doc Reference",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{token}}",
+                    "type": "text"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/api/method/crm.api.doc.remove_linked_doc_reference",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "method",
+                    "crm.api.doc.remove_linked_doc_reference"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"items\": [{\"doctype\": \"CRM Lead\", \"name\": \"LEAD-00001\"}],\n  \"remove_contact\": false,\n  \"delete\": false\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "Delete Bulk Docs",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{token}}",
+                    "type": "text"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/api/method/crm.api.doc.delete_bulk_docs",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "method",
+                    "crm.api.doc.delete_bulk_docs"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"doctype\": \"CRM Lead\",\n  \"items\": [\"LEAD-00001\", \"LEAD-00002\"],\n  \"delete_linked\": false\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "Remove Assignments",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{token}}",
+                    "type": "text"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/api/method/crm.api.doc.remove_assignments",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "method",
+                    "crm.api.doc.remove_assignments"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"doctype\": \"CRM Lead\",\n  \"name\": \"LEAD-00001\",\n  \"assignees\": [\"user@example.com\"],\n  \"ignore_permissions\": false\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "Get Assigned Users",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{token}}",
+                    "type": "text"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/api/method/crm.api.doc.get_assigned_users?doctype=CRM Lead&name=LEAD-00001",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "method",
+                    "crm.api.doc.get_assigned_users"
+                  ],
+                  "query": [
+                    {
+                      "key": "doctype",
+                      "value": "CRM Lead"
+                    },
+                    {
+                      "key": "name",
+                      "value": "LEAD-00001"
+                    }
+                  ]
+                }
+              },
+              "response": []
+            }
+          ]
+        },
+        {
+          "name": "Assignment Rules",
+          "item": [
+            {
+              "name": "Get Assignment Rules List",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{token}}",
+                    "type": "text"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/api/method/crm.api.assignment_rule.get_assignment_rules_list",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "method",
+                    "crm.api.assignment_rule.get_assignment_rules_list"
+                  ]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "Duplicate Assignment Rule",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{token}}",
+                    "type": "text"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/api/method/crm.api.assignment_rule.duplicate_assignment_rule",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "method",
+                    "crm.api.assignment_rule.duplicate_assignment_rule"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"docname\": \"ASSIGN-RULE-00001\",\n  \"new_name\": \"ASSIGN-RULE-00002\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "response": []
+            }
+          ]
+        },
+        {
+          "name": "Dashboard",
+          "item": [
+            {
+              "name": "Reset to Default",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{token}}",
+                    "type": "text"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/api/method/crm.api.dashboard.reset_to_default",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "method",
+                    "crm.api.dashboard.reset_to_default"
+                  ]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "Get Dashboard",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{token}}",
+                    "type": "text"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/api/method/crm.api.dashboard.get_dashboard",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "method",
+                    "crm.api.dashboard.get_dashboard"
+                  ],
+                  "query": [
+                    {
+                      "key": "from_date",
+                      "value": "",
+                      "disabled": true
+                    },
+                    {
+                      "key": "to_date",
+                      "value": "",
+                      "disabled": true
+                    },
+                    {
+                      "key": "user",
+                      "value": "",
+                      "disabled": true
+                    }
+                  ]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "Get Chart",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{token}}",
+                    "type": "text"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/api/method/crm.api.dashboard.get_chart?name=lead_conversion&type=line",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "method",
+                    "crm.api.dashboard.get_chart"
+                  ],
+                  "query": [
+                    {
+                      "key": "name",
+                      "value": "lead_conversion"
+                    },
+                    {
+                      "key": "type",
+                      "value": "line"
+                    },
+                    {
+                      "key": "from_date",
+                      "value": "",
+                      "disabled": true
+                    },
+                    {
+                      "key": "to_date",
+                      "value": "",
+                      "disabled": true
+                    },
+                    {
+                      "key": "user",
+                      "value": "",
+                      "disabled": true
+                    }
+                  ]
+                }
+              },
+              "response": []
+            }
+          ]
+        },
+        {
+          "name": "Activities",
+          "item": [
+            {
+              "name": "Get Activities",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{token}}",
+                    "type": "text"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/api/method/crm.api.activities.get_activities?name=LEAD-00001",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "method",
+                    "crm.api.activities.get_activities"
+                  ],
+                  "query": [
+                    {
+                      "key": "name",
+                      "value": "LEAD-00001"
+                    }
+                  ]
+                }
+              },
+              "response": []
+            }
+          ]
+        },
+        {
+          "name": "Comments",
+          "item": [
+            {
+              "name": "Add Attachments",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{token}}",
+                    "type": "text"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/api/method/crm.api.comment.add_attachments",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "method",
+                    "crm.api.comment.add_attachments"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"name\": \"COMMENT-00001\",\n  \"attachments\": [\"FILE-00001\"]\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "response": []
+            }
+          ]
+        },
+        {
+          "name": "Contacts",
+          "item": [
+            {
+              "name": "Get Linked Deals",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{token}}",
+                    "type": "text"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/api/method/crm.api.contact.get_linked_deals?contact=CONTACT-00001",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "method",
+                    "crm.api.contact.get_linked_deals"
+                  ],
+                  "query": [
+                    {
+                      "key": "contact",
+                      "value": "CONTACT-00001"
+                    }
+                  ]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "Create New",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{token}}",
+                    "type": "text"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/api/method/crm.api.contact.create_new",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "method",
+                    "crm.api.contact.create_new"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"contact\": \"CONTACT-00001\",\n  \"field\": \"email\",\n  \"value\": \"newemail@example.com\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "Set As Primary",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{token}}",
+                    "type": "text"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/api/method/crm.api.contact.set_as_primary",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "method",
+                    "crm.api.contact.set_as_primary"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"contact\": \"CONTACT-00001\",\n  \"field\": \"email\",\n  \"value\": \"primary@example.com\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "Search Emails",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{token}}",
+                    "type": "text"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/api/method/crm.api.contact.search_emails?txt=john",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "method",
+                    "crm.api.contact.search_emails"
+                  ],
+                  "query": [
+                    {
+                      "key": "txt",
+                      "value": "john"
+                    }
+                  ]
+                }
+              },
+              "response": []
+            }
+          ]
+        },
+        {
+          "name": "WhatsApp",
+          "item": [
+            {
+              "name": "Is WhatsApp Enabled",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{token}}",
+                    "type": "text"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/api/method/crm.api.whatsapp.is_whatsapp_enabled",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "method",
+                    "crm.api.whatsapp.is_whatsapp_enabled"
+                  ]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "Is WhatsApp Installed",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{token}}",
+                    "type": "text"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/api/method/crm.api.whatsapp.is_whatsapp_installed",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "method",
+                    "crm.api.whatsapp.is_whatsapp_installed"
+                  ]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "Get WhatsApp Messages",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{token}}",
+                    "type": "text"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/api/method/crm.api.whatsapp.get_whatsapp_messages?reference_doctype=CRM Lead&reference_name=LEAD-00001",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "method",
+                    "crm.api.whatsapp.get_whatsapp_messages"
+                  ],
+                  "query": [
+                    {
+                      "key": "reference_doctype",
+                      "value": "CRM Lead"
+                    },
+                    {
+                      "key": "reference_name",
+                      "value": "LEAD-00001"
+                    }
+                  ]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "Create WhatsApp Message",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{token}}",
+                    "type": "text"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/api/method/crm.api.whatsapp.create_whatsapp_message",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "method",
+                    "crm.api.whatsapp.create_whatsapp_message"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"reference_doctype\": \"CRM Lead\",\n  \"reference_name\": \"LEAD-00001\",\n  \"message\": \"Hello, this is a test message\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "Send WhatsApp Template",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{token}}",
+                    "type": "text"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/api/method/crm.api.whatsapp.send_whatsapp_template",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "method",
+                    "crm.api.whatsapp.send_whatsapp_template"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"reference_doctype\": \"CRM Lead\",\n  \"reference_name\": \"LEAD-00001\",\n  \"template\": \"welcome_template\",\n  \"to\": \"+971501234567\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "React on WhatsApp Message",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{token}}",
+                    "type": "text"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/api/method/crm.api.whatsapp.react_on_whatsapp_message",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "method",
+                    "crm.api.whatsapp.react_on_whatsapp_message"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"emoji\": \"👍\",\n  \"reply_to_name\": \"WHATSAPP-MSG-00001\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "response": []
+            }
+          ]
+        },
+        {
+          "name": "User Management",
+          "item": [
+            {
+              "name": "Add Existing Users",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{token}}",
+                    "type": "text"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/api/method/crm.api.user.add_existing_users",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "method",
+                    "crm.api.user.add_existing_users"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"users\": [\"user1@example.com\", \"user2@example.com\"],\n  \"role\": \"Sales User\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "Update User Role",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{token}}",
+                    "type": "text"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/api/method/crm.api.user.update_user_role",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "method",
+                    "crm.api.user.update_user_role"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"user\": \"user@example.com\",\n  \"new_role\": \"Sales Manager\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "Add User",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{token}}",
+                    "type": "text"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/api/method/crm.api.user.add_user",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "method",
+                    "crm.api.user.add_user"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"user\": {\"email\": \"newuser@example.com\", \"full_name\": \"New User\"},\n  \"role\": \"Sales User\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "Remove User",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{token}}",
+                    "type": "text"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/api/method/crm.api.user.remove_user",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "method",
+                    "crm.api.user.remove_user"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"user\": \"user@example.com\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "response": []
+            }
+          ]
+        },
+        {
+          "name": "Session",
+          "item": [
+            {
+              "name": "Get Users",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{token}}",
+                    "type": "text"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/api/method/crm.api.session.get_users",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "method",
+                    "crm.api.session.get_users"
+                  ]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "Get Organizations",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{token}}",
+                    "type": "text"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/api/method/crm.api.session.get_organizations",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "method",
+                    "crm.api.session.get_organizations"
+                  ]
+                }
+              },
+              "response": []
+            }
+          ]
+        },
+        {
+          "name": "Settings",
+          "item": [
+            {
+              "name": "Create Email Account",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{token}}",
+                    "type": "text"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/api/method/crm.api.settings.create_email_account",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "method",
+                    "crm.api.settings.create_email_account"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"data\": {\n    \"email_id\": \"smtp@example.com\",\n    \"service\": \"Gmail\",\n    \"password\": \"password123\"\n  }\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "response": []
+            }
+          ]
+        },
+        {
+          "name": "Views",
+          "item": [
+            {
+              "name": "Get Views",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{token}}",
+                    "type": "text"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/api/method/crm.api.views.get_views?doctype=CRM Lead",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "method",
+                    "crm.api.views.get_views"
+                  ],
+                  "query": [
+                    {
+                      "key": "doctype",
+                      "value": "CRM Lead"
+                    }
+                  ]
+                }
+              },
+              "response": []
+            }
+          ]
+        },
+        {
+          "name": "Notifications",
+          "item": [
+            {
+              "name": "Get Notifications",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{token}}",
+                    "type": "text"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/api/method/crm.api.notifications.get_notifications",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "method",
+                    "crm.api.notifications.get_notifications"
+                  ]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "Mark As Read",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{token}}",
+                    "type": "text"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/api/method/crm.api.notifications.mark_as_read",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "method",
+                    "crm.api.notifications.mark_as_read"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"name\": \"CRM-NOTIF-00001\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "response": []
+            }
+          ]
+        },
+        {
+          "name": "Onboarding",
+          "item": [
+            {
+              "name": "Get First Lead",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{token}}",
+                    "type": "text"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/api/method/crm.api.onboarding.get_first_lead",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "method",
+                    "crm.api.onboarding.get_first_lead"
+                  ]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "Get First Deal",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{token}}",
+                    "type": "text"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/api/method/crm.api.onboarding.get_first_deal",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "method",
+                    "crm.api.onboarding.get_first_deal"
+                  ]
+                }
+              },
+              "response": []
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Lead Syncing",
+      "item": [
+        {
+          "name": "Sync Leads",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/method/crm.lead_syncing.doctype.lead_sync_source.lead_sync_source.sync_leads",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "method",
+                "crm.lead_syncing.doctype.lead_sync_source.lead_sync_source.sync_leads"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"LEAD-SYNC-00001\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Retry Failed Sync",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/method/crm.lead_syncing.doctype.failed_lead_sync_log.failed_lead_sync_log.retry_sync",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "method",
+                "crm.lead_syncing.doctype.failed_lead_sync_log.failed_lead_sync_log.retry_sync"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"FAILED-SYNC-00001\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Fetch Facebook Pages",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/method/crm.lead_syncing.doctype.lead_sync_source.facebook.fetch_and_store_pages_from_facebook?access_token=YOUR_ACCESS_TOKEN",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "method",
+                "crm.lead_syncing.doctype.lead_sync_source.facebook.fetch_and_store_pages_from_facebook"
+              ],
+              "query": [
+                {
+                  "key": "access_token",
+                  "value": "YOUR_ACCESS_TOKEN"
+                }
+              ]
             }
           },
           "response": []
