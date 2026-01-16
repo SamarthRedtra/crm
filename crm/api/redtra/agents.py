@@ -229,8 +229,11 @@ def update_agent_availability() -> dict[str, Any]:
 	agent_doc.save(ignore_permissions=True)
 	
 	return {
-		"message": _("Agent availability updated successfully."),
+		"message": _("Agent availability updated successfully. This update applies only to your agent profile."),
+		"agent_id": agent_doc.name,
+		"agent_name": agent_doc.full_name or agent_doc.name,
 		"agent": _serialize_agent_detail(agent_doc),
+		"note": _("Availability slots are agent-specific. Each agent manages their own schedule independently."),
 	}
 
 

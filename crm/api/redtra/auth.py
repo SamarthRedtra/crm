@@ -18,7 +18,6 @@ def register() -> dict[str, Any]:
 	email = data["email"].strip().lower()
 	is_agent = _coerce_bool(data.get("is_agent"))
 	agent_id = (data.get("agent_id") or "").strip() or None
-	remember_me = _coerce_bool(data.get("remember_me"))
 
 	if frappe.db.exists("User", email):
 		frappe.throw(_("Email {0} is already registered.").format(email), frappe.DuplicateEntryError)
@@ -35,7 +34,6 @@ def register() -> dict[str, Any]:
 	user.flags.ignore_permissions = True
 	user.flags.no_welcome_mail = True
 	user.new_password = data["password"]
-	user.remember_me_opt_in = 1 if remember_me else 0
 	if phone := data.get("phone"):
 		user.mobile_no = phone
 
@@ -56,18 +54,24 @@ def login() -> dict[str, Any]:
 	data = utils.get_request_json(["email", "password"])
 	email = data["email"].strip()
 	password = data["password"]
+	remember_me = _coerce_bool(data.get("remember_me", False))
 
 	login_manager = LoginManager()
 	login_manager.authenticate(user=email, pwd=password)
 	login_manager.post_login()
 
-	token = utils.generate_jwt(login_manager.user)
+	# Set JWT expiration based on remember_me
+	# 7 days if remember_me is True, otherwise 24 hours
+	token_expiry_hours = 24 * 7 if remember_me else 24
+	token = utils.generate_jwt(login_manager.user, expires_in_hours=token_expiry_hours)
 
 	user_doc = frappe.get_doc("User", login_manager.user)
 	return {
 		"token": token,
 		"user_id": login_manager.user,
 		"full_name": user_doc.full_name,
+		"remember_me": remember_me,
+		"token_expires_in_hours": token_expiry_hours,
 	}
 
 

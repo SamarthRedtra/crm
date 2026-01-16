@@ -4,6 +4,7 @@ from typing import Any
 
 import frappe
 from frappe import _
+from frappe.utils import cint
 
 from . import utils
 
@@ -211,4 +212,85 @@ def get_agent_rating_stats(agent_id: str) -> dict[str, Any]:
 		"total_reviews": total_count,
 		"recent_reviews": recent_reviews,
 	}
+
+
+@frappe.whitelist(allow_guest=True)
+def get_agent_reviews(agent_id: str) -> dict[str, Any]:
+	"""
+	Public API to get reviews for an agent - no authentication required
+	
+	Returns paginated list of reviews with rating statistics.
+	"""
+	# Verify agent exists
+	if not frappe.db.exists("Agent", agent_id):
+		frappe.throw(_("Agent not found."), frappe.DoesNotExistError)
+	
+	# Get pagination parameters
+	page = max(1, cint(frappe.form_dict.get("page") or 1))
+	page_size = cint(frappe.form_dict.get("page_size") or 20)
+	page_size = max(1, min(page_size, 100))
+	start = (page - 1) * page_size
+	
+	# Get rating statistics (includes recent reviews)
+	rating_stats = get_agent_rating_stats(agent_id)
+	
+	# Get paginated reviews list
+	reviews = frappe.get_all(
+		"Review and Rating",
+		filters={
+			"agent": agent_id,
+			"status": ["in", ["Submitted", "Published"]],
+		},
+		fields=[
+			"name",
+			"overall_rating",
+			"agent_rating",
+			"property_rating",
+			"review_text",
+			"creation",
+			"customer",
+			"property",
+			"appointment",
+		],
+		order_by="creation desc",
+		start=start,
+		limit=page_size,
+	)
+	
+	# Get total count for pagination
+	total_count = rating_stats.get("total_reviews", 0)
+	
+	# Serialize reviews
+	review_items = []
+	for review in reviews:
+		customer_name = frappe.db.get_value("Customer", review.get("customer"), "full_name")
+		property_title = frappe.db.get_value("Property", review.get("property"), "title") if review.get("property") else None
+		
+		review_items.append({
+			"id": review.get("name"),
+			"overall_rating": float(review.get("overall_rating") or 0) if review.get("overall_rating") else 0.0,
+			"agent_rating": float(review.get("agent_rating") or 0) if review.get("agent_rating") else 0.0,
+			"property_rating": float(review.get("property_rating") or 0) if review.get("property_rating") else 0.0,
+			"review_text": review.get("review_text") or "",
+			"customer_name": customer_name,
+			"property_title": property_title,
+			"appointment_id": review.get("appointment"),
+			"created_at": review.get("creation"),
+		})
+	
+	return {
+		"agent_id": agent_id,
+		"ratings": {
+			"average_overall_rating": rating_stats.get("average_overall_rating", 0.0),
+			"average_agent_rating": rating_stats.get("average_agent_rating", 0.0),
+			"average_property_rating": rating_stats.get("average_property_rating", 0.0),
+			"total_reviews": total_count,
+		},
+		"items": review_items,
+		"page": page,
+		"page_size": page_size,
+		"total_items": total_count,
+		"total_pages": (total_count + page_size - 1) // page_size if page_size else 0,
+	}
+
 

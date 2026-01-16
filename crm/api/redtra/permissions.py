@@ -50,3 +50,4 @@ def has_property_permission(doc, user: str) -> bool:
 
 
 
+

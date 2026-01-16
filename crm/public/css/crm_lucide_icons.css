@@ -1,0 +1,208 @@
+/**
+ * Lucide Icons Styling for CRM App
+ */
+
+/* Lucide Icon Base Styles */
+.lucide-icon {
+	display: inline-block;
+	vertical-align: middle;
+}
+
+.lucide-icon svg {
+	width: 100%;
+	height: 100%;
+	stroke: currentColor;
+	fill: none;
+}
+
+/* Selected Icon Display */
+.lucide-selected-icon {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	padding: 2px;
+	border: 1px solid var(--border-color, #d1d5db);
+	border-radius: 4px;
+	background: var(--bg-color, #ffffff);
+	width: 24px;
+	height: 24px;
+	flex-shrink: 0;
+}
+
+.lucide-selected-icon.no-value {
+	opacity: 0.5;
+}
+
+.lucide-selected-icon svg {
+	width: 100%;
+	height: 100%;
+	display: block;
+}
+
+/* Icon in input wrapper */
+.control-icon-wrapper {
+	position: relative;
+}
+
+.control-icon-wrapper .lucide-selected-icon {
+	position: absolute;
+	left: 8px;
+	top: 50%;
+	transform: translateY(-50%);
+	pointer-events: none;
+	z-index: 10;
+	width: 20px;
+	height: 20px;
+	border: none;
+	background: transparent;
+	padding: 0;
+}
+
+.control-icon-wrapper .control-input {
+	position: relative;
+}
+
+.control-icon-wrapper .control-input .form-control {
+	padding-left: 36px !important;
+}
+
+/* Lucide Icon Picker Styles */
+.lucide-icon-picker-popover {
+	min-width: 400px;
+	max-width: 500px;
+}
+
+.lucide-icon-picker .search-icons {
+	position: relative;
+	margin-bottom: 12px;
+}
+
+.lucide-icon-picker .search-icons input {
+	padding-right: 35px;
+}
+
+.lucide-icon-picker .search-icons .search-icon {
+	position: absolute;
+	right: 8px;
+	top: 50%;
+	transform: translateY(-50%);
+	color: var(--text-muted);
+	pointer-events: none;
+}
+
+.lucide-icons-grid {
+	display: grid;
+	grid-template-columns: repeat(auto-fill, minmax(40px, 1fr));
+	gap: 8px;
+	max-height: 400px;
+	overflow-y: auto;
+	padding: 8px;
+}
+
+.lucide-icon-wrapper {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	padding: 10px;
+	border: 2px solid var(--border-color, #d1d5db);
+	border-radius: 6px;
+	background: var(--bg-color, #ffffff);
+	cursor: pointer;
+	transition: all 0.2s;
+	min-height: 52px;
+	min-width: 52px;
+	position: relative;
+	box-shadow: 0 1px 2px rgba(15, 23, 42, 0.05);
+}
+
+.lucide-icon-wrapper:hover {
+	border-color: var(--primary, #0ea5e9);
+	background: var(--fg-color, #f9fafb);
+	transform: scale(1.05);
+}
+
+.lucide-icon-wrapper.selected {
+	border-color: var(--primary, #0ea5e9);
+	background: var(--primary-light, #e0f2fe);
+}
+
+.lucide-icon-wrapper i[data-lucide] {
+	width: 32px !important;
+	height: 32px !important;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+}
+
+.lucide-icon-wrapper svg {
+	width: 32px !important;
+	height: 32px !important;
+	stroke: currentColor;
+	fill: none;
+	display: block;
+}
+
+.lucide-icon-wrapper i[data-lucide] {
+	color: var(--lucide-icon-color, #374151);
+}
+
+.lucide-icon-wrapper:hover svg {
+	color: var(--primary, #0ea5e9);
+}
+
+.lucide-icon-wrapper.selected svg {
+	color: var(--primary, #0ea5e9);
+}
+
+/* Ensure icons render in grid */
+.lucide-icons-grid .lucide-icon-wrapper i[data-lucide] {
+	min-width: 24px;
+	min-height: 24px;
+}
+
+.lucide-icons-grid .lucide-icon-wrapper i[data-lucide] svg {
+	width: 100%;
+	height: 100%;
+}
+
+/* Icon Display in Forms */
+.control-icon-wrapper .lucide-icon {
+	margin-right: 8px;
+}
+
+/* List View Icons */
+.list-row-cell .lucide-icon,
+.list-row-cell .lucide-icon-formatted {
+	vertical-align: middle;
+}
+
+.list-row-cell .lucide-icon-formatted {
+	display: inline-flex;
+	align-items: center;
+	gap: 8px;
+}
+
+.list-row-cell .lucide-icon-formatted .lucide-selected-icon {
+	width: 18px;
+	height: 18px;
+}
+
+/* Ensure formatted icons in lists are initialized */
+.lucide-icon-formatted i[data-lucide] {
+	width: 100%;
+	height: 100%;
+	display: block;
+}
+
+.lucide-icon-formatted svg {
+	width: 100%;
+	height: 100%;
+}
+
+/* Print View */
+@media print {
+	.lucide-icon svg {
+		fill: currentColor;
+	}
+}
+

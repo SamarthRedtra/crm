@@ -90,10 +90,6 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/AgentKYCDocumentInput'
-        remember_me:
-          type: boolean
-          description: Remember the user for future logins.
-          example: true
     LoginRequest:
       type: object
       required:
@@ -106,6 +102,10 @@ components:
         password:
           type: string
           format: password
+        remember_me:
+          type: boolean
+          description: Remember the user for future logins (extends token expiration to 7 days).
+          example: true
     ForgotPasswordRequest:
       type: object
       required:
@@ -135,6 +135,12 @@ components:
           type: string
         full_name:
           type: string
+        remember_me:
+          type: boolean
+          description: Whether remember_me was set during login
+        token_expires_in_hours:
+          type: integer
+          description: Token expiration time in hours (24 for normal, 168 for remember_me)
     ProfileResponse:
       type: object
       properties:
@@ -2409,6 +2415,78 @@ paths:
           description: Cancelled
         '401':
           $ref: '#/components/responses/UnauthorizedError'
+  /api/appointments/{appointment_id}/review:
+    get:
+      tags:
+      - Appointments
+      summary: Get review for an appointment
+      security:
+      - bearerAuth: []
+      parameters:
+      - in: path
+        name: appointment_id
+        required: true
+        schema:
+          type: string
+      responses:
+        '200':
+          description: Review if exists
+          content:
+            application/json:
+              schema:
+                type: object
+        '404':
+          description: No review found
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+    post:
+      tags:
+      - Appointments
+      summary: Submit review for a completed appointment
+      security:
+      - bearerAuth: []
+      parameters:
+      - in: path
+        name: appointment_id
+        required: true
+        schema:
+          type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+              - overall_rating
+              - agent_rating
+              - property_rating
+              properties:
+                overall_rating:
+                  type: number
+                  minimum: 0
+                  maximum: 5
+                agent_rating:
+                  type: number
+                  minimum: 0
+                  maximum: 5
+                property_rating:
+                  type: number
+                  minimum: 0
+                  maximum: 5
+                review_text:
+                  type: string
+      responses:
+        '200':
+          description: Review submitted
+          content:
+            application/json:
+              schema:
+                type: object
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
   /api/user/profile/photo:
     post:
       tags:
@@ -2516,6 +2594,153 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/AgentDetail'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+  /api/agents/{agent_id}/available-slots:
+    get:
+      tags:
+      - Agents
+      summary: Get available appointment slots for an agent
+      security: []
+      parameters:
+      - in: path
+        name: agent_id
+        required: true
+        schema:
+          type: string
+      - in: query
+        name: date
+        description: Single date filter (YYYY-MM-DD). If provided, returns slots for only this date.
+        schema:
+          type: string
+          format: date
+      - in: query
+        name: start_date
+        description: Start date for date range (used when 'date' is not provided). Defaults to today.
+        schema:
+          type: string
+          format: date
+      - in: query
+        name: end_date
+        description: End date for date range. Defaults to 7 days from start_date.
+        schema:
+          type: string
+          format: date
+      responses:
+        '200':
+          description: Available slots grouped by date
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  agent_id:
+                    type: string
+                  max_appointment_minutes:
+                    type: integer
+                  date:
+                    type: string
+                    format: date
+                    description: Present when using single date filter
+                  start_date:
+                    type: string
+                    format: date
+                    description: Present when using date range
+                  end_date:
+                    type: string
+                    format: date
+                    description: Present when using date range
+                  available_slots:
+                    type: object
+                    description: Slots grouped by date
+                    additionalProperties:
+                      type: array
+                      items:
+                        type: object
+                        properties:
+                          start_datetime:
+                            type: string
+                            format: date-time
+                          end_datetime:
+                            type: string
+                            format: date-time
+                          time:
+                            type: string
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+  /api/agents/{agent_id}/reviews:
+    get:
+      tags:
+      - Agents
+      summary: Get agent reviews and ratings
+      security: []
+      parameters:
+      - in: path
+        name: agent_id
+        required: true
+        schema:
+          type: string
+      - in: query
+        name: page
+        schema:
+          type: integer
+          default: 1
+      - in: query
+        name: page_size
+        schema:
+          type: integer
+          default: 20
+      responses:
+        '200':
+          description: Agent reviews with rating statistics
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  agent_id:
+                    type: string
+                  ratings:
+                    type: object
+                    properties:
+                      average_overall_rating:
+                        type: number
+                      average_agent_rating:
+                        type: number
+                      average_property_rating:
+                        type: number
+                      total_reviews:
+                        type: integer
+                  items:
+                    type: array
+                    items:
+                      type: object
+                  page:
+                    type: integer
+                  page_size:
+                    type: integer
+                  total_items:
+                    type: integer
+                  total_pages:
+                    type: integer
+  /api/appointments/{appointment_id}/send-reminder:
+    post:
+      tags:
+      - Appointments
+      summary: Manually send reminder for an appointment
+      parameters:
+      - in: path
+        name: appointment_id
+        required: true
+        schema:
+          type: string
+      responses:
+        '200':
+          description: Reminder sent successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageResponse'
         '403':
           $ref: '#/components/responses/ForbiddenError'
   /api/home:

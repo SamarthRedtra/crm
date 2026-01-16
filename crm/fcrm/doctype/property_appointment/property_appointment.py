@@ -40,6 +40,9 @@ class PropertyAppointment(Document):
 		
 		# Handle reschedule (datetime changed while status remains Scheduled)
 		if datetime_changed and self.status == "Scheduled":
+			# Appointment was rescheduled - reset reminder status so new reminder can be sent
+			if hasattr(self, "reminder_sent") and self.reminder_sent:
+				self.reminder_sent = 0
 			# Appointment was rescheduled
 			self._send_appointment_notifications(is_new=False, is_reschedule=True)
 		
@@ -299,6 +302,29 @@ class PropertyAppointment(Document):
 	):
 		"""Helper function to create a CRM Notification"""
 		try:
+			# Validate user fields before creating notification
+			if not from_user or not to_user:
+				frappe.log_error(
+					f"Missing user fields - from_user: {from_user}, to_user: {to_user}",
+					"Appointment Notification Error"
+				)
+				return
+			
+			# Verify users exist
+			if not frappe.db.exists("User", from_user):
+				frappe.log_error(
+					f"From user does not exist: {from_user}",
+					"Appointment Notification Error"
+				)
+				return
+			
+			if not frappe.db.exists("User", to_user):
+				frappe.log_error(
+					f"To user does not exist: {to_user}",
+					"Appointment Notification Error"
+				)
+				return
+			
 			notification_doc = frappe.get_doc(
 				{
 					"doctype": "CRM Notification",
@@ -314,10 +340,19 @@ class PropertyAppointment(Document):
 					"read": 0,
 				}
 			)
+			notification_doc.flags.ignore_permissions = True
 			notification_doc.insert(ignore_permissions=True)
+			# Explicitly commit to ensure notification is saved
+			frappe.db.commit()
+			
+			frappe.log_error(
+				f"Successfully created notification: {notification_doc.name} for user {to_user}",
+				"Appointment Notification Success",
+				is_error=False
+			)
 		except Exception as e:
 			frappe.log_error(
-				f"Failed to insert notification: {str(e)}",
+				f"Failed to insert notification: {str(e)}\nTraceback: {frappe.get_traceback()}",
 				"Appointment Notification Error"
 			)
 

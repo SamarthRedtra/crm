@@ -88,7 +88,7 @@
             },
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"full_name\": \"Anwar Khan\",\n  \"email\": \"anwar@example.com\",\n  \"password\": \"StrongPassword123!\",\n  \"phone\": \"+971500000000\",\n  \"is_agent\": false,\n  \"remember_me\": true\n}",
+              "raw": "{\n  \"full_name\": \"Anwar Khan\",\n  \"email\": \"anwar@example.com\",\n  \"password\": \"StrongPassword123!\",\n  \"phone\": \"+971500000000\",\n  \"is_agent\": false\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -124,7 +124,7 @@
             },
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"full_name\": \"Fatima Ali\",\n  \"email\": \"fatima.agent@example.com\",\n  \"password\": \"StrongPassword123!\",\n  \"phone\": \"+971500000010\",\n  \"is_agent\": true,\n  \"agent_id\": \"{{agent_id}}\",\n  \"whatsapp_number\": \"+971500000011\",\n  \"bio\": \"Specialist in luxury villas across Dubai.\",\n  \"max_daily_appointments\": 6,\n  \"remember_me\": true\n}",
+              "raw": "{\n  \"full_name\": \"Fatima Ali\",\n  \"email\": \"fatima.agent@example.com\",\n  \"password\": \"StrongPassword123!\",\n  \"phone\": \"+971500000010\",\n  \"is_agent\": true,\n  \"agent_id\": \"{{agent_id}}\",\n  \"whatsapp_number\": \"+971500000011\",\n  \"bio\": \"Specialist in luxury villas across Dubai.\",\n  \"max_daily_appointments\": 6\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -160,7 +160,7 @@
             },
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"email\": \"anwar@example.com\",\n  \"password\": \"StrongPassword123!\"\n}",
+              "raw": "{\n  \"email\": \"anwar@example.com\",\n  \"password\": \"StrongPassword123!\",\n  \"remember_me\": true\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -977,13 +977,56 @@
               ],
               "query": [
                 {
+                  "key": "date",
+                  "value": "2025-12-15",
+                  "description": "Single date filter (YYYY-MM-DD). If provided, returns slots for only this date.",
+                  "disabled": true
+                },
+                {
                   "key": "start_date",
                   "value": "2025-12-15",
+                  "description": "Start date for date range (used when 'date' is not provided)",
                   "disabled": true
                 },
                 {
                   "key": "end_date",
                   "value": "2025-12-22",
+                  "description": "End date for date range (defaults to 7 days from start_date)",
+                  "disabled": true
+                }
+              ]
+            },
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Agent Reviews",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/agents/{{agent_id}}/reviews",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "agents",
+                "{{agent_id}}",
+                "reviews"
+              ],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1",
+                  "disabled": true
+                },
+                {
+                  "key": "page_size",
+                  "value": "20",
                   "disabled": true
                 }
               ]
@@ -1282,6 +1325,97 @@
                 "api",
                 "appointments",
                 "{{appointment_id}}"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Submit Appointment Review",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/appointments/{{appointment_id}}/review",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "appointments",
+                "{{appointment_id}}",
+                "review"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"overall_rating\": 4.5,\n  \"agent_rating\": 5.0,\n  \"property_rating\": 4.0,\n  \"review_text\": \"Great property and excellent agent service!\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Appointment Review",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/appointments/{{appointment_id}}/review",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "appointments",
+                "{{appointment_id}}",
+                "review"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Send Appointment Reminder",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/appointments/{{appointment_id}}/send-reminder",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "appointments",
+                "{{appointment_id}}",
+                "send-reminder"
               ]
             }
           },

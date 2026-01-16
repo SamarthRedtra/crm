@@ -393,9 +393,15 @@ export function _eval(code, context = {}) {
   }
 }
 
-export function evaluateDependsOnValue(expression, doc) {
-  if (!expression) return true
-  if (!doc) return true
+function resolveExpression(expression, doc, options = {}) {
+  const {
+    parent = null,
+    defaultValue = false,
+    treatIsSubmittableAsTrue = false
+  } = options
+
+  if (!expression) return defaultValue
+  if (!doc) return defaultValue
 
   let out = null
 
@@ -405,9 +411,12 @@ export function evaluateDependsOnValue(expression, doc) {
     out = expression(doc)
   } else if (expression.substr(0, 5) == 'eval:') {
     try {
-      out = _eval(expression.substr(5), { doc })
+      out = _eval(expression.substr(5), { doc, parent })
+      if (treatIsSubmittableAsTrue && parent && parent.istable && expression.includes('is_submittable')) {
+        out = true
+      }
     } catch (e) {
-      out = true
+      out = defaultValue
     }
   } else {
     let value = doc[expression]
@@ -421,34 +430,18 @@ export function evaluateDependsOnValue(expression, doc) {
   return out
 }
 
+export function evaluateDependsOnValue(expression, doc) {
+  return resolveExpression(expression, doc, {
+    defaultValue: true
+  })
+}
+
 export function evaluateExpression(expression, doc, parent) {
-  if (!expression) return false
-  if (!doc) return false
-
-  let out = null
-  if (typeof expression === 'boolean') {
-    out = expression
-  } else if (typeof expression === 'function') {
-    out = expression(doc)
-  } else if (expression.substr(0, 5) == 'eval:') {
-    try {
-      out = _eval(expression.substr(5), { doc, parent })
-      if (parent && parent.istable && expression.includes('is_submittable')) {
-        out = true
-      }
-    } catch (e) {
-      out = true
-    }
-  } else {
-    let value = doc[expression]
-    if (Array.isArray(value)) {
-      out = !!value.length
-    } else {
-      out = !!value
-    }
-  }
-
-  return out
+  return resolveExpression(expression, doc, {
+    parent,
+    defaultValue: false,
+    treatIsSubmittableAsTrue: true
+  })
 }
 
 export function convertSize(size) {
