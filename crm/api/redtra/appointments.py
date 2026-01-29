@@ -269,6 +269,11 @@ def serialize_appointment(name: str) -> dict[str, Any]:
 			"name": agent_doc.full_name if agent_doc else None,
 			"phone": agent_doc.phone if agent_doc else None,
 			"whatsapp_number": agent_doc.whatsapp_number if agent_doc else None,
+			"whatsapp_link": (
+				f"https://wa.me/{(agent_doc.whatsapp_number or agent_doc.phone).replace('+', '').replace(' ', '')}"
+				if agent_doc and (agent_doc.whatsapp_number or agent_doc.phone)
+				else None
+			),
 		},
 		"property": property_summary,
 		"calendar_event": doc.calendar_event,

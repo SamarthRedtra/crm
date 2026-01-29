@@ -1,170 +1,179 @@
 {
- "actions": [],
- "allow_rename": 1,
- "autoname": "field:dfd_registration_id",
- "creation": "2025-12-02 00:00:00",
- "default_view": "List",
- "doctype": "DocType",
- "engine": "InnoDB",
- "field_order": [
-  "user",
-  "status",
-  "dfd_registration_id",
-  "column_break_primary",
-  "full_name",
-  "email",
-  "phone",
-  "whatsapp_number",
-  "bio",
-  "profile_image",
-  "section_break_limits",
-  "max_daily_appointments",
-  "max_appointment_minutes",
-  "availability_slots",
-  "section_break_kyc",
-  "kyc_documents"
- ],
- "fields": [
-  {
-   "fieldname": "user",
-   "fieldtype": "Link",
-   "in_list_view": 1,
-   "in_standard_filter": 1,
-   "label": "User",
-   "options": "User",
-   "reqd": 1,
-   "unique": 1
-  },
-  {
-   "default": "Pending Verification",
-   "fieldname": "status",
-   "fieldtype": "Select",
-   "in_list_view": 1,
-   "label": "Status",
-   "options": "Draft\nPending Verification\nVerified\nRejected",
-   "reqd": 1
-  },
-  {
-   "fieldname": "dfd_registration_id",
-   "fieldtype": "Data",
-   "in_list_view": 1,
-   "in_standard_filter": 1,
-   "label": "DLD Registration ID",
-   "reqd": 1,
-   "unique": 1
-  },
-  {
-   "fieldname": "column_break_primary",
-   "fieldtype": "Column Break"
-  },
-  {
-   "fetch_from": "user.full_name",
-   "fieldname": "full_name",
-   "fieldtype": "Data",
-   "label": "Full Name",
-   "read_only": 1
-  },
-  {
-   "fetch_from": "user.email",
-   "fieldname": "email",
-   "fieldtype": "Data",
-   "label": "Email",
-   "read_only": 1
-  },
-  {
-   "fieldname": "phone",
-   "fieldtype": "Data",
-   "label": "Phone"
-  },
-  {
-   "fieldname": "whatsapp_number",
-   "fieldtype": "Data",
-   "label": "WhatsApp Number"
-  },
-  {
-   "fieldname": "bio",
-   "fieldtype": "Small Text",
-   "label": "Bio"
-  },
-  {
-   "fieldname": "profile_image",
-   "fieldtype": "Attach Image",
-   "label": "Profile Image"
-  },
-  {
-   "fieldname": "section_break_limits",
-   "fieldtype": "Section Break",
-   "label": "Scheduling Preferences"
-  },
-  {
-   "default": "10",
-   "fieldname": "max_daily_appointments",
-   "fieldtype": "Int",
-   "label": "Max Daily Appointments"
-  },
-  {
-   "default": "30",
-   "fieldname": "max_appointment_minutes",
-   "fieldtype": "Int",
-   "label": "Max Appointment Minutes"
-  },
-  {
-   "fieldname": "availability_slots",
-   "fieldtype": "Table",
-   "label": "Availability Slots",
-   "options": "Agent Availability Slot"
-  },
-  {
-   "fieldname": "section_break_kyc",
-   "fieldtype": "Section Break",
-   "label": "KYC Documents"
-  },
-  {
-   "fieldname": "kyc_documents",
-   "fieldtype": "Table",
-   "label": "KYC Documents",
-   "options": "Agent KYC Document"
-  }
- ],
- "index_web_pages_for_search": 1,
- "links": [],
- "modified": "2025-12-21 19:56:31.221967",
- "modified_by": "Administrator",
- "module": "FCRM",
- "name": "Agent",
- "naming_rule": "By fieldname",
- "owner": "Administrator",
- "permissions": [
-  {
-   "create": 1,
-   "delete": 1,
-   "email": 1,
-   "export": 1,
-   "print": 1,
-   "read": 1,
-   "report": 1,
-   "role": "System Manager",
-   "share": 1,
-   "write": 1
-  },
-  {
-   "email": 1,
-   "print": 1,
-   "read": 1,
-   "role": "Agent",
-   "share": 1,
-   "write": 1
-  }
- ],
- "quick_entry": 1,
- "row_format": "Dynamic",
- "sort_field": "modified",
- "sort_order": "DESC",
- "states": [
-  {
-   "color": "Blue",
-   "title": "Draft"
-  }
- ],
- "track_changes": 1
+    "actions": [],
+    "allow_rename": 1,
+    "autoname": "field:dfd_registration_id",
+    "creation": "2025-12-02 00:00:00",
+    "default_view": "List",
+    "doctype": "DocType",
+    "engine": "InnoDB",
+    "field_order": [
+        "user",
+        "status",
+        "dfd_registration_id",
+        "agency",
+        "column_break_primary",
+        "full_name",
+        "email",
+        "phone",
+        "whatsapp_number",
+        "bio",
+        "profile_image",
+        "section_break_limits",
+        "max_daily_appointments",
+        "max_appointment_minutes",
+        "availability_slots",
+        "section_break_kyc",
+        "kyc_documents"
+    ],
+    "fields": [
+        {
+            "fieldname": "user",
+            "fieldtype": "Link",
+            "in_list_view": 1,
+            "in_standard_filter": 1,
+            "label": "User",
+            "options": "User",
+            "reqd": 1,
+            "unique": 1
+        },
+        {
+            "default": "Pending Verification",
+            "fieldname": "status",
+            "fieldtype": "Select",
+            "in_list_view": 1,
+            "label": "Status",
+            "options": "Draft\nPending Verification\nVerified\nRejected",
+            "reqd": 1
+        },
+        {
+            "fieldname": "dfd_registration_id",
+            "fieldtype": "Data",
+            "in_list_view": 1,
+            "in_standard_filter": 1,
+            "label": "DLD Registration ID",
+            "reqd": 1,
+            "unique": 1
+        },
+        {
+            "fieldname": "agency",
+            "fieldtype": "Link",
+            "in_list_view": 1,
+            "in_standard_filter": 1,
+            "label": "Agency",
+            "options": "Agency"
+        },
+        {
+            "fieldname": "column_break_primary",
+            "fieldtype": "Column Break"
+        },
+        {
+            "fetch_from": "user.full_name",
+            "fieldname": "full_name",
+            "fieldtype": "Data",
+            "label": "Full Name",
+            "read_only": 1
+        },
+        {
+            "fetch_from": "user.email",
+            "fieldname": "email",
+            "fieldtype": "Data",
+            "label": "Email",
+            "read_only": 1
+        },
+        {
+            "fieldname": "phone",
+            "fieldtype": "Data",
+            "label": "Phone"
+        },
+        {
+            "fieldname": "whatsapp_number",
+            "fieldtype": "Data",
+            "label": "WhatsApp Number"
+        },
+        {
+            "fieldname": "bio",
+            "fieldtype": "Small Text",
+            "label": "Bio"
+        },
+        {
+            "fieldname": "profile_image",
+            "fieldtype": "Attach Image",
+            "label": "Profile Image"
+        },
+        {
+            "fieldname": "section_break_limits",
+            "fieldtype": "Section Break",
+            "label": "Scheduling Preferences"
+        },
+        {
+            "default": "10",
+            "fieldname": "max_daily_appointments",
+            "fieldtype": "Int",
+            "label": "Max Daily Appointments"
+        },
+        {
+            "default": "30",
+            "fieldname": "max_appointment_minutes",
+            "fieldtype": "Int",
+            "label": "Max Appointment Minutes"
+        },
+        {
+            "fieldname": "availability_slots",
+            "fieldtype": "Table",
+            "label": "Availability Slots",
+            "options": "Agent Availability Slot"
+        },
+        {
+            "fieldname": "section_break_kyc",
+            "fieldtype": "Section Break",
+            "label": "KYC Documents"
+        },
+        {
+            "fieldname": "kyc_documents",
+            "fieldtype": "Table",
+            "label": "KYC Documents",
+            "options": "Agent KYC Document"
+        }
+    ],
+    "index_web_pages_for_search": 1,
+    "links": [],
+    "modified": "2025-12-21 19:56:31.221967",
+    "modified_by": "Administrator",
+    "module": "FCRM",
+    "name": "Agent",
+    "naming_rule": "By fieldname",
+    "owner": "Administrator",
+    "permissions": [
+        {
+            "create": 1,
+            "delete": 1,
+            "email": 1,
+            "export": 1,
+            "print": 1,
+            "read": 1,
+            "report": 1,
+            "role": "System Manager",
+            "share": 1,
+            "write": 1
+        },
+        {
+            "email": 1,
+            "print": 1,
+            "read": 1,
+            "role": "Agent",
+            "share": 1,
+            "write": 1
+        }
+    ],
+    "quick_entry": 1,
+    "row_format": "Dynamic",
+    "sort_field": "modified",
+    "sort_order": "DESC",
+    "states": [
+        {
+            "color": "Blue",
+            "title": "Draft"
+        }
+    ],
+    "track_changes": 1
 }

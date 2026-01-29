@@ -8,6 +8,7 @@ from . import (
 	appointments,
 	areas,
 	agents,
+	agencies,
 	auth,
 	developers,
 	favorites,
@@ -107,6 +108,21 @@ def register_routes():
 		Rule("/amenties", methods=["GET"], endpoint=amenties.get_amenities),
 		Rule("/agents", methods=["GET"], endpoint=agents.list_agents),
 		Rule("/agents/<string:agent_id>", methods=["GET"], endpoint=agents.get_agent),
+		Rule(
+			"/agencies/<string:agency_id>/analytics",
+			methods=["GET"],
+			endpoint=agencies.get_agency_analytics,
+		),
+		Rule(
+			"/agencies/<string:agency_id>/agents",
+			methods=["GET"],
+			endpoint=agencies.list_agency_agents,
+		),
+		Rule(
+			"/agencies/<string:agency_id>/profile",
+			methods=["GET"],
+			endpoint=agencies.get_agency_profile,
+		),
 		Rule("/agents/<string:agent_id>/reviews", methods=["GET"], endpoint=reviews.get_agent_reviews),
 		Rule("/agents/availability", methods=["POST"], endpoint=agents.update_agent_availability),
 		Rule(

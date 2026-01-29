@@ -16,6 +16,7 @@ SUMMARY_FIELDS = [
 	"whatsapp_number",
 	"bio",
 	"profile_image",
+	"agency",
 ]
 
 
@@ -238,6 +239,18 @@ def update_agent_availability() -> dict[str, Any]:
 
 
 def _serialize_agent_summary(row: dict[str, Any]) -> dict[str, Any]:
+	# Get agency details if available
+	agency_details = None
+	agency_id = row.get("agency")
+	if agency_id:
+		try:
+			from . import agencies
+			agency_details = agencies.get_agency_details(agency_id)
+		except Exception:
+			pass
+
+	whatsapp_link = _build_whatsapp_link(row.get("whatsapp_number") or row.get("phone"))
+
 	return {
 		"id": row.get("name"),
 		"name": row.get("full_name") or row.get("name"),
@@ -245,7 +258,9 @@ def _serialize_agent_summary(row: dict[str, Any]) -> dict[str, Any]:
 		"bio": row.get("bio"),
 		"phone": row.get("phone"),
 		"whatsapp_number": row.get("whatsapp_number"),
+		"whatsapp_link": whatsapp_link,
 		"profile_image": row.get("profile_image"),
+		"agency": agency_details,
 	}
 
 
@@ -263,6 +278,10 @@ def _serialize_agent_detail(doc) -> dict[str, Any]:
 		as_dict=True,
 	)
 	properties_list = list(result)
+	property_ids = [row.get("name") for row in properties_list if row.get("name")]
+	active_property_count = frappe.db.count("Property", {"status": "Active", "agent": doc.name})
+	activity_stats = _get_agent_activity_stats(doc.name)
+	expertise = _get_agent_expertise(doc.name)
 
 	# Get availability slots
 	availability_slots = []
@@ -293,6 +312,18 @@ def _serialize_agent_detail(doc) -> dict[str, Any]:
 			"recent_reviews": [],
 		}
 
+	# Get agency details if available
+	agency_details = None
+	agency_id = getattr(doc, "agency", None)
+	if agency_id:
+		try:
+			from . import agencies
+			agency_details = agencies.get_agency_details(agency_id)
+		except Exception:
+			pass
+
+	whatsapp_link = _build_whatsapp_link(doc.whatsapp_number or doc.phone)
+
 	return {
 		"id": doc.name,
 		"name": doc.full_name or doc.name,
@@ -300,13 +331,21 @@ def _serialize_agent_detail(doc) -> dict[str, Any]:
 		"bio": doc.bio,
 		"phone": doc.phone,
 		"whatsapp_number": doc.whatsapp_number,
+		"whatsapp_link": whatsapp_link,
 		"profile_image": doc.profile_image,
+		"brn_id": doc.dfd_registration_id,
+		"active_properties": active_property_count,
+		"property_ids": property_ids,
+		"sales": activity_stats.get("sales", 0),
+		"leads": activity_stats.get("leads", 0),
+		"expertise": expertise,
 		"max_daily_appointments": doc.max_daily_appointments or 10,
 		"max_appointment_minutes": getattr(doc, "max_appointment_minutes", None) or 30,
 		"availability_slots": availability_slots,
 		"property_count": len(properties_list),
 		"properties": [properties.serialize_property_summary(row) for row in properties_list],
 		"ratings": rating_stats,
+		"agency": agency_details,
 	}
 
 
@@ -333,3 +372,48 @@ def _get_agent_property_counts(agent_ids: list[str]) -> dict[str, int]:
 			if agent:
 				counts[agent] = int(row.get("total") or 0)
 	return counts
+
+
+def _build_whatsapp_link(number: str | None) -> str | None:
+	if not number:
+		return None
+	clean_number = str(number).replace("+", "").replace(" ", "")
+	return f"https://wa.me/{clean_number}" if clean_number else None
+
+
+def _get_agent_activity_stats(agent_id: str) -> dict[str, Any]:
+	sales_count = frappe.db.count(
+		"Property",
+		{"status": "Active", "agent": agent_id, "listing_type": "Buy"},
+	)
+	leads_count = frappe.db.count("Property Appointment", {"agent": agent_id})
+	return {"sales": sales_count, "leads": leads_count}
+
+
+def _get_agent_expertise(agent_id: str) -> dict[str, Any]:
+	property_type_rows = frappe.db.get_all(
+		"Property",
+		filters={"status": "Active", "agent": agent_id},
+		fields=["property_type", "count(name) as total"],
+		group_by="property_type",
+	)
+	category_rows = frappe.db.get_all(
+		"Property",
+		filters={"status": "Active", "agent": agent_id},
+		fields=["property_category", "count(name) as total"],
+		group_by="property_category",
+	)
+
+	def _top_values(rows: list[dict[str, Any]]) -> list[str]:
+		sorted_rows = sorted(rows, key=lambda row: int(row.get("total") or 0), reverse=True)
+		values = []
+		for row in sorted_rows:
+			value = row.get("property_type") or row.get("property_category")
+			if value:
+				values.append(value)
+		return values
+
+	return {
+		"property_types": _top_values(property_type_rows),
+		"property_categories": _top_values(category_rows),
+	}

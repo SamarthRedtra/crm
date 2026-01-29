@@ -27,6 +27,9 @@
       "name": "Developers"
     },
     {
+      "name": "Agencies"
+    },
+    {
       "name": "Favorites"
     },
     {
@@ -484,8 +487,9 @@
           "listing_type": {
             "type": "string",
             "enum": [
-              "Sale",
-              "Lease"
+              "Buy",
+              "Rent",
+              "Off Plan"
             ]
           },
           "property_type": {
@@ -535,9 +539,12 @@
             "example": "Indiranagar"
           },
           "developer": {
-            "type": "string",
-            "example": "DEV-0001",
-            "description": "Developer ID if assigned."
+            "nullable": true,
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/DeveloperDetail"
+              }
+            ]
           },
           "developer_name": {
             "type": "string",
@@ -559,6 +566,53 @@
           "is_featured": {
             "type": "boolean",
             "example": true
+          },
+          "featured_until": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "featured_remaining_seconds": {
+            "type": "integer",
+            "example": 86400
+          },
+          "agent": {
+            "type": "object",
+            "nullable": true,
+            "properties": {
+              "id": {
+                "type": "string",
+                "example": "AGENT-0005"
+              },
+              "name": {
+                "type": "string"
+              },
+              "phone": {
+                "type": "string"
+              },
+              "whatsapp_number": {
+                "type": "string"
+              },
+              "whatsapp_link": {
+                "type": "string",
+                "format": "uri"
+              },
+              "profile_image": {
+                "type": "string",
+                "format": "uri"
+              },
+              "status": {
+                "type": "string"
+              }
+            }
+          },
+          "agency": {
+            "nullable": true,
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/AgencySummary"
+              }
+            ]
           }
         }
       },
@@ -635,6 +689,10 @@
                   "whatsapp_number": {
                     "type": "string",
                     "example": "+91-9876543210"
+                  },
+                  "whatsapp_link": {
+                    "type": "string",
+                    "format": "uri"
                   }
                 }
               },
@@ -684,8 +742,9 @@
           "listing_type": {
             "type": "string",
             "enum": [
-              "Sale",
-              "Lease"
+              "Buy",
+              "Rent",
+              "Off Plan"
             ]
           },
           "property_type": {
@@ -779,6 +838,10 @@
           },
           "is_featured": {
             "type": "boolean"
+          },
+          "featured_until": {
+            "type": "string",
+            "format": "date-time"
           },
           "agent": {
             "type": "string",
@@ -894,6 +957,96 @@
               },
               "description": {
                 "type": "string"
+              }
+            }
+          }
+        ]
+      },
+      "AgencySummary": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "example": "AGY-0001"
+          },
+          "name": {
+            "type": "string",
+            "example": "Redtra Realty"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "Active",
+              "Inactive"
+            ]
+          },
+          "city": {
+            "type": "string"
+          },
+          "state": {
+            "type": "string"
+          },
+          "country": {
+            "type": "string"
+          },
+          "logo": {
+            "type": "string",
+            "format": "uri"
+          },
+          "website": {
+            "type": "string",
+            "format": "uri"
+          },
+          "phone": {
+            "type": "string"
+          },
+          "email": {
+            "type": "string",
+            "format": "email"
+          },
+          "location": {
+            "type": "string"
+          }
+        }
+      },
+      "AgencyDetail": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/AgencySummary"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "address_line1": {
+                "type": "string"
+              },
+              "address_line2": {
+                "type": "string"
+              },
+              "pincode": {
+                "type": "string"
+              },
+              "description": {
+                "type": "string"
+              },
+              "metadata": {
+                "type": "object",
+                "properties": {
+                  "creation": {
+                    "type": "string",
+                    "format": "date-time"
+                  },
+                  "modified": {
+                    "type": "string",
+                    "format": "date-time"
+                  },
+                  "owner": {
+                    "type": "string"
+                  },
+                  "modified_by": {
+                    "type": "string"
+                  }
+                }
               }
             }
           }
@@ -1202,6 +1355,10 @@
               },
               "whatsapp_number": {
                 "type": "string"
+              },
+              "whatsapp_link": {
+                "type": "string",
+                "format": "uri"
               }
             }
           },
@@ -1286,6 +1443,10 @@
             "type": "string",
             "example": "+971500000123"
           },
+          "whatsapp_link": {
+            "type": "string",
+            "format": "uri"
+          },
           "profile_image": {
             "type": "string",
             "format": "uri",
@@ -1294,6 +1455,14 @@
           "property_count": {
             "type": "integer",
             "example": 12
+          },
+          "agency": {
+            "nullable": true,
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/AgencySummary"
+              }
+            ]
           }
         }
       },
@@ -1305,11 +1474,72 @@
           {
             "type": "object",
             "properties": {
+              "brn_id": {
+                "type": "string"
+              },
+              "active_properties": {
+                "type": "integer"
+              },
+              "property_ids": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "sales": {
+                "type": "integer"
+              },
+              "leads": {
+                "type": "integer"
+              },
+              "expertise": {
+                "type": "object",
+                "properties": {
+                  "property_types": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  },
+                  "property_categories": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  }
+                }
+              },
+              "max_daily_appointments": {
+                "type": "integer"
+              },
+              "max_appointment_minutes": {
+                "type": "integer"
+              },
+              "availability_slots": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "day_of_week": {
+                      "type": "string"
+                    },
+                    "start_time": {
+                      "type": "string"
+                    },
+                    "end_time": {
+                      "type": "string"
+                    }
+                  }
+                }
+              },
               "properties": {
                 "type": "array",
                 "items": {
                   "$ref": "#/components/schemas/PropertySummary"
                 }
+              },
+              "ratings": {
+                "type": "object"
               }
             }
           }
@@ -3891,6 +4121,141 @@
           },
           "403": {
             "$ref": "#/components/responses/ForbiddenError"
+          }
+        }
+      }
+    },
+    "/api/agencies/{agency_id}/profile": {
+      "get": {
+        "tags": [
+          "Agencies"
+        ],
+        "summary": "Get agency profile",
+        "security": [],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "agency_id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Agency profile",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AgencyDetail"
+                }
+              }
+            }
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFoundError"
+          }
+        }
+      }
+    },
+    "/api/agencies/{agency_id}/agents": {
+      "get": {
+        "tags": [
+          "Agencies"
+        ],
+        "summary": "List agents for an agency",
+        "security": [],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "agency_id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "page",
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "page_size",
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Paginated agents",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PaginatedAgentList"
+                }
+              }
+            }
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFoundError"
+          }
+        }
+      }
+    },
+    "/api/agencies/{agency_id}/analytics": {
+      "get": {
+        "tags": [
+          "Agencies"
+        ],
+        "summary": "Get agency analytics",
+        "security": [],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "agency_id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Agency analytics",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "agency_id": {
+                      "type": "string"
+                    },
+                    "total_active_listings": {
+                      "type": "integer"
+                    },
+                    "total_sales": {
+                      "type": "number",
+                      "format": "float"
+                    },
+                    "total_rent": {
+                      "type": "number",
+                      "format": "float"
+                    },
+                    "total_leads": {
+                      "type": "integer"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFoundError"
           }
         }
       }

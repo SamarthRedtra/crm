@@ -355,4 +355,3 @@ class PropertyAppointment(Document):
 				f"Failed to insert notification: {str(e)}\nTraceback: {frappe.get_traceback()}",
 				"Appointment Notification Error"
 			)
-

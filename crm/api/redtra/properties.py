@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+from datetime import datetime
 import math
 from typing import Any
 from urllib.parse import quote
@@ -8,7 +9,7 @@ from urllib.parse import quote
 import frappe
 from frappe import _
 from frappe.query_builder import DocType, functions as fn
-from frappe.utils import cint
+from frappe.utils import cint, get_datetime, now_datetime
 from pypika import Order
 
 from . import utils
@@ -27,12 +28,14 @@ SUMMARY_FIELDS = [
 	"city",
 	"area",
 	"developer",
+	"agent",
 	"furnishing_status",
 	"state",
 	"country",
 	"primary_image",
 	"status",
 	"is_featured",
+	"featured_until",
 ]
 
 
@@ -200,6 +203,7 @@ def list_properties() -> dict[str, Any]:
 				property_dt.primary_image.as_("primary_image"),
 				property_dt.status.as_("status"),
 				property_dt.is_featured.as_("is_featured"),
+				property_dt.featured_until.as_("featured_until"),
 				area_dt.area_name.as_("area_name"),
 				developer_dt.developer_name.as_("developer_name"),
 			)
@@ -251,6 +255,11 @@ def create_property() -> dict[str, Any]:
 	if not agent_name:
 		frappe.throw(_("You must be a verified agent to create properties."), frappe.PermissionError)
 
+	is_featured = int(_coerce_bool(data.get("is_featured"))) if "is_featured" in data else 0
+	if data.get("featured_until") and "is_featured" not in data:
+		is_featured = 1
+	featured_until = _normalize_featured_until(data.get("featured_until"), is_featured)
+
 	doc = frappe.get_doc(
 		{
 			"doctype": "Property",
@@ -277,7 +286,8 @@ def create_property() -> dict[str, Any]:
 			"description": data.get("description"),
 			"agent": agent_name,
 			"primary_image": data.get("primary_image"),
-			"is_featured": int(_coerce_bool(data.get("is_featured"))) if "is_featured" in data else 0,
+			"is_featured": is_featured,
+			"featured_until": featured_until,
 		}
 	)
 
@@ -313,6 +323,15 @@ def update_property(property_id: str) -> dict[str, Any]:
 
 	_validate_property_owner(doc)
 
+	is_featured_value = (
+		int(_coerce_bool(data.get("is_featured")))
+		if "is_featured" in data
+		else doc.is_featured
+	)
+	if data.get("featured_until") and "is_featured" not in data:
+		is_featured_value = 1
+	featured_until = _normalize_featured_until(data.get("featured_until"), is_featured_value)
+
 	doc.update(
 		{
 			"title": data.get("title") or doc.title,
@@ -342,11 +361,8 @@ def update_property(property_id: str) -> dict[str, Any]:
 			"latitude": data.get("latitude", doc.latitude),
 			"longitude": data.get("longitude", doc.longitude),
 			"description": data.get("description", doc.description),
-			"is_featured": (
-				int(_coerce_bool(data.get("is_featured")))
-				if "is_featured" in data
-				else doc.is_featured
-			),
+			"is_featured": is_featured_value,
+			"featured_until": featured_until,
 			"status": data.get("status", doc.status),
 		}
 	)
@@ -409,20 +425,41 @@ def serialize_property_summary(row: dict[str, Any]) -> dict[str, Any]:
 
 	agent_id = row.get("agent")
 	agent = None
+	agency_details = None
 	if agent_id:
 		try:
 			agent_data = frappe.db.get_value(
 				"Agent",
 				agent_id,
-				["name", "full_name", "user", "phone", "whatsapp_number", "profile_image", "status"],
+				[
+					"name",
+					"full_name",
+					"user",
+					"phone",
+					"whatsapp_number",
+					"profile_image",
+					"status",
+					"agency",
+				],
 				as_dict=True,
 			)
 			if agent_data:
+				agency_id = agent_data.get("agency")
+				if agency_id:
+					try:
+						from . import agencies
+						agency_details = agencies.get_agency_details(agency_id)
+					except Exception:
+						agency_details = None
+				whatsapp_link = _build_whatsapp_link(
+					agent_data.get("whatsapp_number") or agent_data.get("phone")
+				)
 				agent = {
 					"id": agent_data.get("name"),
 					"name": agent_data.get("full_name") or agent_data.get("user"),
 					"phone": agent_data.get("phone"),
 					"whatsapp_number": agent_data.get("whatsapp_number"),
+					"whatsapp_link": whatsapp_link,
 					"profile_image": agent_data.get("profile_image"),
 					"status": agent_data.get("status"),
 				}
@@ -480,6 +517,12 @@ def serialize_property_summary(row: dict[str, Any]) -> dict[str, Any]:
 			for row in gallery_rows
 		]
 
+	featured_until = row.get("featured_until")
+	featured_until_value, featured_remaining = _get_featured_timer(featured_until)
+	listing_type = row.get("listing_type")
+	if listing_type == "Off Plan":
+		agent = None
+
 	return {
 		"id": property_id,
 		"title": row.get("title"),
@@ -495,10 +538,13 @@ def serialize_property_summary(row: dict[str, Any]) -> dict[str, Any]:
 		"area": row.get("area"),
 		"area_name": area_name,
 		"is_featured": bool(row.get("is_featured")),
+		"featured_until": featured_until_value,
+		"featured_remaining_seconds": featured_remaining,
 		"developer": developer,
 		"developer_id": developer["id"] if developer else None,
 		"developer_name": developer["name"] if developer else None,
 		"agent": agent,
+		"agency": agency_details,
 		"location": location,
 		"primary_image_url": row.get("primary_image"),
 		"furnishing_status": row.get("furnishing_status"),
@@ -518,6 +564,27 @@ def serialize_property_detail(doc) -> dict[str, Any]:
 		number = (agent_doc.whatsapp_number or agent_doc.phone).replace("+", "").replace(" ", "")
 		message = _("Hi, I am interested in {0}").format(doc.property_code or doc.name)
 		link = f"https://wa.me/{number}?text={quote(message)}"
+
+	agency_details = None
+	agency_id = getattr(agent_doc, "agency", None)
+	if agency_id:
+		try:
+			from . import agencies
+			agency_details = agencies.get_agency_details(agency_id)
+		except Exception:
+			agency_details = None
+
+	featured_until_value, featured_remaining = _get_featured_timer(doc.featured_until)
+	listing_type = doc.listing_type
+	agent_payload = {
+		"id": agent_doc.name,
+		"name": agent_doc.full_name or agent_doc.user,
+		"phone": agent_doc.phone,
+		"whatsapp_number": agent_doc.whatsapp_number,
+		"whatsapp_link": _build_whatsapp_link(agent_doc.whatsapp_number or agent_doc.phone),
+	}
+	if listing_type == "Off Plan":
+		agent_payload = None
 
 	return {
 		"id": doc.name,
@@ -547,6 +614,8 @@ def serialize_property_detail(doc) -> dict[str, Any]:
 		"furnishing_status": doc.furnishing_status,
 		"primary_image_url": doc.primary_image,
 		"is_featured": bool(doc.is_featured),
+		"featured_until": featured_until_value,
+		"featured_remaining_seconds": featured_remaining,
 		"amenities": [
 			frappe.db.get_value("Amenity", row.amenity_name, "amenity_name") or row.amenity_name
 			for row in doc.amenities
@@ -555,12 +624,8 @@ def serialize_property_detail(doc) -> dict[str, Any]:
 			{"image": row.image, "caption": row.caption, "sort_order": row.sort_order}
 			for row in doc.gallery
 		],
-		"agent": {
-			"id": agent_doc.name,
-			"name": agent_doc.full_name or agent_doc.user,
-			"phone": agent_doc.phone,
-			"whatsapp_number": agent_doc.whatsapp_number,
-		},
+		"agent": agent_payload,
+		"agency": agency_details,
 		"whatsapp_chat_link": link,
 	}
 
@@ -808,6 +873,61 @@ def _ensure_amenity_master(value: Any) -> str | None:
 	doc.flags.ignore_permissions = True
 	doc.insert()
 	return doc.name
+
+
+def _build_whatsapp_link(number: str | None) -> str | None:
+	if not number:
+		return None
+	clean_number = str(number).replace("+", "").replace(" ", "")
+	return f"https://wa.me/{clean_number}" if clean_number else None
+
+
+def _normalize_featured_until(value: Any, is_featured: int) -> datetime | None:
+	if not value:
+		return None if not is_featured else _validate_featured_required(value)
+	try:
+		featured_until = get_datetime(value)
+	except Exception:
+		frappe.throw(_("Invalid featured_until datetime."), frappe.ValidationError)
+
+	if is_featured and featured_until <= now_datetime():
+		frappe.throw(_("featured_until must be in the future for featured properties."), frappe.ValidationError)
+	return featured_until
+
+
+def _validate_featured_required(value: Any) -> None:
+	frappe.throw(_("featured_until is required when is_featured is enabled."), frappe.ValidationError)
+
+
+def _get_featured_timer(featured_until: Any) -> tuple[str | None, int]:
+	if not featured_until:
+		return None, 0
+	featured_dt = get_datetime(featured_until)
+	remaining = int((featured_dt - now_datetime()).total_seconds())
+	return str(featured_dt), max(0, remaining)
+
+
+def expire_featured_properties():
+	"""Scheduled job to auto-expire featured properties."""
+	now = now_datetime()
+	expired = frappe.db.get_all(
+		"Property",
+		filters={"is_featured": 1, "featured_until": ["<", now]},
+		pluck="name",
+	)
+	if not expired:
+		return {"expired_count": 0}
+
+	frappe.db.sql(
+		"""
+		UPDATE `tabProperty`
+		SET is_featured = 0, featured_until = NULL
+		WHERE name IN %(names)s
+		""",
+		{"names": tuple(expired)},
+	)
+	frappe.db.commit()
+	return {"expired_count": len(expired)}
 
 
 def _find_existing_amenity(value: Any) -> str | None:
