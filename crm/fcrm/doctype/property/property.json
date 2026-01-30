@@ -47,6 +47,7 @@
   "primary_image",
   "gallery",
   "is_featured",
+  "featured_until",
   "views_count"
  ],
  "fields": [
@@ -256,6 +257,11 @@
    "fieldname": "is_featured",
    "fieldtype": "Check",
    "label": "Featured"
+  },
+  {
+   "fieldname": "featured_until",
+   "fieldtype": "Datetime",
+   "label": "Featured Until"
   },
   {
    "default": "0",

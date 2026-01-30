@@ -40,6 +40,9 @@ Some endpoints allow unauthenticated (guest) access for read-only data:
 - `GET /agents` - **NEW: List agents (public)**
 - `GET /agents/{agent_id}` - **NEW: Get agent details (public)**
 - `GET /agents/{agent_id}/available-slots` - **NEW: Get agent availability slots (public)**
+- `GET /agencies/{agency_id}/profile` - **NEW: Get full agency profile (public)**
+- `GET /agencies/{agency_id}/agents` - **NEW: List agency agents (public)**
+- `GET /agencies/{agency_id}/analytics` - **NEW: Agency analytics (public)**
 
 Any other endpoint requires a valid bearer token. System Manager permissions are required for certain actions (see below).
 
@@ -89,7 +92,7 @@ Any other endpoint requires a valid bearer token. System Manager permissions are
 ```json
 {
   "title": "2 BHK Apartment in Al Jaddaf",
-  "listing_type": "Sale",
+  "listing_type": "Buy",
   "property_type": "Apartment",
   "property_category": "Residential",
   "price": 350000,
@@ -104,7 +107,8 @@ Any other endpoint requires a valid bearer token. System Manager permissions are
   "city": "Dubai",
   "country": "United Arab Emirates",
   "amenities": ["Pool", "Gym"],
-  "is_featured": true
+  "is_featured": true,
+  "featured_until": "2026-02-01 12:00:00"
 }
 ```
 
@@ -117,6 +121,7 @@ The backend validates that the supplied `developer_id` exists and is `Active` be
 - `amenities` (requires all specified values)
 - `developer_id`, `area_id`, `agent`
 - `is_featured` flag for curated listings
+- `featured_until` timestamp for featured listings (auto-expires)
 - `furnished` / `is_furnished` booleans filter fully furnished homes (false excludes them).
 - `min_area_sq_ft` and `max_area_sq_ft` are aliases for square-foot filtering alongside `min_area`/`max_area`.
 - Free-text `location` search covering area, city, state, country, address, and title
@@ -196,6 +201,14 @@ If `agent_id` is omitted, the API creates a fresh Agent record for the new user.
 | `/agents/{agent_id}` | `GET` | None | Public endpoint to get agent details including availability slots, max appointment minutes, and properties. |
 | `/agents/{agent_id}/available-slots` | `GET` | None | **NEW:** Public endpoint to get available appointment slots for an agent. Supports `start_date` and `end_date` query parameters. Returns only slots that are not already booked. |
 | `/agents/availability` | `POST` | Agent | **NEW:** Update agent's availability schedule and max appointment minutes. Requires authentication as the agent. |
+
+## Agencies
+
+| Endpoint | Method | Auth | Notes |
+| --- | --- | --- | --- |
+| `/agencies/{agency_id}/profile` | `GET` | None | Returns full agency profile with metadata. |
+| `/agencies/{agency_id}/agents` | `GET` | None | Lists agents associated with the agency. |
+| `/agencies/{agency_id}/analytics` | `GET` | None | Returns totals for leads, sales, rent, and active listings. |
 
 ### Agent Availability Slots
 

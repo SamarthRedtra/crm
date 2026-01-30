@@ -194,6 +194,9 @@ scheduler_events = {
         "*/10 * * * *": [
 			"crm.api.redtra.reminders.send_scheduled_reminders"
 		],
+		"*/20 * * * *": [
+			"crm.api.redtra.properties.expire_featured_properties"
+		],
 	}
 }
 app_include_js = [

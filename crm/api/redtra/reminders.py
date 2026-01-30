@@ -64,11 +64,9 @@ def _send_reminder_notifications(appointment_doc):
 		customer_user = getattr(customer_doc, "user", None)
 		agent_user = frappe.db.get_value("Agent", appointment_doc.agent, "user")
 
-		if not customer_user or not agent_user:
-			return
-
 		property_title = property_doc.title or property_doc.name
 		appointment_time = format_datetime(appointment_doc.start_datetime, "dd MMM yyyy, hh:mm a")
+		sent_any = False
 		
 		# Reminder for customer
 		customer_notification_text = _("Reminder: Appointment in 1 hour - {0}").format(property_title)
@@ -81,13 +79,22 @@ def _send_reminder_notifications(appointment_doc):
 			agent_doc.full_name or agent_user,
 		)
 
-		_create_reminder_notification(
-			from_user=agent_user,
-			to_user=customer_user,
-			notification_text=customer_notification_text,
-			message=customer_message,
-			appointment_doc=appointment_doc,
-		)
+		if customer_user:
+			_create_reminder_notification(
+				from_user=agent_user,
+				to_user=customer_user,
+				notification_text=customer_notification_text,
+				message=customer_message,
+				appointment_doc=appointment_doc,
+			)
+			sent_any = True
+		elif customer_doc.email:
+			_send_email_reminder(
+				to_email=customer_doc.email,
+				subject=customer_notification_text,
+				message=customer_message,
+			)
+			sent_any = True
 
 		# Reminder for agent
 		agent_notification_text = _("Reminder: Appointment in 1 hour - {0}").format(property_title)
@@ -100,17 +107,20 @@ def _send_reminder_notifications(appointment_doc):
 			customer_doc.full_name,
 		)
 
-		_create_reminder_notification(
-			from_user=customer_user,
-			to_user=agent_user,
-			notification_text=agent_notification_text,
-			message=agent_message,
-			appointment_doc=appointment_doc,
-		)
+		if agent_user:
+			_create_reminder_notification(
+				from_user=customer_user or agent_user,
+				to_user=agent_user,
+				notification_text=agent_notification_text,
+				message=agent_message,
+				appointment_doc=appointment_doc,
+			)
+			sent_any = True
 		
 		# Mark reminder as sent
-		appointment_doc.db_set("reminder_sent", 1, update_modified=False)
-		frappe.db.commit()
+		if sent_any:
+			appointment_doc.db_set("reminder_sent", 1, update_modified=False)
+			frappe.db.commit()
 
 	except Exception as e:
 		frappe.log_error(
@@ -155,6 +165,20 @@ def _create_reminder_notification(
 	except Exception as e:
 		frappe.log_error(
 			f"Failed to create reminder notification: {str(e)}",
+			"Appointment Reminder Error"
+		)
+
+
+def _send_email_reminder(to_email: str, subject: str, message: str):
+	try:
+		frappe.sendmail(
+			recipients=[to_email],
+			subject=subject,
+			message=message,
+		)
+	except Exception as e:
+		frappe.log_error(
+			f"Failed to send reminder email to {to_email}: {str(e)}",
 			"Appointment Reminder Error"
 		)
 

@@ -16,6 +16,7 @@ class Agent(Document):
 		from crm.fcrm.doctype.agent_kyc_document.agent_kyc_document import AgentKYCDocument
 		from frappe.types import DF
 
+		agency: DF.Link | None
 		availability_slots: DF.Table[AgentAvailabilitySlot]
 		bio: DF.SmallText | None
 		dfd_registration_id: DF.Data

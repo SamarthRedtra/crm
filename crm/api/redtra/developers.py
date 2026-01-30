@@ -4,7 +4,7 @@ from typing import Any
 
 import frappe
 from frappe import _
-from frappe.utils import cint
+from frappe.utils import cint, strip_html
 
 from . import properties, utils
 
@@ -207,7 +207,7 @@ def _serialize_developer_detail(doc) -> dict[str, Any]:
 		"country": doc.country,
 		"pincode": doc.pincode,
 		"logo": doc.logo,
-		"description": doc.description,
+		"description": strip_html(doc.description) if doc.description else None,
 		"location": _build_location(doc.city, doc.state, doc.country),
 	}
 
