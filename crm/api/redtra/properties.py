@@ -438,6 +438,7 @@ def serialize_property_summary(row: dict[str, Any]) -> dict[str, Any]:
 					"phone",
 					"whatsapp_number",
 					"profile_image",
+					"brn_id",
 					"status",
 					"agency",
 				],
@@ -461,6 +462,7 @@ def serialize_property_summary(row: dict[str, Any]) -> dict[str, Any]:
 					"whatsapp_number": agent_data.get("whatsapp_number"),
 					"whatsapp_link": whatsapp_link,
 					"profile_image": agent_data.get("profile_image"),
+					"brn_id": agent_data.get("brn_id"),
 					"status": agent_data.get("status"),
 				}
 		except Exception:
@@ -581,6 +583,7 @@ def serialize_property_detail(doc) -> dict[str, Any]:
 		"name": agent_doc.full_name or agent_doc.user,
 		"phone": agent_doc.phone,
 		"whatsapp_number": agent_doc.whatsapp_number,
+		"brn_id": getattr(agent_doc, "brn_id", None),
 		"whatsapp_link": _build_whatsapp_link(agent_doc.whatsapp_number or agent_doc.phone),
 	}
 	if listing_type == "Off Plan":

@@ -9,7 +9,9 @@ from frappe.auth import LoginManager
 from frappe.utils import add_months, cint, get_datetime_str, now_datetime
 from frappe.utils.password import update_password
 
-from . import properties, utils
+
+from . import properties, utils, agencies
+
 
 
 @frappe.whitelist(methods=["POST"], allow_guest=True)
@@ -241,6 +243,26 @@ def _create_agent_record(user: str, data: dict[str, Any], agent_id: str | None =
 	if agent_id and not agent_doc.dfd_registration_id:
 		agent_doc.dfd_registration_id = agent_id
 
+	if data.get("brn_id") and not agent_doc.brn_id:
+		agent_doc.brn_id = data.get("brn_id")
+
+	# Handle Agency Linkage
+	agency_name = (data.get("agency_name") or "").strip()
+	if agency_name:
+		agency_doc_name = frappe.db.get_value("Agency", {"agency_name": agency_name}, "name")
+		if not agency_doc_name:
+			# Create new Agency
+			new_agency = frappe.get_doc({
+				"doctype": "Agency",
+				"agency_name": agency_name,
+				"status": "Active"
+			})
+			new_agency.insert(ignore_permissions=True)
+			agency_doc_name = new_agency.name
+		
+		# Link to Agent
+		agent_doc.agency = agency_doc_name
+
 	max_daily = data.get("max_daily_appointments")
 	if max_daily is not None:
 		agent_doc.max_daily_appointments = cint(max_daily)
@@ -291,6 +313,10 @@ def _update_agent_details(user: str, data: dict[str, Any]):
 		agent_doc.dfd_registration_id = data.get("agent_id")
 		updated = True
 
+	if data.get("brn_id") and not agent_doc.brn_id:
+		agent_doc.brn_id = data.get("brn_id")
+		updated = True
+
 	if data.get("profile_image") and hasattr(agent_doc, "profile_image"):
 		agent_doc.profile_image = data.get("profile_image")
 		updated = True
@@ -315,15 +341,22 @@ def _build_agent_profile(user_doc, agent_doc, start_of_day, end_of_day) -> dict[
 	appointments_today = _get_agent_appointments_today(agent_doc.name, start_of_day, end_of_day)
 	lead_stats = _get_agent_lead_stats(user_doc.name, start_of_day, end_of_day)
 
+	agency_details = None
+	if hasattr(agent_doc, "agency") and agent_doc.agency:
+		agency_details = agencies.get_agency_details(agent_doc.agency)
+
 	return {
+
 		"user_id": user_doc.name,
 		"full_name": user_doc.full_name,
 		"email": user_doc.email or user_doc.user_email,
 		"phone": agent_doc.phone or user_doc.mobile_no,
 		"whatsapp_number": agent_doc.whatsapp_number,
+		"agency": agency_details,
 		"agent_profile": {
 			"id": agent_doc.name,
 			"status": agent_doc.status,
+			"brn_id": getattr(agent_doc, "brn_id", None),
 			"about_me": agent_doc.bio,
 			"profile_image": getattr(agent_doc, "profile_image", None),
 			"max_daily_appointments": agent_doc.max_daily_appointments,

@@ -10,6 +10,7 @@
         "user",
         "status",
         "dfd_registration_id",
+        "brn_id",
         "agency",
         "column_break_primary",
         "full_name",
@@ -53,6 +54,12 @@
             "label": "DLD Registration ID",
             "reqd": 1,
             "unique": 1
+        },
+        {
+            "fieldname": "brn_id",
+            "fieldtype": "Data",
+            "in_list_view": 1,
+            "label": "BRN ID"
         },
         {
             "fieldname": "agency",

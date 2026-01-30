@@ -1,165 +1,163 @@
 {
- "actions": [],
- "allow_import": 1,
- "allow_rename": 1,
- "creation": "2025-12-15 00:00:00.000000",
- "default_view": "List",
- "doctype": "DocType",
- "editable_grid": 1,
- "engine": "InnoDB",
- "field_order": [
-  "appointment",
-  "agent",
-  "property",
-  "customer",
-  "column_break_1",
-  "status",
-  "section_break_ratings",
-  "overall_rating",
-  "agent_rating",
-  "property_rating",
-  "section_break_review",
-  "review_text",
-  "section_break_metadata",
-  "submitted_at"
- ],
- "fields": [
-  {
-   "fieldname": "appointment",
-   "fieldtype": "Link",
-   "in_list_view": 1,
-   "in_standard_filter": 1,
-   "label": "Appointment",
-   "options": "Property Appointment",
-   "reqd": 1,
-   "unique": 1
-  },
-  {
-   "fieldname": "agent",
-   "fieldtype": "Link",
-   "in_list_view": 1,
-   "in_standard_filter": 1,
-   "label": "Agent",
-   "options": "Agent",
-   "reqd": 1
-  },
-  {
-   "fieldname": "property",
-   "fieldtype": "Link",
-   "in_list_view": 1,
-   "in_standard_filter": 1,
-   "label": "Property",
-   "options": "Property",
-   "reqd": 1
-  },
-  {
-   "fieldname": "customer",
-   "fieldtype": "Link",
-   "in_list_view": 1,
-   "in_standard_filter": 1,
-   "label": "Customer",
-   "options": "Customer",
-   "reqd": 1
-  },
-  {
-   "fieldname": "column_break_1",
-   "fieldtype": "Column Break"
-  },
-  {
-   "default": "Draft",
-   "fieldname": "status",
-   "fieldtype": "Select",
-   "in_list_view": 1,
-   "in_standard_filter": 1,
-   "label": "Status",
-   "options": "Draft\nSubmitted\nPublished",
-   "reqd": 1
-  },
-  {
-   "fieldname": "section_break_ratings",
-   "fieldtype": "Section Break",
-   "label": "Ratings"
-  },
-  {
-   "default": "0",
-   "fieldname": "overall_rating",
-   "fieldtype": "Rating",
-   "label": "Overall Rating",
-   "reqd": 1
-  },
-  {
-   "default": "0",
-   "fieldname": "agent_rating",
-   "fieldtype": "Rating",
-   "label": "Agent Rating",
-   "reqd": 1
-  },
-  {
-   "default": "0",
-   "fieldname": "property_rating",
-   "fieldtype": "Rating",
-   "label": "Property Rating",
-   "reqd": 1
-  },
-  {
-   "fieldname": "section_break_review",
-   "fieldtype": "Section Break",
-   "label": "Review Details"
-  },
-  {
-   "fieldname": "review_text",
-   "fieldtype": "Text Editor",
-   "label": "Review Text"
-  },
-  {
-   "fieldname": "section_break_metadata",
-   "fieldtype": "Section Break",
-   "label": "Metadata"
-  },
-  {
-   "fieldname": "submitted_at",
-   "fieldtype": "Datetime",
-   "label": "Submitted At",
-   "read_only": 1
-  }
- ],
- "index_web_pages_for_search": 1,
- "links": [],
- "modified": "2025-12-15 00:00:00.000000",
- "modified_by": "Administrator",
- "module": "FCRM",
- "name": "Review and Rating",
- "naming_rule": "By fieldname",
- "naming_rule_options": "appointment",
- "owner": "Administrator",
- "permissions": [
-  {
-   "create": 1,
-   "delete": 1,
-   "email": 1,
-   "export": 1,
-   "print": 1,
-   "read": 1,
-   "report": 1,
-   "role": "System Manager",
-   "share": 1,
-   "write": 1
-  },
-  {
-   "create": 1,
-   "read": 1,
-   "role": "Customer",
-   "write": 1
-  },
-  {
-   "read": 1,
-   "role": "Agent"
-  }
- ],
- "sort_field": "modified",
- "sort_order": "DESC",
- "states": [],
- "track_changes": 1
+    "actions": [],
+    "allow_import": 1,
+    "allow_rename": 1,
+    "creation": "2025-12-15 00:00:00.000000",
+    "default_view": "List",
+    "doctype": "DocType",
+    "editable_grid": 1,
+    "engine": "InnoDB",
+    "field_order": [
+        "appointment",
+        "agent",
+        "property",
+        "customer",
+        "column_break_1",
+        "status",
+        "section_break_ratings",
+        "overall_rating",
+        "agent_rating",
+        "property_rating",
+        "section_break_review",
+        "review_text",
+        "section_break_metadata",
+        "submitted_at"
+    ],
+    "fields": [
+        {
+            "fieldname": "appointment",
+            "fieldtype": "Link",
+            "in_list_view": 1,
+            "in_standard_filter": 1,
+            "label": "Appointment",
+            "options": "Property Appointment",
+            "reqd": 0,
+            "unique": 0
+        },
+        {
+            "fieldname": "agent",
+            "fieldtype": "Link",
+            "in_list_view": 1,
+            "in_standard_filter": 1,
+            "label": "Agent",
+            "options": "Agent",
+            "reqd": 1
+        },
+        {
+            "fieldname": "property",
+            "fieldtype": "Link",
+            "in_list_view": 1,
+            "in_standard_filter": 1,
+            "label": "Property",
+            "options": "Property",
+            "reqd": 1
+        },
+        {
+            "fieldname": "customer",
+            "fieldtype": "Link",
+            "in_list_view": 1,
+            "in_standard_filter": 1,
+            "label": "Customer",
+            "options": "Customer",
+            "reqd": 1
+        },
+        {
+            "fieldname": "column_break_1",
+            "fieldtype": "Column Break"
+        },
+        {
+            "default": "Draft",
+            "fieldname": "status",
+            "fieldtype": "Select",
+            "in_list_view": 1,
+            "in_standard_filter": 1,
+            "label": "Status",
+            "options": "Draft\nSubmitted\nPublished",
+            "reqd": 1
+        },
+        {
+            "fieldname": "section_break_ratings",
+            "fieldtype": "Section Break",
+            "label": "Ratings"
+        },
+        {
+            "default": "0",
+            "fieldname": "overall_rating",
+            "fieldtype": "Rating",
+            "label": "Overall Rating",
+            "reqd": 1
+        },
+        {
+            "default": "0",
+            "fieldname": "agent_rating",
+            "fieldtype": "Rating",
+            "label": "Agent Rating",
+            "reqd": 1
+        },
+        {
+            "default": "0",
+            "fieldname": "property_rating",
+            "fieldtype": "Rating",
+            "label": "Property Rating",
+            "reqd": 1
+        },
+        {
+            "fieldname": "section_break_review",
+            "fieldtype": "Section Break",
+            "label": "Review Details"
+        },
+        {
+            "fieldname": "review_text",
+            "fieldtype": "Text Editor",
+            "label": "Review Text"
+        },
+        {
+            "fieldname": "section_break_metadata",
+            "fieldtype": "Section Break",
+            "label": "Metadata"
+        },
+        {
+            "fieldname": "submitted_at",
+            "fieldtype": "Datetime",
+            "label": "Submitted At",
+            "read_only": 1
+        }
+    ],
+    "index_web_pages_for_search": 1,
+    "links": [],
+    "modified": "2025-12-15 00:00:00.000000",
+    "modified_by": "Administrator",
+    "module": "FCRM",
+    "name": "Review and Rating",
+    "naming_rule": "By fieldname",
+    "naming_rule_options": "appointment",
+    "owner": "Administrator",
+    "permissions": [
+        {
+            "create": 1,
+            "delete": 1,
+            "email": 1,
+            "export": 1,
+            "print": 1,
+            "read": 1,
+            "report": 1,
+            "role": "System Manager",
+            "share": 1,
+            "write": 1
+        },
+        {
+            "create": 1,
+            "read": 1,
+            "role": "Customer",
+            "write": 1
+        },
+        {
+            "read": 1,
+            "role": "Agent"
+        }
+    ],
+    "sort_field": "modified",
+    "sort_order": "DESC",
+    "states": [],
+    "track_changes": 1
 }
-
-

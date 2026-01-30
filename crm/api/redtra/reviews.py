@@ -80,7 +80,76 @@ def submit_appointment_review(appointment_id: str) -> dict[str, Any]:
 	frappe.db.commit()
 	
 	return serialize_review(review_doc.name)
+	return serialize_review(review_doc.name)
 
+
+@frappe.whitelist()
+@utils.require_jwt()
+def submit_agent_review(agent_id: str) -> dict[str, Any]:
+	"""Submit a review for an agent (without appointment)"""
+	return _submit_general_review(agent_id=agent_id)
+
+
+@frappe.whitelist()
+@utils.require_jwt()
+def submit_property_review(property_id: str) -> dict[str, Any]:
+	"""Submit a review for a property (without appointment)"""
+	return _submit_general_review(property_id=property_id)
+
+
+def _submit_general_review(agent_id: str | None = None, property_id: str | None = None) -> dict[str, Any]:
+	data = utils.get_request_json()
+	current_user = utils.get_current_user()
+	customer = utils.get_customer_by_user(current_user)
+	
+	if not customer:
+		frappe.throw(_("Customer profile is required to submit reviews."), frappe.PermissionError)
+
+	filters = {"customer": customer.name}
+	if agent_id:
+		filters["agent"] = agent_id
+		filters["appointment"] = ["is", "not set"] # Explicitly filter NULL
+		# Ensure agent exists
+		if not frappe.db.exists("Agent", agent_id):
+			frappe.throw(_("Agent not found."), frappe.DoesNotExistError)
+	elif property_id:
+		filters["property"] = property_id
+		filters["appointment"] = ["is", "not set"]
+		# Ensure property exists
+		if not frappe.db.exists("Property", property_id):
+			frappe.throw(_("Property not found."), frappe.DoesNotExistError)
+	else:
+		frappe.throw(_("Target is required."), frappe.ValidationError)
+
+	# Check for existing review from this customer for this target
+	# We allow one general review per customer per target
+	existing_review = frappe.db.get_value("Review and Rating", filters, "name")
+
+	if existing_review:
+		review_doc = frappe.get_doc("Review and Rating", existing_review)
+	else:
+		review_doc = frappe.new_doc("Review and Rating")
+		review_doc.customer = customer.name
+		if agent_id:
+			review_doc.agent = agent_id
+		if property_id:
+			review_doc.property = property_id
+		review_doc.status = "Draft"
+
+	if "overall_rating" in data:
+		review_doc.overall_rating = data.get("overall_rating", 0)
+	if "agent_rating" in data:
+		review_doc.agent_rating = data.get("agent_rating", 0)
+	if "property_rating" in data:
+		review_doc.property_rating = data.get("property_rating", 0)
+	if "review_text" in data:
+		review_doc.review_text = data.get("review_text", "")
+
+	review_doc.status = "Submitted"
+	review_doc.save(ignore_permissions=True)
+	frappe.db.commit()
+
+	return serialize_review(review_doc.name)
 
 @frappe.whitelist()
 @utils.require_jwt()
