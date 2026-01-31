@@ -108,6 +108,14 @@ def register_routes():
 		Rule("/amenties", methods=["GET"], endpoint=amenties.get_amenities),
 		Rule("/agents", methods=["GET"], endpoint=agents.list_agents),
 		Rule("/agents/<string:agent_id>", methods=["GET"], endpoint=agents.get_agent),
+		Rule("/agencies", methods=["GET"], endpoint=agencies.list_agencies),
+		Rule("/agencies", methods=["POST"], endpoint=agencies.create_agency),
+		Rule("/agencies/<string:agency_id>", methods=["GET"], endpoint=agencies.get_agency),
+		Rule(
+			"/agencies/<string:agency_id>/properties",
+			methods=["GET"],
+			endpoint=agencies.list_agency_properties,
+		),
 		Rule(
 			"/agencies/<string:agency_id>/analytics",
 			methods=["GET"],
@@ -124,6 +132,8 @@ def register_routes():
 			endpoint=agencies.get_agency_profile,
 		),
 		Rule("/agents/<string:agent_id>/reviews", methods=["GET"], endpoint=reviews.get_agent_reviews),
+		Rule("/agents/<string:agent_id>/reviews", methods=["POST"], endpoint=reviews.submit_agent_review),
+		Rule("/properties/<string:property_id>/reviews", methods=["POST"], endpoint=reviews.submit_property_review),
 		Rule("/agents/availability", methods=["POST"], endpoint=agents.update_agent_availability),
 		Rule(
 			"/appointments/<string:appointment_id>/review",

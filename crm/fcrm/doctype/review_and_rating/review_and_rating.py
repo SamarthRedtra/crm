@@ -6,7 +6,7 @@ from frappe.model.document import Document
 from frappe.utils import now_datetime
 
 
-class ReviewAndRating(Document):
+class ReviewandRating(Document):
 	def validate(self):
 		"""Validate review data before saving"""
 		self._validate_appointment_status()
@@ -53,7 +53,7 @@ class ReviewAndRating(Document):
 	def _validate_ratings(self):
 		"""Validate rating values are within valid range"""
 		for rating_field in ["overall_rating", "agent_rating", "property_rating"]:
-			rating = getattr(self, rating_field, 0) or 0
+			rating = float(getattr(self, rating_field, 0) or 0)
 			if rating < 0:
 				frappe.throw(
 					_("{0} cannot be negative.").format(rating_field.replace("_", " ").title()),
