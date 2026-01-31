@@ -363,3 +363,139 @@ def get_agent_reviews(agent_id: str) -> dict[str, Any]:
 	}
 
 
+
+def get_property_rating_stats(property_id: str) -> dict[str, Any]:
+	"""Get rating statistics for a property"""
+	# Get all submitted/published reviews for this property
+	reviews = frappe.get_all(
+		"Review and Rating",
+		filters={
+			"property": property_id,
+			"status": ["in", ["Submitted", "Published"]],
+		},
+		fields=[
+			"overall_rating",
+			"agent_rating",
+			"property_rating",
+			"review_text",
+			"creation",
+			"customer",
+		],
+		order_by="creation desc",
+		limit=10,
+	)
+	
+	if not reviews:
+		return {
+			"average_overall_rating": 0.0,
+			"average_agent_rating": 0.0,
+			"average_property_rating": 0.0,
+			"total_reviews": 0,
+			"recent_reviews": [],
+		}
+	
+	# Calculate averages from all reviews
+	all_reviews = frappe.get_all(
+		"Review and Rating",
+		filters={
+			"property": property_id,
+			"status": ["in", ["Submitted", "Published"]],
+		},
+		fields=["overall_rating", "agent_rating", "property_rating"],
+	)
+	total_count = len(all_reviews)
+	
+	overall_sum = sum(float(r.get("overall_rating") or 0) for r in all_reviews)
+	agent_sum = sum(float(r.get("agent_rating") or 0) for r in all_reviews)
+	property_sum = sum(float(r.get("property_rating") or 0) for r in all_reviews)
+	
+	# Serialize recent reviews
+	recent_reviews = []
+	for review in reviews[:5]:
+		customer_name = frappe.db.get_value("Customer", review.get("customer"), "full_name")
+		recent_reviews.append({
+			"overall_rating": float(review.get("overall_rating") or 0),
+			"agent_rating": float(review.get("agent_rating") or 0),
+			"property_rating": float(review.get("property_rating") or 0),
+			"review_text": review.get("review_text") or "",
+			"customer_name": customer_name,
+			"created_at": review.get("creation"),
+		})
+	
+	return {
+		"average_overall_rating": round(overall_sum / total_count, 2) if total_count > 0 else 0.0,
+		"average_agent_rating": round(agent_sum / total_count, 2) if total_count > 0 else 0.0,
+		"average_property_rating": round(property_sum / total_count, 2) if total_count > 0 else 0.0,
+		"total_reviews": total_count,
+		"recent_reviews": recent_reviews,
+	}
+
+
+@frappe.whitelist(allow_guest=True)
+def get_property_reviews(property_id: str) -> dict[str, Any]:
+	"""
+	Public API to get reviews for a property - no authentication required
+	"""
+	if not frappe.db.exists("Property", property_id):
+		frappe.throw(_("Property not found."), frappe.DoesNotExistError)
+	
+	page = max(1, cint(frappe.form_dict.get("page") or 1))
+	page_size = cint(frappe.form_dict.get("page_size") or 20)
+	page_size = max(1, min(page_size, 100))
+	start = (page - 1) * page_size
+	
+	rating_stats = get_property_rating_stats(property_id)
+	
+	reviews = frappe.get_all(
+		"Review and Rating",
+		filters={
+			"property": property_id,
+			"status": ["in", ["Submitted", "Published"]],
+		},
+		fields=[
+			"name",
+			"overall_rating",
+			"agent_rating",
+			"property_rating",
+			"review_text",
+			"creation",
+			"customer",
+			"property",
+			"appointment",
+		],
+		order_by="creation desc",
+		start=start,
+		limit=page_size,
+	)
+	
+	total_count = rating_stats.get("total_reviews", 0)
+	
+	review_items = []
+	for review in reviews:
+		customer_name = frappe.db.get_value("Customer", review.get("customer"), "full_name")
+		
+		review_items.append({
+			"id": review.get("name"),
+			"overall_rating": float(review.get("overall_rating") or 0) if review.get("overall_rating") else 0.0,
+			"agent_rating": float(review.get("agent_rating") or 0) if review.get("agent_rating") else 0.0,
+			"property_rating": float(review.get("property_rating") or 0) if review.get("property_rating") else 0.0,
+			"review_text": review.get("review_text") or "",
+			"customer_name": customer_name,
+			"appointment_id": review.get("appointment"),
+			"created_at": review.get("creation"),
+		})
+	
+	return {
+		"property_id": property_id,
+		"ratings": {
+			"average_overall_rating": rating_stats.get("average_overall_rating", 0.0),
+			"average_agent_rating": rating_stats.get("average_agent_rating", 0.0),
+			"average_property_rating": rating_stats.get("average_property_rating", 0.0),
+			"total_reviews": total_count,
+		},
+		"items": review_items,
+		"page": page,
+		"page_size": page_size,
+		"total_items": total_count,
+		"total_pages": (total_count + page_size - 1) // page_size if page_size else 0,
+	}

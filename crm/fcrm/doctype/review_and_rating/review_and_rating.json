@@ -41,7 +41,7 @@
             "in_standard_filter": 1,
             "label": "Agent",
             "options": "Agent",
-            "reqd": 1
+            "reqd": 0
         },
         {
             "fieldname": "property",
@@ -50,7 +50,7 @@
             "in_standard_filter": 1,
             "label": "Property",
             "options": "Property",
-            "reqd": 1
+            "reqd": 0
         },
         {
             "fieldname": "customer",

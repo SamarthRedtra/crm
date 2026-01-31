@@ -737,6 +737,29 @@
             }
           },
           "response": []
+        },
+        {
+          "name": "List Property Reviews",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/properties/{{property_id}}/reviews",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "properties",
+                "{{property_id}}",
+                "reviews"
+              ]
+            },
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "response": []
         }
       ]
     },
@@ -1924,6 +1947,44 @@
                       "disabled": true
                     }
                   ]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "Create CRM Lead",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{token}}",
+                    "type": "text"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/api/resource/CRM Lead",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "resource",
+                    "CRM Lead"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"first_name\": \"John\",\n  \"last_name\": \"Doe\",\n  \"email\": \"john@example.com\",\n  \"mobile_no\": \"+971500000000\",\n  \"agent_id\": \"{{agent_id}}\",\n  \"agency\": \"{{agency_id}}\",\n  \"status\": \"New\",\n  \"source\": \"Website\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
                 }
               },
               "response": []
