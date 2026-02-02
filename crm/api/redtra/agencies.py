@@ -12,6 +12,7 @@ from . import utils
 SUMMARY_FIELDS = [
 	"name",
 	"agency_name",
+	"description",
 	"status",
 	"city",
 	"state",
@@ -64,8 +65,19 @@ def list_agencies() -> dict[str, Any]:
 		frappe.set_user(original_user)
 	total_pages = (total_items + page_size - 1) // page_size if page_size else 0
 
+	agency_ids = [row["name"] for row in items]
+	agency_stats = _get_agency_stats(agency_ids)
+
 	return {
-		"items": [_serialize_agency_summary(row) for row in items],
+		"items": [
+			{
+				**_serialize_agency_summary(row),
+				"active_count": agency_stats.get(row["name"], {}).get("active", 0),
+				"sale_count": agency_stats.get(row["name"], {}).get("sale", 0),
+				"rent_count": agency_stats.get(row["name"], {}).get("rent", 0),
+			}
+			for row in items
+		],
 		"page": page,
 		"page_size": page_size,
 		"total_items": total_items,
@@ -155,10 +167,30 @@ def list_agency_agents(agency_id: str) -> dict[str, Any]:
 		frappe.set_user(original_user)
 	total_pages = (total_items + page_size - 1) // page_size if page_size else 0
 
+	agent_ids = [row["name"] for row in items]
 	from . import agents
+	property_counts = agents._get_agent_property_counts(agent_ids)
+	
+	# Get lead counts for these agents
+	lead_counts = {}
+	if agent_ids:
+		lead_result = frappe.db.get_all(
+			"CRM Lead",
+			filters={"agent_id": ["in", agent_ids]},
+			fields=["agent_id", {"COUNT": "*", "as": "count"}],
+			group_by="agent_id"
+		)
+		lead_counts = {row.get("agent_id"): row.get("count") for row in lead_result}
 
 	return {
-		"items": [agents._serialize_agent_summary(row) for row in items],
+		"items": [
+			{
+				**agents._serialize_agent_summary(row),
+				"property_count": property_counts.get(row["name"], 0),
+				"lead_count": lead_counts.get(row["name"], 0),
+			}
+			for row in items
+		],
 		"page": page,
 		"page_size": page_size,
 		"total_items": total_items,
@@ -259,6 +291,35 @@ def _serialize_agency_detail(doc) -> dict[str, Any]:
 	except Exception:
 		pass
 
+	# Get stats for the single agency
+	stats = _get_agency_stats([doc.name]).get(doc.name, {})
+	
+	# Get top property types and areas
+	property_types = []
+	service_areas = []
+	if agent_ids:
+		# Use group by on fetched property list or a separate query
+		# Separate query is more robust for large sets
+		type_result = frappe.db.get_all(
+			"Property",
+			filters={"agent": ["in", agent_ids], "status": "Active"},
+			fields=["property_type", {"COUNT": "name", "as": "count"}],
+			group_by="property_type",
+			order_by="count desc",
+			limit=5
+		)
+		property_types = [row.get("property_type") for row in type_result if row.get("property_type")]
+
+		area_result = frappe.db.get_all(
+			"Property",
+			filters={"agent": ["in", agent_ids], "status": "Active"},
+			fields=["area", {"COUNT": "name", "as": "count"}],
+			group_by="area",
+			order_by="count desc",
+			limit=5
+		)
+		service_areas = [row.get("area") for row in area_result if row.get("area")]
+
 	return {
 		"id": doc.name,
 		"name": doc.agency_name,
@@ -276,6 +337,12 @@ def _serialize_agency_detail(doc) -> dict[str, Any]:
 		"description": doc.description,
 		"brn_id": doc.brn_id,
 		"location": _build_location(doc.city, doc.state, doc.country),
+		"total_listings": stats.get("total", 0),
+		"active_listings": stats.get("active", 0),
+		"sale_listings": stats.get("sale", 0),
+		"rent_listings": stats.get("rent", 0),
+		"property_types": property_types,
+		"service_areas": service_areas,
 		"properties": properties_list,
 	}
 
@@ -383,41 +450,21 @@ def create_agency() -> dict[str, Any]:
 	return _serialize_agency_detail(doc)
 
 
-def _serialize_agency_summary(row: dict[str, Any]) -> dict[str, Any]:
+def _serialize_agency_summary(doc: dict[str, Any]) -> dict[str, Any]:
 	return {
-		"id": row.get("name"),
-		"name": row.get("agency_name"),
-		"status": row.get("status"),
-		"city": row.get("city"),
-		"state": row.get("state"),
-		"country": row.get("country"),
-		"logo": row.get("logo"),
-		"website": row.get("website"),
-		"phone": row.get("phone"),
-		"email": row.get("email"),
-		"brn_id": row.get("brn_id"),
-		"location": _build_location(row.get("city"), row.get("state"), row.get("country")),
-	}
-
-
-def _serialize_agency_detail(doc) -> dict[str, Any]:
-	return {
-		"id": doc.name,
-		"name": doc.agency_name,
-		"status": doc.status,
-		"email": doc.email,
-		"phone": doc.phone,
-		"website": doc.website,
-		"address_line1": doc.address_line1,
-		"address_line2": doc.address_line2,
-		"city": doc.city,
-		"state": doc.state,
-		"country": doc.country,
-		"pincode": doc.pincode,
-		"logo": doc.logo,
-		"description": doc.description,
-		"brn_id": doc.brn_id,
-		"location": _build_location(doc.city, doc.state, doc.country),
+		"id": row.get("name") if (row := doc) else None,
+		"name": doc.get("agency_name"),
+		"description": doc.get("description"),
+		"status": doc.get("status"),
+		"city": doc.get("city"),
+		"state": doc.get("state"),
+		"country": doc.get("country"),
+		"logo": doc.get("logo"),
+		"website": doc.get("website"),
+		"phone": doc.get("phone"),
+		"email": doc.get("email"),
+		"brn_id": doc.get("brn_id"),
+		"location": _build_location(doc.get("city"), doc.get("state"), doc.get("country")),
 	}
 
 
@@ -433,6 +480,44 @@ def get_agency_details(agency_id: str | None) -> dict[str, Any] | None:
 		return _serialize_agency_summary(doc.as_dict())
 	except frappe.DoesNotExistError:
 		return None
+
+
+def _get_agency_stats(agency_ids: list[str]) -> dict[str, dict[str, int]]:
+	if not agency_ids:
+		return {}
+
+	stats: dict[str, dict[str, int]] = {
+		aid: {"total": 0, "active": 0, "sale": 0, "rent": 0} for aid in agency_ids
+	}
+
+	# Get all properties for agents of these agencies
+	placeholders = ",".join(["%s"] * len(agency_ids))
+	result = frappe.db.sql(
+		f"""
+		SELECT a.agency, 
+			   COUNT(p.name) as total,
+			   SUM(CASE WHEN p.status = 'Active' THEN 1 ELSE 0 END) as active,
+			   SUM(CASE WHEN p.status = 'Active' AND p.listing_type = 'Buy' THEN 1 ELSE 0 END) as sale,
+			   SUM(CASE WHEN p.status = 'Active' AND p.listing_type = 'Rent' THEN 1 ELSE 0 END) as rent
+		FROM `tabProperty` p
+		JOIN `tabAgent` a ON p.agent = a.name
+		WHERE a.agency IN ({placeholders})
+		GROUP BY a.agency
+		""",
+		tuple(agency_ids),
+		as_dict=True,
+	)
+
+	for row in result:
+		aid = row.get("agency")
+		if aid in stats:
+			stats[aid] = {
+				"total": int(row.get("total") or 0),
+				"active": int(row.get("active") or 0),
+				"sale": int(row.get("sale") or 0),
+				"rent": int(row.get("rent") or 0),
+			}
+	return stats
 
 
 def _build_location(city: str | None, state: str | None, country: str | None) -> str | None:
