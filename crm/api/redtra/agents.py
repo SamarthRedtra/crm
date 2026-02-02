@@ -398,13 +398,13 @@ def _get_agent_expertise(agent_id: str) -> dict[str, Any]:
 	property_type_rows = frappe.db.get_all(
 		"Property",
 		filters={"status": "Active", "agent": agent_id},
-		fields=["property_type", "count(name) as total"],
+		fields=["property_type", {"COUNT": "name", "as": "total"}],
 		group_by="property_type",
 	)
 	category_rows = frappe.db.get_all(
 		"Property",
 		filters={"status": "Active", "agent": agent_id},
-		fields=["property_category", "count(name) as total"],
+		fields=["property_category", {"COUNT": "name", "as": "total"}],
 		group_by="property_category",
 	)
 

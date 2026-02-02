@@ -54,7 +54,7 @@ def list_developers() -> dict[str, Any]:
 			for entry in frappe.db.get_all(
 				"Property",
 				filters=property_filters,
-				fields=["developer", "count(name) as property_count"],
+				fields=["developer", {"COUNT": "name", "as": "property_count"}],
 				group_by="developer",
 			):
 				developer_name = entry.get("developer")
