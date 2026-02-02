@@ -454,7 +454,7 @@ def get_data(
 				all_count = frappe.get_list(
 					doctype,
 					filters=column_filters,
-					fields="count(*) as total_count",
+					fields=[{"COUNT": "*", "as": "total_count"}],
 				)[0].total_count
 
 				kc["all_count"] = all_count

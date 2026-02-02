@@ -198,7 +198,11 @@ def get_agency_analytics(agency_id: str) -> dict[str, Any]:
 	property_stats = frappe.db.get_all(
 		"Property",
 		filters={"status": "Active", "agent": ["in", agent_ids]},
-		fields=["listing_type", "count(name) as total_count", "sum(price) as total_price"],
+		fields=[
+			"listing_type",
+			{"COUNT": "name", "as": "total_count"},
+			{"SUM": "price", "as": "total_price"},
+		],
 		group_by="listing_type",
 	)
 

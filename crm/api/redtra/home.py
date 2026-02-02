@@ -97,7 +97,7 @@ def _get_top_developers() -> list[dict[str, Any]]:
 			for row in frappe.get_all(
 				"Property",
 				filters={"status": "Active", "developer": ["in", [item["name"] for item in rows]]},
-				fields=["developer", "count(name) as total"],
+				fields=["developer", {"COUNT": "name", "as": "total"}],
 				group_by="developer",
 				ignore_permissions=True,
 			)
@@ -135,7 +135,7 @@ def _get_top_agents() -> list[dict[str, Any]]:
 			for row in frappe.get_all(
 				"Property",
 				filters={"status": "Active", "agent": ["in", [item["name"] for item in rows]]},
-				fields=["agent", "count(name) as total"],
+				fields=["agent", {"COUNT": "name", "as": "total"}],
 				group_by="agent",
 				ignore_permissions=True,
 			)
