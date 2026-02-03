@@ -343,7 +343,7 @@ def _build_agent_profile(user_doc, agent_doc, start_of_day, end_of_day) -> dict[
 
 	agency_details = None
 	if hasattr(agent_doc, "agency") and agent_doc.agency:
-		agency_details = agencies.get_agency_details(agent_doc.agency)
+		agency_details = agencies.get_agency_details(agent_doc.agency, include_stats=True)
 
 	return {
 

@@ -318,7 +318,15 @@ def _serialize_agency_detail(doc) -> dict[str, Any]:
 			order_by="count desc",
 			limit=5
 		)
-		service_areas = [row.get("area") for row in area_result if row.get("area")]
+		service_area_ids = [row.get("area") for row in area_result if row.get("area")]
+		if service_area_ids:
+			area_names = frappe.get_all(
+				"Area",
+				filters={"name": ["in", service_area_ids]},
+				fields=["name", "area_name"]
+			)
+			name_map = {row["name"]: row["area_name"] for row in area_names}
+			service_areas = [name_map.get(aid, aid) for aid in service_area_ids]
 
 	return {
 		"id": doc.name,
@@ -468,7 +476,7 @@ def _serialize_agency_summary(doc: dict[str, Any]) -> dict[str, Any]:
 	}
 
 
-def get_agency_details(agency_id: str | None) -> dict[str, Any] | None:
+def get_agency_details(agency_id: str | None, include_stats: bool = False) -> dict[str, Any] | None:
 	"""Helper function to get agency details for embedding in agent responses"""
 	if not agency_id:
 		return None
@@ -477,7 +485,17 @@ def get_agency_details(agency_id: str | None) -> dict[str, Any] | None:
 		doc = frappe.get_cached_doc("Agency", agency_id)
 		if doc.status != "Active":
 			return None
-		return _serialize_agency_summary(doc.as_dict())
+		
+		res = _serialize_agency_summary(doc.as_dict())
+		if include_stats:
+			stats = _get_agency_stats([agency_id]).get(agency_id, {})
+			res.update({
+				"total_listings": stats.get("total", 0),
+				"active_listings": stats.get("active", 0),
+				"sale_listings": stats.get("sale", 0),
+				"rent_listings": stats.get("rent", 0),
+			})
+		return res
 	except frappe.DoesNotExistError:
 		return None
 
