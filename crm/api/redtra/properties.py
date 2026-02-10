@@ -547,6 +547,7 @@ def serialize_property_summary(row: dict[str, Any]) -> dict[str, Any]:
 		"developer_name": developer["name"] if developer else None,
 		"agent": agent,
 		"agency": agency_details,
+		"off_plan_agencies": _get_off_plan_agencies(property_id) if listing_type == "Off Plan" else [],
 		"location": location,
 		"primary_image_url": row.get("primary_image"),
 		"furnishing_status": row.get("furnishing_status"),
@@ -629,8 +630,39 @@ def serialize_property_detail(doc) -> dict[str, Any]:
 		],
 		"agent": agent_payload,
 		"agency": agency_details,
+		"off_plan_agencies": _get_off_plan_agencies(doc.name) if listing_type == "Off Plan" else [],
 		"whatsapp_chat_link": link,
 	}
+
+
+def _get_off_plan_agencies(property_id: str) -> list[dict[str, Any]]:
+	if not property_id:
+		return []
+
+	agencies = frappe.get_all(
+		"Property Agency",
+		filters={"parent": property_id},
+		fields=["agency"],
+		order_by="idx asc",
+	)
+
+	if not agencies:
+		return []
+
+	agency_list = []
+	for row in agencies:
+		if not row.agency:
+			continue
+			
+		try:
+			from . import agencies as agencies_module
+			details = agencies_module.get_agency_details(row.agency)
+			if details:
+				agency_list.append(details)
+		except Exception:
+			continue
+			
+	return agency_list
 
 
 def _validate_property_owner(doc):

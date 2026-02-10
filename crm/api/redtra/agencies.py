@@ -273,21 +273,33 @@ def _serialize_agency_detail(doc) -> dict[str, Any]:
 			ignore_permissions=True,
 		)
 		
-		# Fetch all active properties for these agents
-		if agent_ids:
-			placeholders = ",".join(["%s"] * len(agent_ids))
-			from . import properties
-			result = frappe.db.sql(
-				"""
-				SELECT {fields}
-				FROM `tabProperty`
-				WHERE status = 'Active' AND agent IN ({placeholders})
-				ORDER BY modified DESC
-				""".format(fields=", ".join(properties.SUMMARY_FIELDS), placeholders=placeholders),
-				tuple(agent_ids),
-				as_dict=True,
+		# Fetch all active properties:
+		# 1. Assigned to agents of this agency
+		# 2. Linked to this agency via Off Plan multi-select
+		from . import properties
+		
+		placeholders = ",".join(["%s"] * len(agent_ids)) if agent_ids else "''"
+		
+		# Build select fields with alias 'p'
+		select_fields = ", ".join([f"p.{f}" for f in properties.SUMMARY_FIELDS])
+		
+		query = f"""
+			SELECT DISTINCT {select_fields}
+			FROM `tabProperty` p
+			LEFT JOIN `tabProperty Agency` pa ON p.name = pa.parent
+			WHERE p.status = 'Active' 
+			AND (
+				{'p.agent IN ({placeholders})' if agent_ids else '1=0'}
+				OR 
+				(p.listing_type = 'Off Plan' AND pa.agency = %s)
 			)
-			properties_list = [properties.serialize_property_summary(row) for row in result]
+			ORDER BY p.modified DESC
+		""".format(placeholders=placeholders)
+		
+		params = tuple(agent_ids) + (doc.name,)
+		
+		result = frappe.db.sql(query, params, as_dict=True)
+		properties_list = [properties.serialize_property_summary(row) for row in result]
 	except Exception:
 		pass
 
@@ -375,7 +387,36 @@ def list_agency_properties(agency_id: str) -> dict[str, Any]:
 		ignore_permissions=True,
 	)
 
-	if not agent_ids:
+	# Build logic to fetch properties from agents OR off-plan linkage
+	placeholders = ",".join(["%s"] * len(agent_ids)) if agent_ids else "''"
+	
+	where_clause = f"""
+		p.status = 'Active' 
+		AND (
+			{'p.agent IN ({placeholders})' if agent_ids else '1=0'}
+			OR 
+			(p.listing_type = 'Off Plan' AND pa.agency = %s)
+		)
+	""".format(placeholders=placeholders)
+	
+	params = tuple(agent_ids) + (agency_id,)
+
+	# Count total
+	count_sql = f"""
+		SELECT COUNT(DISTINCT p.name)
+		FROM `tabProperty` p
+		LEFT JOIN `tabProperty Agency` pa ON p.name = pa.parent
+		WHERE {where_clause}
+	"""
+	
+	original_user = frappe.session.user
+	try:
+		frappe.set_user("Administrator")
+		total_items = frappe.db.sql(count_sql, params)[0][0]
+	finally:
+		frappe.set_user(original_user)
+		
+	if total_items == 0:
 		return {
 			"items": [],
 			"page": page,
@@ -384,32 +425,27 @@ def list_agency_properties(agency_id: str) -> dict[str, Any]:
 			"total_pages": 0,
 		}
 
-	filters = [
-		["Property", "status", "=", "Active"],
-		["Property", "agent", "in", agent_ids]
+	# Fetch items
+	fields = [
+		"name", "title", "listing_type", "property_type", "property_category",
+		"price", "currency", "bedrooms", "bathrooms", "area_sqft",
+		"city", "area", "developer", "agent", "furnishing_status",
+		"state", "country", "primary_image", "status", "is_featured", "featured_until"
 	]
+	select_fields = ", ".join([f"p.{f}" for f in fields])
+	
+	data_sql = f"""
+		SELECT DISTINCT {select_fields}
+		FROM `tabProperty` p
+		LEFT JOIN `tabProperty Agency` pa ON p.name = pa.parent
+		WHERE {where_clause}
+		ORDER BY p.modified DESC
+		LIMIT %s OFFSET %s
+	"""
+	
+	items = frappe.db.sql(data_sql, params + (page_size, start), as_dict=True)
 
-	items = frappe.get_all(
-		"Property",
-		filters=filters,
-		fields=[
-			"name", "title", "listing_type", "property_type", "property_category",
-			"price", "currency", "bedrooms", "bathrooms", "area_sqft",
-			"city", "area", "developer", "agent", "furnishing_status",
-			"state", "country", "primary_image", "status", "is_featured", "featured_until"
-		],
-		start=start,
-		limit=page_size,
-		order_by="modified desc",
-		ignore_permissions=True,
-	)
 
-	original_user = frappe.session.user
-	try:
-		frappe.set_user("Administrator")
-		total_items = frappe.db.count("Property", filters, cache=False)
-	finally:
-		frappe.set_user(original_user)
 	
 	total_pages = math.ceil(total_items / page_size) if page_size else 0
 
@@ -508,23 +544,40 @@ def _get_agency_stats(agency_ids: list[str]) -> dict[str, dict[str, int]]:
 		aid: {"total": 0, "active": 0, "sale": 0, "rent": 0} for aid in agency_ids
 	}
 
-	# Get all properties for agents of these agencies
 	placeholders = ",".join(["%s"] * len(agency_ids))
-	result = frappe.db.sql(
-		f"""
-		SELECT a.agency, 
-			   COUNT(p.name) as total,
-			   SUM(CASE WHEN p.status = 'Active' THEN 1 ELSE 0 END) as active,
-			   SUM(CASE WHEN p.status = 'Active' AND p.listing_type = 'Buy' THEN 1 ELSE 0 END) as sale,
-			   SUM(CASE WHEN p.status = 'Active' AND p.listing_type = 'Rent' THEN 1 ELSE 0 END) as rent
-		FROM `tabProperty` p
-		JOIN `tabAgent` a ON p.agent = a.name
-		WHERE a.agency IN ({placeholders})
-		GROUP BY a.agency
-		""",
-		tuple(agency_ids),
-		as_dict=True,
-	)
+	
+	# Union query to get unique property-agency pairs from both:
+	# 1. Properties assigned to agents of the agency
+	# 2. Properties linked to the agency via 'Off Plan' multi-select
+	query = f"""
+		SELECT agency, 
+			   COUNT(*) as total,
+			   SUM(CASE WHEN status = 'Active' THEN 1 ELSE 0 END) as active,
+			   SUM(CASE WHEN status = 'Active' AND listing_type = 'Buy' THEN 1 ELSE 0 END) as sale,
+			   SUM(CASE WHEN status = 'Active' AND listing_type = 'Rent' THEN 1 ELSE 0 END) as rent
+		FROM (
+			SELECT DISTINCT p.name, a.agency, p.status, p.listing_type
+			FROM `tabProperty` p
+			JOIN `tabAgent` a ON p.agent = a.name
+			WHERE a.agency IN ({placeholders})
+			
+			UNION
+			
+			SELECT DISTINCT p.name, pa.agency, p.status, p.listing_type
+			FROM `tabProperty` p
+			JOIN `tabProperty Agency` pa ON p.name = pa.parent
+			WHERE pa.agency IN ({placeholders}) AND p.listing_type = 'Off Plan'
+		) as unique_listings
+		WHERE status = 'Active'
+		GROUP BY agency
+	"""
+	
+	# We pass the agency_ids tuple twice because of the two SELECTs in UNION
+	# Update: Actually the WHERE clause is inside the subqueries, so we need to pass it twice.
+	# But wait, my query construction above has placeholders in both subqueries.
+	# So I need to pass (agency_ids + agency_ids).
+	
+	result = frappe.db.sql(query, tuple(agency_ids) * 2, as_dict=True)
 
 	for row in result:
 		aid = row.get("agency")
