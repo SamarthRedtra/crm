@@ -185,12 +185,15 @@ def serialize_review(review_name: str) -> dict[str, Any]:
 	"""Serialize review document for API response"""
 	review_doc = frappe.get_doc("Review and Rating", review_name)
 	
+	customer_name = frappe.db.get_value("Customer", review_doc.customer, "full_name")
+	
 	return {
 		"id": review_doc.name,
 		"appointment_id": review_doc.appointment,
 		"agent_id": review_doc.agent,
 		"property_id": review_doc.property,
 		"customer_id": review_doc.customer,
+		"reviewer_name": customer_name,
 		"overall_rating": float(review_doc.overall_rating or 0) if review_doc.overall_rating else 0.0,
 		"agent_rating": float(review_doc.agent_rating or 0) if review_doc.agent_rating else 0.0,
 		"property_rating": float(review_doc.property_rating or 0) if review_doc.property_rating else 0.0,
