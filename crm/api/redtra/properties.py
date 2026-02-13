@@ -36,6 +36,7 @@ SUMMARY_FIELDS = [
 	"status",
 	"is_featured",
 	"featured_until",
+	"is_sold",
 ]
 
 
@@ -204,6 +205,7 @@ def list_properties() -> dict[str, Any]:
 				property_dt.status.as_("status"),
 				property_dt.is_featured.as_("is_featured"),
 				property_dt.featured_until.as_("featured_until"),
+				property_dt.is_sold.as_("is_sold"),
 				area_dt.area_name.as_("area_name"),
 				developer_dt.developer_name.as_("developer_name"),
 			)
@@ -364,6 +366,7 @@ def update_property(property_id: str) -> dict[str, Any]:
 			"is_featured": is_featured_value,
 			"featured_until": featured_until,
 			"status": data.get("status", doc.status),
+			"is_sold": int(_coerce_bool(data.get("is_sold"))) if "is_sold" in data else doc.is_sold,
 		}
 	)
 
@@ -553,6 +556,7 @@ def serialize_property_summary(row: dict[str, Any]) -> dict[str, Any]:
 		"furnishing_status": row.get("furnishing_status"),
 		"amenities": amenities,
 		"gallery": gallery,
+		"is_sold": bool(row.get("is_sold")),
 	}
 
 
@@ -632,6 +636,7 @@ def serialize_property_detail(doc) -> dict[str, Any]:
 		"agency": agency_details,
 		"off_plan_agencies": _get_off_plan_agencies(doc.name) if listing_type == "Off Plan" else [],
 		"whatsapp_chat_link": link,
+		"is_sold": bool(doc.is_sold),
 	}
 
 

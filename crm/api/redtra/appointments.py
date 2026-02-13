@@ -47,6 +47,19 @@ def list_appointments() -> list[dict[str, Any]]:
 	return [serialize_appointment(record["name"]) for record in records]
 
 
+def get_customer_appointments(customer_id: str) -> list[dict[str, Any]]:
+	"""
+	Get all appointments for a specific customer, sorted by latest first.
+	"""
+	records = frappe.get_all(
+		"Property Appointment",
+		filters={"customer": customer_id},
+		fields=["name"],
+		order_by="start_datetime desc",
+	)
+	return [serialize_appointment(record["name"]) for record in records]
+
+
 @frappe.whitelist(allow_guest=True)
 def get_agent_available_slots(agent_id: str) -> dict[str, Any]:
 	"""

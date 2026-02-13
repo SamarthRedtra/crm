@@ -25,6 +25,8 @@ class PropertyAppointment(Document):
 
 	def after_insert(self):
 		"""Send notifications when appointment is created"""
+		"""Send notifications when appointment is created"""
+		self.flags.just_created = True
 		self._send_appointment_notifications(is_new=True)
 
 	def on_update(self):
@@ -39,7 +41,9 @@ class PropertyAppointment(Document):
 		status_changed = self.has_value_changed("status")
 		
 		# Handle reschedule (datetime changed while status remains Scheduled)
-		if datetime_changed and self.status == "Scheduled":
+		# Handle reschedule (datetime changed while status remains Scheduled)
+		# Skip if just created (after_insert already handled notification)
+		if datetime_changed and self.status == "Scheduled" and not self.flags.just_created:
 			# Appointment was rescheduled - reset reminder status so new reminder can be sent
 			if hasattr(self, "reminder_sent") and self.reminder_sent:
 				self.reminder_sent = 0

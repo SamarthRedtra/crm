@@ -89,6 +89,18 @@ def mark_notifications_read() -> dict[str, Any]:
 	return {"updated": len(names)}
 
 
+@frappe.whitelist(methods=["DELETE"])
+@utils.require_jwt()
+def delete_notification(notification_id: str) -> dict[str, Any]:
+	user = utils.get_current_user()
+
+	if not frappe.db.exists("CRM Notification", {"name": notification_id, "to_user": user}):
+		frappe.throw(_("Notification not found"), frappe.DoesNotExistError)
+
+	frappe.db.delete("CRM Notification", notification_id)
+	return {"message": "Notification deleted successfully"}
+
+
 def _serialize_notification(row: dict[str, Any]) -> dict[str, Any]:
 	from_user = row.get("from_user")
 	return {

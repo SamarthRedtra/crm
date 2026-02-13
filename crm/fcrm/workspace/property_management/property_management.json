@@ -1,7 +1,8 @@
 {
+ "app": "crm",
  "charts": [],
- "content": "[{\"id\": \"headerPropMgmt\", \"type\": \"header\", \"data\": {\"text\": \"<span class=\\\"h5\\\"><b>Property Management</b></span>\", \"col\": 12}}, {\"id\": \"descPropMgmt\", \"type\": \"paragraph\", \"data\": {\"text\": \"Centralize listings, developer records, and viewing appointments.\", \"col\": 12}}, {\"id\": \"spacerOne\", \"type\": \"spacer\", \"data\": {\"col\": 12}}, {\"id\": \"operationsLabel\", \"type\": \"paragraph\", \"data\": {\"text\": \"<b>OPERATIONS</b>\", \"col\": 12}}, {\"id\": \"shortcutProperties\", \"type\": \"shortcut\", \"data\": {\"shortcut_name\": \"Properties\", \"col\": 3}}, {\"id\": \"shortcutAppointments\", \"type\": \"shortcut\", \"data\": {\"shortcut_name\": \"Property Appointments\", \"col\": 3}}, {\"id\": \"shortcutFavorites\", \"type\": \"shortcut\", \"data\": {\"shortcut_name\": \"Favorite Properties\", \"col\": 3}}, {\"id\": \"spacerTwo\", \"type\": \"spacer\", \"data\": {\"col\": 12}}, {\"id\": \"mastersLabel\", \"type\": \"paragraph\", \"data\": {\"text\": \"<b>MASTER DATA</b>\", \"col\": 12}}, {\"id\": \"shortcutDevelopers\", \"type\": \"shortcut\", \"data\": {\"shortcut_name\": \"Developers\", \"col\": 3}}, {\"id\": \"shortcutAreas\", \"type\": \"shortcut\", \"data\": {\"shortcut_name\": \"Areas\", \"col\": 3}}, {\"id\": \"shortcutAgents\", \"type\": \"shortcut\", \"data\": {\"shortcut_name\": \"Agents\", \"col\": 3}}]",
- "creation": "2025-12-10 00:00:00.000000",
+ "content": "[{\"id\":\"headerPropMgmt\",\"type\":\"header\",\"data\":{\"text\":\"<span class=\\\"h5\\\"><b>Property Management</b></span>\",\"col\":12}},{\"id\":\"descPropMgmt\",\"type\":\"paragraph\",\"data\":{\"text\":\"Centralize listings, developer records, and viewing appointments.\",\"col\":12}},{\"id\":\"spacerOne\",\"type\":\"spacer\",\"data\":{\"col\":12}},{\"id\":\"operationsLabel\",\"type\":\"paragraph\",\"data\":{\"text\":\"<b>OPERATIONS</b>\",\"col\":12}},{\"id\":\"shortcutProperties\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Properties\",\"col\":3}},{\"id\":\"shortcutAppointments\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Property Appointments\",\"col\":3}},{\"id\":\"shortcutFavorites\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Favorite Properties\",\"col\":3}},{\"id\":\"spacerTwo\",\"type\":\"spacer\",\"data\":{\"col\":12}},{\"id\":\"mastersLabel\",\"type\":\"paragraph\",\"data\":{\"text\":\"<b>MASTER DATA</b>\",\"col\":12}},{\"id\":\"shortcutDevelopers\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Developers\",\"col\":3}},{\"id\":\"rjjd4tHpyo\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Agency\",\"col\":3}},{\"id\":\"shortcutAreas\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Areas\",\"col\":3}},{\"id\":\"shortcutAgents\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Agents\",\"col\":3}},{\"id\":\"DqdMSJrv0w\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Customer\",\"col\":3}}]",
+ "creation": "2025-12-10 00:00:00",
  "custom_blocks": [],
  "docstatus": 0,
  "doctype": "Workspace",
@@ -13,7 +14,7 @@
  "is_hidden": 0,
  "label": "Property Management",
  "links": [],
- "modified": "2025-12-10 00:00:00.000000",
+ "modified": "2026-02-13 18:21:24.308866",
  "modified_by": "Administrator",
  "module": "FCRM",
  "name": "Property Management",
@@ -33,11 +34,27 @@
  "sequence_id": 2.0,
  "shortcuts": [
   {
+   "color": "Grey",
+   "doc_view": "List",
+   "label": "Agency",
+   "link_to": "Agency",
+   "stats_filter": "[]",
+   "type": "DocType"
+  },
+  {
    "color": "Blue",
    "doc_view": "List",
    "label": "Properties",
    "link_to": "Property",
    "stats_filter": "[[\"Property\",\"status\",\"=\",\"Active\",false]]",
+   "type": "DocType"
+  },
+  {
+   "color": "Grey",
+   "doc_view": "List",
+   "label": "Customer",
+   "link_to": "Customer",
+   "stats_filter": "[]",
    "type": "DocType"
   },
   {
@@ -81,5 +98,6 @@
    "type": "DocType"
   }
  ],
- "title": "Property Management"
+ "title": "Property Management",
+ "type": "Workspace"
 }

@@ -10,6 +10,51 @@ from crm.api.redtra.utils import get_mandate_agent_verification
 
 
 class Property(Document):
+	# begin: auto-generated types
+	# This code is auto-generated. Do not modify anything in this block.
+
+	from typing import TYPE_CHECKING
+
+	if TYPE_CHECKING:
+		from crm.fcrm.doctype.property_agency.property_agency import PropertyAgency
+		from crm.fcrm.doctype.property_amenity.property_amenity import PropertyAmenity
+		from crm.fcrm.doctype.property_image.property_image import PropertyImage
+		from frappe.types import DF
+
+		address_line1: DF.Data | None
+		address_line2: DF.Data | None
+		agent: DF.Link
+		amenities: DF.Table[PropertyAmenity]
+		area: DF.Link | None
+		area_sqft: DF.Float
+		bathrooms: DF.Int
+		bedrooms: DF.Int
+		city: DF.Data | None
+		country: DF.Link | None
+		currency: DF.Link
+		description: DF.TextEditor | None
+		developer: DF.Link | None
+		featured_until: DF.Datetime | None
+		furnishing_status: DF.Literal["Furnished", "Semi-Furnished", "Unfurnished"]
+		gallery: DF.Table[PropertyImage]
+		is_featured: DF.Check
+		is_sold: DF.Check
+		latitude: DF.Float
+		listing_type: DF.Literal["Buy", "Rent", "Off Plan"]
+		longitude: DF.Float
+		off_plan_agencies: DF.TableMultiSelect[PropertyAgency]
+		pincode: DF.Data | None
+		price: DF.Currency
+		primary_image: DF.AttachImage | None
+		property_category: DF.Literal["Residential", "Commercial", "Mixed Use"]
+		property_code: DF.Data | None
+		property_type: DF.Literal["Apartment", "Villa", "Office", "Shop", "Plot", "Other"]
+		state: DF.Data | None
+		status: DF.Literal["Draft", "Under Verification", "Active", "Inactive"]
+		title: DF.Data
+		views_count: DF.Int
+	# end: auto-generated types
+
 	STATUS_FLOW = {
 		"Draft": {"Draft", "Under Verification"},
 		"Under Verification": {"Draft", "Under Verification", "Active", "Inactive"},

@@ -10,7 +10,7 @@ from frappe.utils import add_months, cint, get_datetime_str, now_datetime
 from frappe.utils.password import update_password
 
 
-from . import properties, utils, agencies
+from . import properties, utils, agencies, favorites, appointments
 
 
 
@@ -143,6 +143,8 @@ def get_profile() -> dict[str, Any]:
 			"phone": customer.phone,
 			"whatsapp_number": customer.whatsapp_number,
 			"preferred_city": customer.preferred_city,
+			"favorites": favorites.list_favorites(),
+			"appointments": appointments.list_appointments(),
 		}
 
 	return {

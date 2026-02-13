@@ -20,6 +20,8 @@ from . import (
 	reviews,
 	reminders,
 	icons,
+	customers,
+	transactions,
 )
 
 
@@ -82,6 +84,20 @@ def register_routes():
 			"/favorites/<string:property_id>",
 			methods=["DELETE"],
 			endpoint=favorites.remove_favorite,
+		),
+		Rule(
+			"/notifications/<string:notification_id>",
+			methods=["DELETE"],
+			endpoint=notifications.delete_notification,
+		),
+		Rule("/customers", methods=["GET"], endpoint=customers.list_customers),
+		Rule("/customers", methods=["POST"], endpoint=customers.create_customer),
+		Rule("/customers/<string:customer_id>", methods=["GET"], endpoint=customers.get_customer),
+		Rule("/customers/<string:customer_id>", methods=["PUT"], endpoint=customers.update_customer),
+		Rule(
+			"/customers/<string:customer_id>",
+			methods=["DELETE"],
+			endpoint=customers.delete_customer,
 		),
 		Rule("/appointments", methods=["GET"], endpoint=appointments.list_appointments),
 		Rule("/appointments", methods=["POST"], endpoint=appointments.create_appointment),
@@ -152,6 +168,13 @@ def register_routes():
 		),
 		Rule("/home", methods=["GET"], endpoint=home.get_home),
 		Rule("/icons/lucide", methods=["GET"], endpoint=icons.list_lucide_icons),
+		Rule("/transactions", methods=["GET"], endpoint=transactions.list_transactions),
+		Rule("/transactions", methods=["POST"], endpoint=transactions.create_transaction),
+		Rule(
+			"/transactions/<string:transaction_id>",
+			methods=["GET"],
+			endpoint=transactions.get_transaction,
+		),
 	]
 
 	existing = {(rule.rule, tuple(sorted(rule.methods or []))) for rule in url_rules}
