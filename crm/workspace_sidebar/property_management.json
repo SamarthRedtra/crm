@@ -56,6 +56,18 @@
   {
    "child": 0,
    "collapsible": 1,
+   "icon": "\ud83c\udfdb\ufe0f",
+   "indent": 0,
+   "keep_closed": 0,
+   "label": "Areas",
+   "link_to": "Area",
+   "link_type": "DocType",
+   "show_arrow": 0,
+   "type": "Link"
+  },
+  {
+   "child": 0,
+   "collapsible": 1,
    "icon": "square-user-round",
    "indent": 0,
    "keep_closed": 0,
@@ -68,11 +80,11 @@
   {
    "child": 0,
    "collapsible": 1,
-   "icon": "\ud83c\udfdb\ufe0f",
+   "icon": "circle-user-round",
    "indent": 0,
    "keep_closed": 0,
-   "label": "Areas",
-   "link_to": "Area",
+   "label": "Customer",
+   "link_to": "Customer",
    "link_type": "DocType",
    "show_arrow": 0,
    "type": "Link"
@@ -126,7 +138,7 @@
    "type": "Link"
   }
  ],
- "modified": "2026-02-13 18:15:51.543614",
+ "modified": "2026-02-13 18:20:20.796604",
  "modified_by": "Administrator",
  "module": "FCRM",
  "name": "Property Management",
