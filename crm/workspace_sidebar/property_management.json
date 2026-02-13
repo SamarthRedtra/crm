@@ -100,9 +100,33 @@
    "link_type": "DocType",
    "show_arrow": 0,
    "type": "Link"
+  },
+  {
+   "child": 0,
+   "collapsible": 1,
+   "icon": "alarm-plus",
+   "indent": 0,
+   "keep_closed": 0,
+   "label": "Agency",
+   "link_to": "Agency",
+   "link_type": "DocType",
+   "show_arrow": 0,
+   "type": "Link"
+  },
+  {
+   "child": 0,
+   "collapsible": 1,
+   "icon": "logs",
+   "indent": 0,
+   "keep_closed": 0,
+   "label": "Transactions",
+   "link_to": "Property Transaction Log",
+   "link_type": "DocType",
+   "show_arrow": 0,
+   "type": "Link"
   }
  ],
- "modified": "2025-12-15 01:10:02.836535",
+ "modified": "2026-02-13 18:15:51.543614",
  "modified_by": "Administrator",
  "module": "FCRM",
  "name": "Property Management",

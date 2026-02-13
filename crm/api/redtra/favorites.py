@@ -8,10 +8,15 @@ from frappe import _
 from . import properties, utils
 
 
+
 @frappe.whitelist()
 @utils.require_jwt()
 def list_favorites() -> list[dict[str, Any]]:
 	user = utils.get_current_user()
+	return get_favorites_by_user(user)
+
+
+def get_favorites_by_user(user: str) -> list[dict[str, Any]]:
 	records = frappe.get_all(
 		"Favorite Property",
 		filters={"user": user},
