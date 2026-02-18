@@ -273,7 +273,7 @@ def get_agent_rating_stats(agent_id: str) -> dict[str, Any]:
 			"agent_rating": float(review.get("agent_rating") or 0),
 			"property_rating": float(review.get("property_rating") or 0),
 			"review_text": review.get("review_text") or "",
-			"customer_name": customer_name,
+			"reviewer_name": customer_name,
 			"created_at": review.get("creation"),
 		})
 	
@@ -344,7 +344,7 @@ def get_agent_reviews(agent_id: str) -> dict[str, Any]:
 			"agent_rating": float(review.get("agent_rating") or 0) if review.get("agent_rating") else 0.0,
 			"property_rating": float(review.get("property_rating") or 0) if review.get("property_rating") else 0.0,
 			"review_text": review.get("review_text") or "",
-			"customer_name": customer_name,
+			"reviewer_name": customer_name,
 			"property_title": property_title,
 			"appointment_id": review.get("appointment"),
 			"created_at": review.get("creation"),
@@ -483,7 +483,7 @@ def get_property_reviews(property_id: str) -> dict[str, Any]:
 			"agent_rating": float(review.get("agent_rating") or 0) if review.get("agent_rating") else 0.0,
 			"property_rating": float(review.get("property_rating") or 0) if review.get("property_rating") else 0.0,
 			"review_text": review.get("review_text") or "",
-			"customer_name": customer_name,
+			"reviewer_name": customer_name,
 			"appointment_id": review.get("appointment"),
 			"created_at": review.get("creation"),
 		})

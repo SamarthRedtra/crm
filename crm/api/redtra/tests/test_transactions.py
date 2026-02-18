@@ -90,23 +90,67 @@ class TestTransactions(IntegrationTestCase):
 		self.assertTrue(txn["id"])
 		self.assertEqual(txn["property"], self.property_doc.name)
 		self.assertEqual(txn["transaction_type"], "Sale")
+		self.assertEqual(txn["formatted_amount"], "1M")
 
 		# Verify Property is_sold = 1
 		prop = frappe.get_doc("Property", self.property_doc.name)
 		self.assertEqual(prop.is_sold, 1)
 
-		# Verify List Transactions
-		frappe.local.request = MockRequest({}, headers)
-		# list_transactions reads frappe.form_dict usually for params, but default checks usually pass if empty
-		# We should mock form_dict if needed, but list_transactions uses get("page") etc which are fine as None
-		txn_list = transactions.list_transactions()
-		# Depending on test isolation, we might have other transactions, but ours should be there
-		found = False
-		for item in txn_list["items"]:
-			if item["id"] == txn["id"]:
-				found = True
-				break
+	def test_list_transactions_guest_and_filters(self):
+		# Create an off-plan property
+		off_plan_prop = frappe.get_doc({
+			"doctype": "Property",
+			"title": "Off Plan Villa",
+			"listing_type": "Off Plan",
+			"property_type": "Villa",
+			"price": 5000000,
+			"currency": "AED",
+			"agent": self.agent_doc.name,
+			"status": "Active",
+			"area_sqft": 5000
+		}).insert(ignore_permissions=True)
+
+		# Create transaction for it
+		txn_off = frappe.get_doc({
+			"doctype": "Property Transaction Log",
+			"property": off_plan_prop.name,
+			"agent": self.agent_doc.name,
+			"transaction_date": "2025-01-01",
+			"transaction_type": "Sale",
+			"amount": 4500000,
+			"currency": "AED"
+		}).insert(ignore_permissions=True)
+
+		# 1. Test Guest Access (No Auth Header)
+		class MockRequest:
+			def __init__(self, data, headers=None):
+				self.json = data
+				self.method = "GET"
+				self.headers = headers or {}
+			def get_json(self): return self.json
+
+		frappe.local.request = MockRequest({}) # No headers
+		frappe.form_dict = frappe._dict({"page": 1, "page_size": 10})
+		
+		res = transactions.list_transactions()
+		self.assertGreaterEqual(len(res["items"]), 1)
+		
+		# 2. Test Off-Plan Filter
+		frappe.form_dict = frappe._dict({"off_plan": "1"})
+		res_off = transactions.list_transactions()
+		
+		# Should find the off-plan transaction
+		found = any(item["id"] == txn_off.name for item in res_off["items"])
 		self.assertTrue(found)
+		
+		# Verify enriched fields
+		for item in res_off["items"]:
+			if item["id"] == txn_off.name:
+				self.assertEqual(item["formatted_amount"], "4.50M")
+				self.assertEqual(item["area_sqft"], 5000)
+				self.assertEqual(item["price_per_sqft"], 900.0)
+				self.assertEqual(item["formatted_price_per_sqft"], "900.0") # No K/M for 900
+				break
 
 	def test_property_api_is_sold(self):
 		# Create another property directly and mark as sold

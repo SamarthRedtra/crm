@@ -18,6 +18,7 @@ class TestAppointmentNotifications(IntegrationTestCase):
 		frappe.set_user("Administrator")
 		frappe.db.delete("CRM Notification")
 		frappe.db.delete("Property Appointment")
+		frappe.local.request = None
 
 		# Create Agent
 		self.agent_email = "notif_agent@example.com"
@@ -105,6 +106,7 @@ class TestAppointmentNotifications(IntegrationTestCase):
 					self.json = data
 					self.method = "POST"
 					self.headers = headers or {}
+					self.host = "localhost"
 				def get_json(self): return self.json
 
 			frappe.local.request = MockRequest({
@@ -161,6 +163,7 @@ class TestAppointmentNotifications(IntegrationTestCase):
 			def __init__(self, headers):
 				self.args = {}
 				self.headers = headers
+				self.host = "localhost"
 			def get_json(self): return {}
 		
 		frappe.local.request = MockRequest(headers)
@@ -224,3 +227,73 @@ class TestAppointmentNotifications(IntegrationTestCase):
 		roles = frappe.get_roles(user_name)
 		self.assertIn("Customer", roles, "User should have Customer role")
 
+
+	def test_notification_with_missing_user(self):
+		# Create a customer normally (to avoid ValidationError)
+		customer_email = "notif_no_agent_user@example.com"
+		if not frappe.db.exists("User", customer_email):
+			frappe.get_doc({
+				"doctype": "User", 
+				"email": customer_email, 
+				"first_name": "No Agent User Test",
+				"roles": [{"role": "Customer"}]
+			}).insert(ignore_permissions=True)
+		
+		utils.ensure_customer_record(customer_email, "No Agent User Test", customer_email)
+		customer_doc = utils.get_customer_by_user(customer_email)
+
+		# Create a temporary agent with unique registration ID
+		agent_reg_id = "TEST-NO-USER-AGENT"
+		agent_user_email = "agent_no_user@example.com"
+		
+		if not frappe.db.exists("User", agent_user_email):
+			frappe.get_doc({
+				"doctype": "User",
+				"email": agent_user_email,
+				"first_name": "Agent No User",
+				"roles": [{"role": "Agent"}]
+			}).insert(ignore_permissions=True)
+			
+		if not frappe.db.exists("Agent", {"dfd_registration_id": agent_reg_id}):
+			agent_doc = frappe.get_doc({
+				"doctype": "Agent",
+				"dfd_registration_id": agent_reg_id,
+				"user": agent_user_email,
+				"full_name": "Agent No User",
+				"status": "Verified",
+				"email": agent_user_email,
+				"phone": "+111111111"
+			}).insert(ignore_permissions=True)
+		else:
+			agent_doc = frappe.get_doc("Agent", {"dfd_registration_id": agent_reg_id})
+		
+		# Clear user field via SQL to bypass validation
+		frappe.db.sql("UPDATE `tabAgent` SET user = '' WHERE name = %s", agent_doc.name)
+		frappe.db.commit()
+
+		# Clear existing notifications
+		frappe.db.delete("CRM Notification")
+		
+		# Create appointment
+		today = get_datetime()
+		start_datetime = add_days(today, 1).replace(hour=10, minute=0, second=0, microsecond=0)
+		end_datetime = add_days(today, 1).replace(hour=11, minute=0, second=0, microsecond=0)
+		
+		appt = frappe.get_doc({
+			"doctype": "Property Appointment",
+			"customer": customer_doc.name,
+			"agent": agent_doc.name,
+			"property": self.property.name,
+			"start_datetime": start_datetime,
+			"end_datetime": end_datetime,
+			"status": "Scheduled"
+		}).insert(ignore_permissions=True)
+		
+		# Check notifications
+		# Agent has no user, so no notification TO agent
+		# Customer has user, so customer should get a notification FROM 'Administrator' (because agent user is missing)
+		notifs = frappe.get_all("CRM Notification", filters={"to_user": customer_email}, fields=["from_user", "notification_text"])
+		
+		self.assertEqual(len(notifs), 1, "Customer should have received 1 notification even if agent has no user")
+		self.assertEqual(notifs[0].from_user, "Administrator", "Notification should be from Administrator when agent user is missing")
+		self.assertIn("Appointment confirmed", notifs[0].notification_text)

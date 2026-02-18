@@ -136,91 +136,92 @@ class PropertyAppointment(Document):
 			customer_user = getattr(customer_doc, "user", None)
 			agent_user = frappe.db.get_value("Agent", self.agent, "user")
 
-			if not customer_user or not agent_user:
-				return
-
 			property_title = property_doc.title or property_doc.name
 			appointment_time = format_datetime(self.start_datetime, "dd MMM yyyy, hh:mm a")
 
 			if is_new:
 				# New appointment notifications
 				# Notification for customer (confirmation)
-				customer_notification_text = _("Appointment confirmed for {0}").format(property_title)
-				customer_message = _(
-					"Your appointment for <b>{0}</b> has been confirmed for <b>{1}</b>. "
-					"Agent: {2}"
-				).format(
-					property_title,
-					appointment_time,
-					agent_doc.full_name or agent_user,
-				)
+				if customer_user:
+					customer_notification_text = _("Appointment confirmed for {0}").format(property_title)
+					customer_message = _(
+						"Your appointment for <b>{0}</b> has been confirmed for <b>{1}</b>. "
+						"Agent: {2}"
+					).format(
+						property_title,
+						appointment_time,
+						agent_doc.full_name or agent_user or _("Assigned Agent"),
+					)
 
-				self._create_notification(
-					from_user=agent_user,
-					to_user=customer_user,
-					notification_type="Assignment",
-					notification_text=customer_notification_text,
-					message=customer_message,
-				)
+					self._create_notification(
+						from_user=agent_user or "Administrator",
+						to_user=customer_user,
+						notification_type="Assignment",
+						notification_text=customer_notification_text,
+						message=customer_message,
+					)
 
 				# Notification for agent
-				agent_notification_text = _("New appointment booked: {0}").format(property_title)
-				agent_message = _(
-					"New appointment booked for <b>{0}</b> on <b>{1}</b>. "
-					"Customer: {2}"
-				).format(
-					property_title,
-					appointment_time,
-					customer_doc.full_name,
-				)
+				if agent_user:
+					agent_notification_text = _("New appointment booked: {0}").format(property_title)
+					agent_message = _(
+						"New appointment booked for <b>{0}</b> on <b>{1}</b>. "
+						"Customer: {2}"
+					).format(
+						property_title,
+						appointment_time,
+						customer_doc.full_name,
+					)
 
-				self._create_notification(
-					from_user=customer_user,
-					to_user=agent_user,
-					notification_type="Assignment",
-					notification_text=agent_notification_text,
-					message=agent_message,
-				)
+					self._create_notification(
+						from_user=customer_user or "Administrator",
+						to_user=agent_user,
+						notification_type="Assignment",
+						notification_text=agent_notification_text,
+						message=agent_message,
+					)
 
 			elif is_reschedule:
 				# Reschedule notifications
 				# Notification for customer
-				customer_notification_text = _("Appointment rescheduled: {0}").format(property_title)
-				customer_message = _(
-					"Your appointment for <b>{0}</b> has been rescheduled to <b>{1}</b>. "
-					"Agent: {2}"
-				).format(
-					property_title,
-					appointment_time,
-					agent_doc.full_name or agent_user,
-				)
+				if customer_user:
+					customer_notification_text = _("Appointment rescheduled: {0}").format(property_title)
+					customer_message = _(
+						"Your appointment for <b>{0}</b> has been rescheduled to <b>{1}</b>. "
+						"Agent: {2}"
+					).format(
+						property_title,
+						appointment_time,
+						agent_doc.full_name or agent_user or _("Assigned Agent"),
+					)
 
-				self._create_notification(
-					from_user=agent_user,
-					to_user=customer_user,
-					notification_type="Assignment",
-					notification_text=customer_notification_text,
-					message=customer_message,
-				)
+					self._create_notification(
+						from_user=agent_user or "Administrator",
+						to_user=customer_user,
+						notification_type="Assignment",
+						notification_text=customer_notification_text,
+						message=customer_message,
+					)
 
 				# Notification for agent
-				agent_notification_text = _("Appointment rescheduled: {0}").format(property_title)
-				agent_message = _(
-					"Appointment for <b>{0}</b> has been rescheduled to <b>{1}</b>. "
-					"Customer: {2}"
-				).format(
-					property_title,
-					appointment_time,
-					customer_doc.full_name,
-				)
+				if agent_user:
+					agent_notification_text = _("Appointment rescheduled: {0}").format(property_title)
+					agent_message = _(
+						"Appointment for <b>{0}</b> has been rescheduled to <b>{1}</b>. "
+						"Customer: {2}"
+					).format(
+						property_title,
+						appointment_time,
+						customer_doc.full_name,
+					)
 
-				self._create_notification(
-					from_user=customer_user,
-					to_user=agent_user,
-					notification_type="Assignment",
-					notification_text=agent_notification_text,
-					message=agent_message,
-				)
+					self._create_notification(
+						from_user=customer_user or "Administrator",
+						to_user=agent_user,
+						notification_type="Assignment",
+						notification_text=agent_notification_text,
+						message=agent_message,
+					)
 
 		except Exception as e:
 			# Log error but don't fail the appointment save
@@ -242,53 +243,53 @@ class PropertyAppointment(Document):
 			customer_user = getattr(customer_doc, "user", None)
 			agent_user = frappe.db.get_value("Agent", self.agent, "user")
 
-			if not customer_user or not agent_user:
-				return
-
 			property_title = property_doc.title or property_doc.name
 
 			if self.status == "Cancelled":
 				# Notify both parties about cancellation
-				customer_notification_text = _("Appointment cancelled: {0}").format(property_title)
-				customer_message = _("Your appointment for <b>{0}</b> has been cancelled.").format(
-					property_title
-				)
+				if customer_user:
+					customer_notification_text = _("Appointment cancelled: {0}").format(property_title)
+					customer_message = _("Your appointment for <b>{0}</b> has been cancelled.").format(
+						property_title
+					)
 
-				self._create_notification(
-					from_user=agent_user,
-					to_user=customer_user,
-					notification_type="Assignment",
-					notification_text=customer_notification_text,
-					message=customer_message,
-				)
+					self._create_notification(
+						from_user=agent_user or "Administrator",
+						to_user=customer_user,
+						notification_type="Assignment",
+						notification_text=customer_notification_text,
+						message=customer_message,
+					)
 
-				agent_notification_text = _("Appointment cancelled: {0}").format(property_title)
-				agent_message = _(
-					"Appointment for <b>{0}</b> with customer <b>{1}</b> has been cancelled."
-				).format(property_title, customer_doc.full_name)
+				if agent_user:
+					agent_notification_text = _("Appointment cancelled: {0}").format(property_title)
+					agent_message = _(
+						"Appointment for <b>{0}</b> with customer <b>{1}</b> has been cancelled."
+					).format(property_title, customer_doc.full_name)
 
-				self._create_notification(
-					from_user=customer_user,
-					to_user=agent_user,
-					notification_type="Assignment",
-					notification_text=agent_notification_text,
-					message=agent_message,
-				)
+					self._create_notification(
+						from_user=customer_user or "Administrator",
+						to_user=agent_user,
+						notification_type="Assignment",
+						notification_text=agent_notification_text,
+						message=agent_message,
+					)
 
 			elif self.status == "Completed":
 				# Optional: Notify on completion
-				customer_notification_text = _("Appointment completed: {0}").format(property_title)
-				customer_message = _("Your appointment for <b>{0}</b> has been marked as completed.").format(
-					property_title
-				)
+				if customer_user:
+					customer_notification_text = _("Appointment completed: {0}").format(property_title)
+					customer_message = _("Your appointment for <b>{0}</b> has been marked as completed.").format(
+						property_title
+					)
 
-				self._create_notification(
-					from_user=agent_user,
-					to_user=customer_user,
-					notification_type="Assignment",
-					notification_text=customer_notification_text,
-					message=customer_message,
-				)
+					self._create_notification(
+						from_user=agent_user or "Administrator",
+						to_user=customer_user,
+						notification_type="Assignment",
+						notification_text=customer_notification_text,
+						message=customer_message,
+					)
 
 		except Exception as e:
 			frappe.log_error(

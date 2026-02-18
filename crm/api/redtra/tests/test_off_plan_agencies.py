@@ -27,10 +27,22 @@ class TestOffPlanAgencies(IntegrationTestCase):
 			"status": "Active"
 		}).insert(ignore_permissions=True)
 		
+		# Create Agent User
+		self.agent_user_email = f"agent_{suffix}@example.com"
+		if not frappe.db.exists("User", self.agent_user_email):
+			frappe.get_doc({
+				"doctype": "User",
+				"email": self.agent_user_email,
+				"first_name": "Test Agent",
+				"send_welcome_email": 0,
+				"roles": [{"role": "Agent"}]
+			}).insert(ignore_permissions=True)
+
 		# Create Agent for Agency 1
 		self.agent1 = frappe.get_doc({
 			"doctype": "Agent",
-			"full_name": f"_Agent_1_{suffix}_",
+			"user": self.agent_user_email,
+			"dfd_registration_id": f"DLD-{suffix}",
 			"status": "Verified",
 			"agency": self.agency1.name
 		}).insert(ignore_permissions=True)
@@ -60,6 +72,7 @@ class TestOffPlanAgencies(IntegrationTestCase):
 			"listing_type": "Off Plan",
 			"property_type": "Apartment",
 			"price": 2000000,
+			"currency": "AED",
 			"city": "Dubai",
 			"off_plan_agencies": [
 				{"agency": self.agency2.name} 
@@ -75,6 +88,7 @@ class TestOffPlanAgencies(IntegrationTestCase):
 			"listing_type": "Buy",
 			"property_type": "Apartment",
 			"price": 1000000,
+			"currency": "AED",
 			"city": "Dubai"
 		}).insert(ignore_permissions=True)
 		
@@ -82,11 +96,13 @@ class TestOffPlanAgencies(IntegrationTestCase):
 		self.sold_prop = frappe.get_doc({
 			"doctype": "Property",
 			"title": f"_Prop_Sold_{suffix}_",
-			"status": "Sold",
+			"status": "Inactive",
+			"is_sold": 1,
 			"agent": self.agent1.name,
 			"listing_type": "Buy",
 			"property_type": "Apartment",
 			"price": 1000000,
+			"currency": "AED",
 			"city": "Dubai"
 		}).insert(ignore_permissions=True)
 
