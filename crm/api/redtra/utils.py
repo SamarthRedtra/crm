@@ -65,6 +65,8 @@ def extract_bearer_token() -> str:
 
 
 def get_optional_bearer_token() -> str | None:
+	if not getattr(frappe.local, "request", None):
+		return None
 	auth_header = frappe.get_request_header("Authorization")
 	if not auth_header or not auth_header.lower().startswith("bearer "):
 		return None
@@ -237,4 +239,20 @@ def get_mandate_agent_verification() -> bool:
 	except Exception:
 		# If Property Setting doesn't exist or field doesn't exist, default to False
 		return False
+
+
+def format_amount_compact(amount: float | int | None) -> str | None:
+	"""Format large numbers into compact strings: 3.55M, 940K, etc."""
+	if amount is None:
+		return None
+	
+	abs_amount = abs(float(amount))
+	if abs_amount >= 1_000_000:
+		value = amount / 1_000_000
+		return f"{value:.2f}M".replace(".00M", "M")
+	elif abs_amount >= 1_000:
+		value = amount / 1_000
+		return f"{value:.2f}K".replace(".00K", "K")
+	
+	return str(amount)
 
