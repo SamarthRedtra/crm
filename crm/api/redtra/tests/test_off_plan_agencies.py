@@ -69,7 +69,8 @@ class TestOffPlanAgencies(IntegrationTestCase):
 			"title": f"_Prop_OffPlan_{suffix}_",
 			"status": "Active",
 			"agent": self.agent1.name, # Owned by Agent 1 (Agency 1)
-			"listing_type": "Off Plan",
+			"listing_type": "Buy",
+			"completion_status": "Off-plan",
 			"property_type": "Apartment",
 			"price": 2000000,
 			"currency": "AED",

@@ -291,7 +291,7 @@ def _serialize_agency_detail(doc) -> dict[str, Any]:
 			AND (
 				{'p.agent IN ({placeholders})' if agent_ids else '1=0'}
 				OR 
-				(p.listing_type = 'Off Plan' AND pa.agency = %s)
+				(p.completion_status = 'Off-plan' AND pa.agency = %s)
 			)
 			ORDER BY p.modified DESC
 		""".format(placeholders=placeholders)
@@ -395,7 +395,7 @@ def list_agency_properties(agency_id: str) -> dict[str, Any]:
 		AND (
 			{'p.agent IN ({placeholders})' if agent_ids else '1=0'}
 			OR 
-			(p.listing_type = 'Off Plan' AND pa.agency = %s)
+			(p.completion_status = 'Off-plan' AND pa.agency = %s)
 		)
 	""".format(placeholders=placeholders)
 	
@@ -566,7 +566,7 @@ def _get_agency_stats(agency_ids: list[str]) -> dict[str, dict[str, int]]:
 			SELECT DISTINCT p.name, pa.agency, p.status, p.listing_type
 			FROM `tabProperty` p
 			JOIN `tabProperty Agency` pa ON p.name = pa.parent
-			WHERE pa.agency IN ({placeholders}) AND p.listing_type = 'Off Plan'
+			WHERE pa.agency IN ({placeholders}) AND p.completion_status = 'Off-plan'
 		) as unique_listings
 		WHERE status = 'Active'
 		GROUP BY agency

@@ -101,7 +101,8 @@ class TestTransactions(IntegrationTestCase):
 		off_plan_prop = frappe.get_doc({
 			"doctype": "Property",
 			"title": "Off Plan Villa",
-			"listing_type": "Off Plan",
+			"listing_type": "Buy",
+			"completion_status": "Off-plan",
 			"property_type": "Villa",
 			"price": 5000000,
 			"currency": "AED",
