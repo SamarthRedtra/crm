@@ -18,6 +18,7 @@ SUMMARY_FIELDS = [
 	"name",
 	"title",
 	"listing_type",
+	"completion_status",
 	"property_type",
 	"property_category",
 	"price",
@@ -57,6 +58,10 @@ def list_properties() -> dict[str, Any]:
 		listing_type = (frappe.form_dict.get("listing_type") or "").strip()
 		if listing_type:
 			conditions.append(property_dt.listing_type == listing_type)
+
+		completion_status = (frappe.form_dict.get("completion_status") or "").strip()
+		if completion_status and completion_status.lower() != "all":
+			conditions.append(property_dt.completion_status == completion_status)
 
 		property_types = _get_list_param("property_types") or _get_list_param("property_type")
 		if property_types:
@@ -187,6 +192,7 @@ def list_properties() -> dict[str, Any]:
 				property_dt.name.as_("name"),
 				property_dt.title.as_("title"),
 				property_dt.listing_type.as_("listing_type"),
+				property_dt.completion_status.as_("completion_status"),
 				property_dt.property_type.as_("property_type"),
 				property_dt.property_category.as_("property_category"),
 				property_dt.price.as_("price"),
@@ -267,6 +273,7 @@ def create_property() -> dict[str, Any]:
 			"doctype": "Property",
 			"title": data["title"],
 			"listing_type": data["listing_type"],
+			"completion_status": data.get("completion_status"),
 			"property_type": data["property_type"],
 			"property_category": data.get("property_category"),
 			"price": data["price"],
@@ -338,6 +345,7 @@ def update_property(property_id: str) -> dict[str, Any]:
 		{
 			"title": data.get("title") or doc.title,
 			"listing_type": data.get("listing_type") or doc.listing_type,
+			"completion_status": data.get("completion_status", doc.completion_status),
 			"property_type": data.get("property_type") or doc.property_type,
 			"property_category": data.get("property_category", doc.property_category),
 			"price": data.get("price", doc.price),
@@ -525,13 +533,15 @@ def serialize_property_summary(row: dict[str, Any]) -> dict[str, Any]:
 	featured_until = row.get("featured_until")
 	featured_until_value, featured_remaining = _get_featured_timer(featured_until)
 	listing_type = row.get("listing_type")
-	if listing_type == "Off Plan":
+	completion_status = row.get("completion_status")
+	if completion_status == "Off-plan":
 		agent = None
 
 	return {
 		"id": property_id,
 		"title": row.get("title"),
 		"listing_type": row.get("listing_type"),
+		"completion_status": row.get("completion_status"),
 		"property_type": row.get("property_type"),
 		"property_category": row.get("property_category"),
 		"price": row.get("price"),
@@ -550,7 +560,7 @@ def serialize_property_summary(row: dict[str, Any]) -> dict[str, Any]:
 		"developer_name": developer["name"] if developer else None,
 		"agent": agent,
 		"agency": agency_details,
-		"off_plan_agencies": _get_off_plan_agencies(property_id) if listing_type == "Off Plan" else [],
+		"off_plan_agencies": _get_off_plan_agencies(property_id) if completion_status == "Off-plan" else [],
 		"location": location,
 		"primary_image_url": row.get("primary_image"),
 		"furnishing_status": row.get("furnishing_status"),
@@ -583,6 +593,7 @@ def serialize_property_detail(doc) -> dict[str, Any]:
 
 	featured_until_value, featured_remaining = _get_featured_timer(doc.featured_until)
 	listing_type = doc.listing_type
+	completion_status = doc.completion_status
 	agent_payload = {
 		"id": agent_doc.name,
 		"name": agent_doc.full_name or agent_doc.user,
@@ -591,13 +602,14 @@ def serialize_property_detail(doc) -> dict[str, Any]:
 		"brn_id": getattr(agent_doc, "brn_id", None),
 		"whatsapp_link": _build_whatsapp_link(agent_doc.whatsapp_number or agent_doc.phone),
 	}
-	if listing_type == "Off Plan":
+	if completion_status == "Off-plan":
 		agent_payload = None
 
 	return {
 		"id": doc.name,
 		"title": doc.title,
 		"listing_type": doc.listing_type,
+		"completion_status": doc.completion_status,
 		"property_type": doc.property_type,
 		"property_category": doc.property_category,
 		"status": doc.status,
@@ -634,7 +646,7 @@ def serialize_property_detail(doc) -> dict[str, Any]:
 		],
 		"agent": agent_payload,
 		"agency": agency_details,
-		"off_plan_agencies": _get_off_plan_agencies(doc.name) if listing_type == "Off Plan" else [],
+		"off_plan_agencies": _get_off_plan_agencies(doc.name) if completion_status == "Off-plan" else [],
 		"whatsapp_chat_link": link,
 		"is_sold": bool(doc.is_sold),
 	}

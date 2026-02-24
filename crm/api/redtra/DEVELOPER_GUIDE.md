@@ -129,7 +129,8 @@ GET /api/properties?page=1&page_size=20&listing_type=Sale&city=Dubai
 **Query Parameters:**
 - `page` - Page number (default: 1)
 - `page_size` - Items per page (default: 20, max: 100)
-- `listing_type` - Filter: "Buy", "Rent", or "Off Plan"
+- `listing_type` - Filter: "Buy" or "Rent"
+- `completion_status` - Filter: "All", "Ready", or "Off-plan"
 - `property_type` - Filter: "Apartment", "Villa", "Office", "Shop", "Plot", "Other"
 - `property_category` - Filter: "Residential", "Commercial", "Mixed Use"
 - `min_price`, `max_price` - Price range
@@ -239,7 +240,8 @@ Content-Type: application/json
 
 **Required Fields:**
 - `title` - Property title
-- `listing_type` - "Buy", "Rent", or "Off Plan"
+- `listing_type` - "Buy" or "Rent"
+- `completion_status` - "All", "Ready", or "Off-plan"
 - `property_type` - "Apartment", "Villa", etc.
 - `price` - Numeric value
 - `currency` - Currency code (e.g., "AED", "USD")

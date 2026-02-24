@@ -63,7 +63,10 @@ def list_transactions() -> dict[str, Any]:
 		off_plan = frappe.form_dict.get("off_plan")
 		if off_plan is not None:
 			is_off_plan = utils._coerce_bool(off_plan) if hasattr(utils, "_coerce_bool") else str(off_plan).lower() in ("1", "true", "yes")
-			filters.append(PROP.listing_type == ("Off Plan" if is_off_plan else "Buy"))
+			if is_off_plan:
+				filters.append(PROP.completion_status == "Off-plan")
+			else:
+				filters.append(PROP.completion_status != "Off-plan")
 
 		# NEW: Property Type Filter
 		property_types = frappe.form_dict.get("property_types") or frappe.form_dict.get("property_type")
