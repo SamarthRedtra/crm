@@ -96,13 +96,63 @@ class TestTransactions(IntegrationTestCase):
 		prop = frappe.get_doc("Property", self.property_doc.name)
 		self.assertEqual(prop.is_sold, 1)
 
+	def test_create_rent_transaction_and_is_rented(self):
+		# Create Property for Rent
+		rent_prop = frappe.get_doc({
+			"doctype": "Property",
+			"title": "Test Property for Rent",
+			"listing_type": "Rent",
+			"property_type": "Villa",
+			"price": 50000,
+			"currency": "AED",
+			"agent": self.agent_doc.name,
+			"status": "Active",
+			"is_rented": 0
+		}).insert(ignore_permissions=True)
+
+		token = utils.generate_jwt(self.agent_email)
+		headers = {"Authorization": f"Bearer {token}"}
+
+		class MockRequest:
+			def __init__(self, data, headers=None):
+				self.json = data
+				self.method = "POST"
+				self.headers = headers or {}
+			
+			def get_json(self):
+				return self.json
+
+		frappe.local.request = MockRequest({
+			"property": rent_prop.name,
+			"transaction_type": "Rent",
+			"rent_type": "Yearly",
+			"amount": 50000,
+			"currency": "AED",
+			"notes": "Rented!"
+		}, headers)
+
+		# Create Transaction
+		txn = transactions.create_transaction()
+		
+		# Verify Transaction created
+		self.assertTrue(txn["id"])
+		self.assertEqual(txn["property"], rent_prop.name)
+		self.assertEqual(txn["transaction_type"], "Rent")
+		self.assertEqual(txn["rent_type"], "Yearly")
+		self.assertEqual(txn["formatted_amount"], "50K")
+
+		# Verify Property is_rented = 1 and rent_type is set
+		prop = frappe.get_doc("Property", rent_prop.name)
+		self.assertEqual(prop.is_rented, 1)
+		self.assertEqual(prop.rent_type, "Yearly")
+
 	def test_list_transactions_guest_and_filters(self):
 		# Create an off-plan property
 		off_plan_prop = frappe.get_doc({
 			"doctype": "Property",
 			"title": "Off Plan Villa",
 			"listing_type": "Buy",
-			"completion_status": "Off-plan",
+			"completion_status": "Off-Plan",
 			"property_type": "Villa",
 			"price": 5000000,
 			"currency": "AED",
