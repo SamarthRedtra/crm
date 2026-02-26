@@ -64,9 +64,9 @@ def list_transactions() -> dict[str, Any]:
 		if off_plan is not None:
 			is_off_plan = utils._coerce_bool(off_plan) if hasattr(utils, "_coerce_bool") else str(off_plan).lower() in ("1", "true", "yes")
 			if is_off_plan:
-				filters.append(PROP.completion_status == "Off-plan")
+				filters.append(PROP.completion_status == "Off-Plan")
 			else:
-				filters.append(PROP.completion_status != "Off-plan")
+				filters.append(PROP.completion_status != "Off-Plan")
 
 		# NEW: Property Type Filter
 		property_types = frappe.form_dict.get("property_types") or frappe.form_dict.get("property_type")
@@ -121,6 +121,7 @@ def list_transactions() -> dict[str, Any]:
 				TXN.customer,
 				TXN.transaction_date,
 				TXN.transaction_type,
+				TXN.rent_type,
 				TXN.amount,
 				TXN.currency,
 				TXN.notes,
@@ -186,6 +187,7 @@ def create_transaction() -> dict[str, Any]:
 			"customer": data.get("customer"),
 			"transaction_date": data.get("transaction_date") or today(),
 			"transaction_type": data["transaction_type"],
+			"rent_type": data.get("rent_type") if data["transaction_type"] == "Rent" else None,
 			"amount": data.get("amount"),
 			"currency": data.get("currency"),
 			"notes": data.get("notes"),
@@ -196,6 +198,10 @@ def create_transaction() -> dict[str, Any]:
 	# If transaction type is Sale, mark property as sold
 	if data["transaction_type"] == "Sale":
 		frappe.db.set_value("Property", data["property"], "is_sold", 1)
+	elif data["transaction_type"] == "Rent":
+		frappe.db.set_value("Property", data["property"], "is_rented", 1)
+		if data.get("rent_type"):
+			frappe.db.set_value("Property", data["property"], "rent_type", data.get("rent_type"))
 
 	frappe.response.http_status_code = 201
 	return _serialize_transaction(doc, detail=True)
@@ -221,6 +227,7 @@ def _serialize_transaction(row: Any, detail: bool = False) -> dict[str, Any]:
 			"customer": row.get("customer"),
 			"transaction_date": str(row.get("transaction_date")) if row.get("transaction_date") else None,
 			"transaction_type": row.get("transaction_type"),
+			"rent_type": row.get("rent_type"),
 			"amount": row.get("amount"),
 			"currency": row.get("currency"),
 			"notes": row.get("notes"),
@@ -241,6 +248,7 @@ def _serialize_transaction(row: Any, detail: bool = False) -> dict[str, Any]:
 			"customer": row.customer,
 			"transaction_date": str(row.transaction_date) if row.transaction_date else None,
 			"transaction_type": row.transaction_type,
+			"rent_type": row.rent_type,
 			"amount": row.amount,
 			"currency": row.currency,
 			"notes": row.notes,

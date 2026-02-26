@@ -12,9 +12,12 @@
         "developer",
         "agent",
         "status",
+        "is_sold",
+        "is_rented",
         "column_break_aabd",
         "property_category",
         "listing_type",
+        "rent_type",
         "completion_status",
         "property_code",
         "property_type",
@@ -50,8 +53,7 @@
         "gallery",
         "is_featured",
         "featured_until",
-        "views_count",
-        "is_sold"
+        "views_count"
     ],
     "fields": [
         {
@@ -81,10 +83,10 @@
             "fieldtype": "Select",
             "in_standard_filter": 1,
             "label": "Completion Status",
-            "options": "All\nReady\nOff-plan"
+            "options": "All\nReady\nOff-Plan"
         },
         {
-            "depends_on": "eval:doc.completion_status == 'Off-plan'",
+            "depends_on": "eval:doc.completion_status == 'Off-Plan'",
             "fieldname": "off_plan_agencies",
             "fieldtype": "Table MultiSelect",
             "label": "Agencies",
@@ -322,6 +324,22 @@
             "fieldtype": "Check",
             "in_list_view": 1,
             "label": "Is Sold"
+        },
+        {
+            "depends_on": "eval:doc.listing_type == 'Rent'",
+            "fieldname": "rent_type",
+            "fieldtype": "Select",
+            "in_list_view": 1,
+            "in_standard_filter": 1,
+            "label": "Rent Type",
+            "mandatory_depends_on": "eval:doc.listing_type == 'Rent'",
+            "options": "Weekly\nMonthly\nYearly"
+        },
+        {
+            "default": "0",
+            "fieldname": "is_rented",
+            "fieldtype": "Check",
+            "label": "Is Rented"
         }
     ],
     "image_field": "primary_image",
@@ -334,7 +352,7 @@
         }
     ],
     "make_attachments_public": 1,
-    "modified": "2026-02-13 18:18:31.705291",
+    "modified": "2026-02-26 22:48:27.751853",
     "modified_by": "Administrator",
     "module": "FCRM",
     "name": "Property",

@@ -534,7 +534,7 @@ def serialize_property_summary(row: dict[str, Any]) -> dict[str, Any]:
 	featured_until_value, featured_remaining = _get_featured_timer(featured_until)
 	listing_type = row.get("listing_type")
 	completion_status = row.get("completion_status")
-	if completion_status == "Off-plan":
+	if completion_status == "Off-Plan":
 		agent = None
 
 	return {
@@ -560,7 +560,8 @@ def serialize_property_summary(row: dict[str, Any]) -> dict[str, Any]:
 		"developer_name": developer["name"] if developer else None,
 		"agent": agent,
 		"agency": agency_details,
-		"off_plan_agencies": _get_off_plan_agencies(property_id) if completion_status == "Off-plan" else [],
+		"off_plan_agencies": _get_off_plan_agencies(property_id) if completion_status == "Off-Plan" else [],
+		"verified_agencies": _get_off_plan_agencies(property_id) if completion_status == "Off-Plan" else [],
 		"location": location,
 		"primary_image_url": row.get("primary_image"),
 		"furnishing_status": row.get("furnishing_status"),
@@ -602,7 +603,7 @@ def serialize_property_detail(doc) -> dict[str, Any]:
 		"brn_id": getattr(agent_doc, "brn_id", None),
 		"whatsapp_link": _build_whatsapp_link(agent_doc.whatsapp_number or agent_doc.phone),
 	}
-	if completion_status == "Off-plan":
+	if completion_status == "Off-Plan":
 		agent_payload = None
 
 	return {
@@ -646,7 +647,8 @@ def serialize_property_detail(doc) -> dict[str, Any]:
 		],
 		"agent": agent_payload,
 		"agency": agency_details,
-		"off_plan_agencies": _get_off_plan_agencies(doc.name) if completion_status == "Off-plan" else [],
+		"off_plan_agencies": _get_off_plan_agencies(doc.name) if completion_status == "Off-Plan" else [],
+		"verified_agencies": _get_off_plan_agencies(doc.name) if completion_status == "Off-Plan" else [],
 		"whatsapp_chat_link": link,
 		"is_sold": bool(doc.is_sold),
 	}

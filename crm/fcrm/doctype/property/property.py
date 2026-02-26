@@ -30,6 +30,7 @@ class Property(Document):
 		bathrooms: DF.Int
 		bedrooms: DF.Int
 		city: DF.Data | None
+		completion_status: DF.Literal["All", "Ready", "Off-plan"]
 		country: DF.Link | None
 		currency: DF.Link
 		description: DF.TextEditor | None
@@ -38,9 +39,10 @@ class Property(Document):
 		furnishing_status: DF.Literal["Furnished", "Semi-Furnished", "Unfurnished"]
 		gallery: DF.Table[PropertyImage]
 		is_featured: DF.Check
+		is_rented: DF.Check
 		is_sold: DF.Check
 		latitude: DF.Float
-		listing_type: DF.Literal["Buy", "Rent", "Off Plan"]
+		listing_type: DF.Literal["Buy", "Rent"]
 		longitude: DF.Float
 		off_plan_agencies: DF.TableMultiSelect[PropertyAgency]
 		pincode: DF.Data | None
@@ -49,6 +51,7 @@ class Property(Document):
 		property_category: DF.Literal["Residential", "Commercial", "Mixed Use"]
 		property_code: DF.Data | None
 		property_type: DF.Literal["Apartment", "Villa", "Office", "Shop", "Plot", "Other"]
+		rent_type: DF.Literal["Weekly", "Monthly", "Yearly"]
 		state: DF.Data | None
 		status: DF.Literal["Draft", "Under Verification", "Active", "Inactive"]
 		title: DF.Data
