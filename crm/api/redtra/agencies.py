@@ -5,6 +5,7 @@ from typing import Any
 import frappe
 from frappe import _
 from frappe.utils import cint
+from frappe.query_builder import DocType, functions as fn
 
 from . import properties, utils
 
@@ -232,11 +233,17 @@ def get_agency_analytics(agency_id: str) -> dict[str, Any]:
 			"total_leads": 0,
 		}
 
-	property_stats = frappe.db.get_all(
-		"Property",
-		filters={"status": "Active", "agent": ["in", agent_ids]},
-		fields=["listing_type", "count(name) as total_count", "sum(price) as total_price"],
-		group_by="listing_type",
+	prop = DocType("Property")
+	property_stats = (
+		frappe.qb.from_(prop)
+		.select(
+			prop.listing_type.as_("listing_type"),
+			fn.Count(prop.name).as_("total_count"),
+			fn.Sum(prop.price).as_("total_price"),
+		)
+		.where((prop.status == "Active") & prop.agent.isin(agent_ids))
+		.groupby(prop.listing_type)
+		.run(as_dict=True)
 	)
 
 	total_active_listings = 0
@@ -401,11 +408,16 @@ def _build_agency_property_stats(agency_id: str) -> dict[str, Any]:
 			"rent_listings": 0,
 		}
 
-	stats_rows = frappe.db.get_all(
-		"Property",
-		filters={"status": "Active", "name": ["in", list(property_ids)]},
-		fields=["listing_type", "count(name) as total"],
-		group_by="listing_type",
+	prop = DocType("Property")
+	stats_rows = (
+		frappe.qb.from_(prop)
+		.select(
+			prop.listing_type.as_("listing_type"),
+			fn.Count(prop.name).as_("total"),
+		)
+		.where((prop.status == "Active") & prop.name.isin(list(property_ids)))
+		.groupby(prop.listing_type)
+		.run(as_dict=True)
 	)
 	active_listings = 0
 	sale_listings = 0
