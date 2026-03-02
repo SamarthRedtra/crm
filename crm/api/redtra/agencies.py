@@ -30,6 +30,7 @@ def list_agencies() -> dict[str, Any]:
 	page_size = cint(frappe.form_dict.get("page_size") or 20)
 	status = (frappe.form_dict.get("status") or "").strip()
 	search = (frappe.form_dict.get("search") or "").strip()
+	print("abc")
 
 	page = max(1, page)
 	page_size = max(1, min(page_size, 100))
@@ -76,7 +77,7 @@ def list_agencies() -> dict[str, Any]:
 def get_agency(agency_id: str) -> dict[str, Any]:
 	"""Public API to get agency details - no authentication required"""
 	frappe.set_user("Administrator")
-	agency_name = frappe.db.get_value("Agency", {"name": agency_id}, "name")
+	agency_name = _resolve_agency_id(agency_id)
 	if not agency_name:
 		frappe.throw(_("Agency not found."), frappe.DoesNotExistError)
 		
@@ -98,7 +99,7 @@ def get_agency(agency_id: str) -> dict[str, Any]:
 def get_agency_profile(agency_id: str) -> dict[str, Any]:
 	"""Public API to get full agency profile with metadata."""
 	frappe.set_user("Administrator")
-	agency_name = frappe.db.get_value("Agency", {"name": agency_id}, "name")
+	agency_name = _resolve_agency_id(agency_id)
 	if not agency_name:
 		frappe.throw(_("Agency not found."), frappe.DoesNotExistError)
 
@@ -128,10 +129,11 @@ def list_agency_agents(agency_id: str) -> dict[str, Any]:
 	start = (page - 1) * page_size
 
 	frappe.set_user("Administrator")
-	if not frappe.db.exists("Agency", {"name": agency_id}):
+	agency_name = _resolve_agency_id(agency_id)
+	if not agency_name:
 		frappe.throw(_("Agency not found."), frappe.DoesNotExistError)
 
-	filters: list[list[Any]] = [["Agent", "agency", "=", agency_id]]
+	filters: list[list[Any]] = [["Agent", "agency", "=", agency_name]]
 	items = frappe.get_all(
 		"Agent",
 		filters=filters,
@@ -179,10 +181,11 @@ def list_agency_properties(agency_id: str) -> dict[str, Any]:
 	page_size = max(1, min(page_size, 100))
 
 	frappe.set_user("Administrator")
-	if not frappe.db.exists("Agency", {"name": agency_id}):
+	agency_name = _resolve_agency_id(agency_id)
+	if not agency_name:
 		frappe.throw(_("Agency not found."), frappe.DoesNotExistError)
 
-	property_ids = _get_agency_property_ids(agency_id)
+	property_ids = _get_agency_property_ids(agency_name)
 	if not property_ids:
 		return {
 			"items": [],
@@ -208,7 +211,7 @@ def list_agency_properties(agency_id: str) -> dict[str, Any]:
 def get_agency_analytics(agency_id: str) -> dict[str, Any]:
 	"""Public API to get agency analytics."""
 	frappe.set_user("Administrator")
-	agency_name = frappe.db.get_value("Agency", {"name": agency_id}, "name")
+	agency_name = _resolve_agency_id(agency_id)
 	if not agency_name:
 		frappe.throw(_("Agency not found."), frappe.DoesNotExistError)
 
@@ -219,14 +222,14 @@ def get_agency_analytics(agency_id: str) -> dict[str, Any]:
 
 	agent_ids = frappe.get_all(
 		"Agent",
-		filters={"agency": agency_id},
+		filters={"agency": agency_name},
 		pluck="name",
 		ignore_permissions=True,
 	)
 
 	if not agent_ids:
 		return {
-			"agency_id": agency_id,
+			"agency_id": agency_name,
 			"total_active_listings": 0,
 			"total_sales": 0.0,
 			"total_rent": 0.0,
@@ -262,7 +265,7 @@ def get_agency_analytics(agency_id: str) -> dict[str, Any]:
 	total_leads = frappe.db.count("Property Appointment", {"agent": ["in", agent_ids]})
 
 	return {
-		"agency_id": agency_id,
+		"agency_id": agency_name,
 		"total_active_listings": total_active_listings,
 		"total_sales": total_sales,
 		"total_rent": total_rent,
@@ -343,14 +346,17 @@ def get_agency_details(agency_id: str | None, include_stats: bool = False) -> di
 	"""Helper function to get agency details for embedding in agent responses"""
 	if not agency_id:
 		return None
-	
+	agency_name = _resolve_agency_id(agency_id)
+	if not agency_name:
+		return None
+
 	try:
-		doc = frappe.get_cached_doc("Agency", agency_id)
+		doc = frappe.get_cached_doc("Agency", agency_name)
 		if doc.status != "Active":
 			return None
 		data = _serialize_agency_summary(doc.as_dict())
 		if include_stats:
-			data.update(_build_agency_property_stats(agency_id))
+			data.update(_build_agency_property_stats(agency_name))
 		return data
 	except frappe.DoesNotExistError:
 		return None
@@ -465,3 +471,11 @@ def _build_location(city: str | None, state: str | None, country: str | None) ->
 		if text and text not in components:
 			components.append(text)
 	return ", ".join(components) if components else None
+
+
+def _resolve_agency_id(agency_id: str) -> str | None:
+	if not agency_id:
+		return None
+	if frappe.db.exists("Agency", {"name": agency_id}):
+		return agency_id
+	return frappe.db.get_value("Agency", {"agency_name": agency_id}, "name")

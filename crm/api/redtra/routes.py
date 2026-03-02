@@ -116,6 +116,8 @@ def register_routes():
 		Rule("/amenties", methods=["GET"], endpoint=amenties.get_amenities),
 		Rule("/agents", methods=["GET"], endpoint=agents.list_agents),
 		Rule("/agents/<string:agent_id>", methods=["GET"], endpoint=agents.get_agent),
+		Rule("/agencies", methods=["GET"], endpoint=agencies.list_agencies),
+		Rule("/agencies/<string:agency_id>", methods=["GET"], endpoint=agencies.get_agency),
 		Rule(
 			"/agencies/<string:agency_id>/analytics",
 			methods=["GET"],
