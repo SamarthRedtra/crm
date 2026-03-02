@@ -5,6 +5,7 @@ from typing import Any
 import frappe
 from frappe import _
 from frappe.utils import cint, get_time
+from frappe.query_builder import DocType, functions as fn
 
 from . import properties, utils
 
@@ -391,17 +392,20 @@ def _get_agent_activity_stats(agent_id: str) -> dict[str, Any]:
 
 
 def _get_agent_expertise(agent_id: str) -> dict[str, Any]:
-	property_type_rows = frappe.db.get_all(
-		"Property",
-		filters={"status": "Active", "agent": agent_id},
-		fields=["property_type", "count(name) as total"],
-		group_by="property_type",
+	prop = DocType("Property")
+	property_type_rows = (
+		frappe.qb.from_(prop)
+		.select(prop.property_type.as_("property_type"), fn.Count(prop.name).as_("total"))
+		.where((prop.status == "Active") & (prop.agent == agent_id))
+		.groupby(prop.property_type)
+		.run(as_dict=True)
 	)
-	category_rows = frappe.db.get_all(
-		"Property",
-		filters={"status": "Active", "agent": agent_id},
-		fields=["property_category", "count(name) as total"],
-		group_by="property_category",
+	category_rows = (
+		frappe.qb.from_(prop)
+		.select(prop.property_category.as_("property_category"), fn.Count(prop.name).as_("total"))
+		.where((prop.status == "Active") & (prop.agent == agent_id))
+		.groupby(prop.property_category)
+		.run(as_dict=True)
 	)
 
 	def _top_values(rows: list[dict[str, Any]]) -> list[str]:

@@ -5,6 +5,7 @@ from typing import Any
 import frappe
 from frappe import _
 from frappe.utils import cint, strip_html
+from frappe.query_builder import DocType, functions as fn
 
 from . import properties, utils
 
@@ -51,12 +52,18 @@ def list_developers() -> dict[str, Any]:
 			if restrict and agent_id:
 				property_filters["agent"] = agent_id
 
-			for entry in frappe.db.get_all(
-				"Property",
-				filters=property_filters,
-				fields=["developer", "count(name) as property_count"],
-				group_by="developer",
-			):
+			prop = DocType("Property")
+			query = (
+				frappe.qb.from_(prop)
+				.select(prop.developer, fn.Count(prop.name).as_("property_count"))
+				.groupby(prop.developer)
+			)
+			for key, value in property_filters.items():
+				if isinstance(value, (list, tuple)) and len(value) == 2 and value[0] == "in":
+					query = query.where(getattr(prop, key).isin(value[1]))
+				else:
+					query = query.where(getattr(prop, key) == value)
+			for entry in query.run(as_dict=True):
 				developer_name = entry.get("developer")
 				if not developer_name:
 					continue
