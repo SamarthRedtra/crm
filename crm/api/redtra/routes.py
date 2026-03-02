@@ -16,12 +16,11 @@ from . import (
 	media,
 	notifications,
 	properties,
+	transactions,
 	amenties,
 	reviews,
 	reminders,
 	icons,
-	customers,
-	transactions,
 )
 
 
@@ -85,19 +84,12 @@ def register_routes():
 			methods=["DELETE"],
 			endpoint=favorites.remove_favorite,
 		),
+		Rule("/transactions", methods=["GET"], endpoint=transactions.list_transactions),
+		Rule("/transactions", methods=["POST"], endpoint=transactions.create_transaction),
 		Rule(
-			"/notifications/<string:notification_id>",
-			methods=["DELETE"],
-			endpoint=notifications.delete_notification,
-		),
-		Rule("/customers", methods=["GET"], endpoint=customers.list_customers),
-		Rule("/customers", methods=["POST"], endpoint=customers.create_customer),
-		Rule("/customers/<string:customer_id>", methods=["GET"], endpoint=customers.get_customer),
-		Rule("/customers/<string:customer_id>", methods=["PUT"], endpoint=customers.update_customer),
-		Rule(
-			"/customers/<string:customer_id>",
-			methods=["DELETE"],
-			endpoint=customers.delete_customer,
+			"/transactions/<string:transaction_id>",
+			methods=["GET"],
+			endpoint=transactions.get_transaction,
 		),
 		Rule("/appointments", methods=["GET"], endpoint=appointments.list_appointments),
 		Rule("/appointments", methods=["POST"], endpoint=appointments.create_appointment),
@@ -124,14 +116,6 @@ def register_routes():
 		Rule("/amenties", methods=["GET"], endpoint=amenties.get_amenities),
 		Rule("/agents", methods=["GET"], endpoint=agents.list_agents),
 		Rule("/agents/<string:agent_id>", methods=["GET"], endpoint=agents.get_agent),
-		Rule("/agencies", methods=["GET"], endpoint=agencies.list_agencies),
-		Rule("/agencies", methods=["POST"], endpoint=agencies.create_agency),
-		Rule("/agencies/<string:agency_id>", methods=["GET"], endpoint=agencies.get_agency),
-		Rule(
-			"/agencies/<string:agency_id>/properties",
-			methods=["GET"],
-			endpoint=agencies.list_agency_properties,
-		),
 		Rule(
 			"/agencies/<string:agency_id>/analytics",
 			methods=["GET"],
@@ -143,13 +127,16 @@ def register_routes():
 			endpoint=agencies.list_agency_agents,
 		),
 		Rule(
+			"/agencies/<string:agency_id>/properties",
+			methods=["GET"],
+			endpoint=agencies.list_agency_properties,
+		),
+		Rule(
 			"/agencies/<string:agency_id>/profile",
 			methods=["GET"],
 			endpoint=agencies.get_agency_profile,
 		),
 		Rule("/agents/<string:agent_id>/reviews", methods=["GET"], endpoint=reviews.get_agent_reviews),
-		Rule("/agents/<string:agent_id>/reviews", methods=["POST"], endpoint=reviews.submit_agent_review),
-		Rule("/properties/<string:property_id>/reviews", methods=["POST"], endpoint=reviews.submit_property_review),
 		Rule("/agents/availability", methods=["POST"], endpoint=agents.update_agent_availability),
 		Rule(
 			"/appointments/<string:appointment_id>/review",
@@ -168,13 +155,6 @@ def register_routes():
 		),
 		Rule("/home", methods=["GET"], endpoint=home.get_home),
 		Rule("/icons/lucide", methods=["GET"], endpoint=icons.list_lucide_icons),
-		Rule("/transactions", methods=["GET"], endpoint=transactions.list_transactions),
-		Rule("/transactions", methods=["POST"], endpoint=transactions.create_transaction),
-		Rule(
-			"/transactions/<string:transaction_id>",
-			methods=["GET"],
-			endpoint=transactions.get_transaction,
-		),
 	]
 
 	existing = {(rule.rule, tuple(sorted(rule.methods or []))) for rule in url_rules}

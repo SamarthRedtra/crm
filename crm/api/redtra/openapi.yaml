@@ -336,6 +336,7 @@ components:
           enum:
           - Buy
           - Rent
+          - Off Plan
         property_type:
           type: string
           example: Apartment
@@ -513,6 +514,7 @@ components:
           enum:
           - Buy
           - Rent
+          - Off Plan
         property_type:
           type: string
         price:

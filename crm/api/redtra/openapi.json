@@ -488,7 +488,8 @@
             "type": "string",
             "enum": [
               "Buy",
-              "Rent"
+              "Rent",
+              "Off Plan"
             ]
           },
           "property_type": {
@@ -742,7 +743,8 @@
             "type": "string",
             "enum": [
               "Buy",
-              "Rent"
+              "Rent",
+              "Off Plan"
             ]
           },
           "property_type": {
