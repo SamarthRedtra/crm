@@ -36,8 +36,10 @@ SUMMARY_FIELDS = [
 	"primary_image",
 	"status",
 	"is_featured",
-	"featured_until",
 	"is_sold",
+	"is_rented",
+	"rent_type",
+	"featured_until",
 ]
 
 
@@ -60,7 +62,7 @@ def list_properties() -> dict[str, Any]:
 			conditions.append(property_dt.listing_type == listing_type)
 
 		completion_status = (frappe.form_dict.get("completion_status") or "").strip()
-		if completion_status and completion_status.lower() != "all":
+		if completion_status and completion_status != "All":
 			conditions.append(property_dt.completion_status == completion_status)
 
 		property_types = _get_list_param("property_types") or _get_list_param("property_type")
@@ -210,8 +212,10 @@ def list_properties() -> dict[str, Any]:
 				property_dt.primary_image.as_("primary_image"),
 				property_dt.status.as_("status"),
 				property_dt.is_featured.as_("is_featured"),
-				property_dt.featured_until.as_("featured_until"),
 				property_dt.is_sold.as_("is_sold"),
+				property_dt.is_rented.as_("is_rented"),
+				property_dt.rent_type.as_("rent_type"),
+				property_dt.featured_until.as_("featured_until"),
 				area_dt.area_name.as_("area_name"),
 				developer_dt.developer_name.as_("developer_name"),
 			)
@@ -273,7 +277,6 @@ def create_property() -> dict[str, Any]:
 			"doctype": "Property",
 			"title": data["title"],
 			"listing_type": data["listing_type"],
-			"completion_status": data.get("completion_status"),
 			"property_type": data["property_type"],
 			"property_category": data.get("property_category"),
 			"price": data["price"],
@@ -345,7 +348,6 @@ def update_property(property_id: str) -> dict[str, Any]:
 		{
 			"title": data.get("title") or doc.title,
 			"listing_type": data.get("listing_type") or doc.listing_type,
-			"completion_status": data.get("completion_status", doc.completion_status),
 			"property_type": data.get("property_type") or doc.property_type,
 			"property_category": data.get("property_category", doc.property_category),
 			"price": data.get("price", doc.price),
@@ -374,7 +376,6 @@ def update_property(property_id: str) -> dict[str, Any]:
 			"is_featured": is_featured_value,
 			"featured_until": featured_until,
 			"status": data.get("status", doc.status),
-			"is_sold": int(_coerce_bool(data.get("is_sold"))) if "is_sold" in data else doc.is_sold,
 		}
 	)
 
@@ -449,7 +450,6 @@ def serialize_property_summary(row: dict[str, Any]) -> dict[str, Any]:
 					"phone",
 					"whatsapp_number",
 					"profile_image",
-					"brn_id",
 					"status",
 					"agency",
 				],
@@ -473,7 +473,6 @@ def serialize_property_summary(row: dict[str, Any]) -> dict[str, Any]:
 					"whatsapp_number": agent_data.get("whatsapp_number"),
 					"whatsapp_link": whatsapp_link,
 					"profile_image": agent_data.get("profile_image"),
-					"brn_id": agent_data.get("brn_id"),
 					"status": agent_data.get("status"),
 				}
 		except Exception:
@@ -532,9 +531,9 @@ def serialize_property_summary(row: dict[str, Any]) -> dict[str, Any]:
 
 	featured_until = row.get("featured_until")
 	featured_until_value, featured_remaining = _get_featured_timer(featured_until)
-	listing_type = row.get("listing_type")
 	completion_status = row.get("completion_status")
-	if completion_status == "Off-Plan":
+	completion_status_key = (completion_status or "").strip().lower()
+	if completion_status_key in {"off-plan", "offplan"}:
 		agent = None
 
 	return {
@@ -560,14 +559,14 @@ def serialize_property_summary(row: dict[str, Any]) -> dict[str, Any]:
 		"developer_name": developer["name"] if developer else None,
 		"agent": agent,
 		"agency": agency_details,
-		"off_plan_agencies": _get_off_plan_agencies(property_id) if completion_status == "Off-Plan" else [],
-		"verified_agencies": _get_off_plan_agencies(property_id) if completion_status == "Off-Plan" else [],
+		"is_sold": bool(row.get("is_sold")),
+		"is_rented": bool(row.get("is_rented")),
+		"rent_type": row.get("rent_type"),
 		"location": location,
 		"primary_image_url": row.get("primary_image"),
 		"furnishing_status": row.get("furnishing_status"),
 		"amenities": amenities,
 		"gallery": gallery,
-		"is_sold": bool(row.get("is_sold")),
 	}
 
 
@@ -593,17 +592,16 @@ def serialize_property_detail(doc) -> dict[str, Any]:
 			agency_details = None
 
 	featured_until_value, featured_remaining = _get_featured_timer(doc.featured_until)
-	listing_type = doc.listing_type
 	completion_status = doc.completion_status
+	completion_status_key = (completion_status or "").strip().lower()
 	agent_payload = {
 		"id": agent_doc.name,
 		"name": agent_doc.full_name or agent_doc.user,
 		"phone": agent_doc.phone,
 		"whatsapp_number": agent_doc.whatsapp_number,
-		"brn_id": getattr(agent_doc, "brn_id", None),
 		"whatsapp_link": _build_whatsapp_link(agent_doc.whatsapp_number or agent_doc.phone),
 	}
-	if completion_status == "Off-Plan":
+	if completion_status_key in {"off-plan", "offplan"}:
 		agent_payload = None
 
 	return {
@@ -637,6 +635,9 @@ def serialize_property_detail(doc) -> dict[str, Any]:
 		"is_featured": bool(doc.is_featured),
 		"featured_until": featured_until_value,
 		"featured_remaining_seconds": featured_remaining,
+		"is_sold": bool(doc.is_sold),
+		"is_rented": bool(doc.is_rented),
+		"rent_type": doc.rent_type,
 		"amenities": [
 			frappe.db.get_value("Amenity", row.amenity_name, "amenity_name") or row.amenity_name
 			for row in doc.amenities
@@ -645,43 +646,11 @@ def serialize_property_detail(doc) -> dict[str, Any]:
 			{"image": row.image, "caption": row.caption, "sort_order": row.sort_order}
 			for row in doc.gallery
 		],
+		"off_plan_agencies": _get_off_plan_agencies(doc.name),
 		"agent": agent_payload,
 		"agency": agency_details,
-		"off_plan_agencies": _get_off_plan_agencies(doc.name) if completion_status == "Off-Plan" else [],
-		"verified_agencies": _get_off_plan_agencies(doc.name) if completion_status == "Off-Plan" else [],
 		"whatsapp_chat_link": link,
-		"is_sold": bool(doc.is_sold),
 	}
-
-
-def _get_off_plan_agencies(property_id: str) -> list[dict[str, Any]]:
-	if not property_id:
-		return []
-
-	agencies = frappe.get_all(
-		"Property Agency",
-		filters={"parent": property_id},
-		fields=["agency"],
-		order_by="idx asc",
-	)
-
-	if not agencies:
-		return []
-
-	agency_list = []
-	for row in agencies:
-		if not row.agency:
-			continue
-			
-		try:
-			from . import agencies as agencies_module
-			details = agencies_module.get_agency_details(row.agency)
-			if details:
-				agency_list.append(details)
-		except Exception:
-			continue
-			
-	return agency_list
 
 
 def _validate_property_owner(doc):
@@ -927,6 +896,32 @@ def _ensure_amenity_master(value: Any) -> str | None:
 	doc.flags.ignore_permissions = True
 	doc.insert()
 	return doc.name
+
+
+def _get_off_plan_agencies(property_id: str) -> list[dict[str, Any]]:
+	if not property_id:
+		return []
+	rows = frappe.get_all(
+		"Property Agency",
+		filters={"parent": property_id},
+		fields=["agency"],
+	)
+	agencies_list = []
+	if not rows:
+		return agencies_list
+	try:
+		from . import agencies
+	except Exception:
+		return agencies_list
+	for row in rows:
+		agency_id = row.get("agency")
+		agency_details = agencies.get_agency_details(agency_id)
+		if agency_details:
+			agencies_list.append(agency_details)
+		else:
+			if agency_id:
+				agencies_list.append({"id": agency_id})
+	return agencies_list
 
 
 def _build_whatsapp_link(number: str | None) -> str | None:

@@ -76,12 +76,12 @@ def _send_reminder_notifications(appointment_doc):
 		).format(
 			property_title,
 			appointment_time,
-			agent_doc.full_name or agent_user or _("Assigned Agent"),
+			agent_doc.full_name or agent_user,
 		)
 
 		if customer_user:
 			_create_reminder_notification(
-				from_user=agent_user or "Administrator",
+				from_user=agent_user,
 				to_user=customer_user,
 				notification_text=customer_notification_text,
 				message=customer_message,
@@ -109,7 +109,7 @@ def _send_reminder_notifications(appointment_doc):
 
 		if agent_user:
 			_create_reminder_notification(
-				from_user=customer_user or "Administrator",
+				from_user=customer_user or agent_user,
 				to_user=agent_user,
 				notification_text=agent_notification_text,
 				message=agent_message,

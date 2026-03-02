@@ -17,7 +17,6 @@ SUMMARY_FIELDS = [
 	"bio",
 	"profile_image",
 	"agency",
-	"brn_id",
 ]
 
 
@@ -260,9 +259,7 @@ def _serialize_agent_summary(row: dict[str, Any]) -> dict[str, Any]:
 		"phone": row.get("phone"),
 		"whatsapp_number": row.get("whatsapp_number"),
 		"whatsapp_link": whatsapp_link,
-		"whatsapp_link": whatsapp_link,
 		"profile_image": row.get("profile_image"),
-		"brn_id": row.get("brn_id"),
 		"agency": agency_details,
 	}
 
@@ -275,6 +272,7 @@ def _serialize_agent_detail(doc) -> dict[str, Any]:
 		FROM `tabProperty`
 		WHERE status = 'Active' AND agent = %(agent_name)s
 		ORDER BY modified DESC
+		LIMIT 50
 		""".format(fields=", ".join(properties.SUMMARY_FIELDS)),
 		{"agent_name": doc.name},
 		as_dict=True,
@@ -335,9 +333,7 @@ def _serialize_agent_detail(doc) -> dict[str, Any]:
 		"whatsapp_number": doc.whatsapp_number,
 		"whatsapp_link": whatsapp_link,
 		"profile_image": doc.profile_image,
-		"profile_image": doc.profile_image,
-		"dfd_registration_id": doc.dfd_registration_id,
-		"brn_id": doc.brn_id,
+		"brn_id": doc.dfd_registration_id,
 		"active_properties": active_property_count,
 		"property_ids": property_ids,
 		"sales": activity_stats.get("sales", 0),
@@ -390,7 +386,7 @@ def _get_agent_activity_stats(agent_id: str) -> dict[str, Any]:
 		"Property",
 		{"status": "Active", "agent": agent_id, "listing_type": "Buy"},
 	)
-	leads_count = frappe.db.count("CRM Lead", {"agent_id": agent_id})
+	leads_count = frappe.db.count("Property Appointment", {"agent": agent_id})
 	return {"sales": sales_count, "leads": leads_count}
 
 
@@ -398,13 +394,13 @@ def _get_agent_expertise(agent_id: str) -> dict[str, Any]:
 	property_type_rows = frappe.db.get_all(
 		"Property",
 		filters={"status": "Active", "agent": agent_id},
-		fields=["property_type", {"COUNT": "name", "as": "total"}],
+		fields=["property_type", "count(name) as total"],
 		group_by="property_type",
 	)
 	category_rows = frappe.db.get_all(
 		"Property",
 		filters={"status": "Active", "agent": agent_id},
-		fields=["property_category", {"COUNT": "name", "as": "total"}],
+		fields=["property_category", "count(name) as total"],
 		group_by="property_category",
 	)
 
