@@ -30,7 +30,7 @@ class Property(Document):
 		bathrooms: DF.Int
 		bedrooms: DF.Int
 		city: DF.Data | None
-		completion_status: DF.Literal["All", "Ready", "Off-plan"]
+		completion_status: DF.Literal["All", "Ready", "Off-Plan"]
 		country: DF.Link | None
 		currency: DF.Link
 		description: DF.TextEditor | None
