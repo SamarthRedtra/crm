@@ -485,7 +485,7 @@
                 },
                 {
                   "key": "listing_type",
-                  "value": "Sale",
+                  "value": "Sold",
                   "disabled": true
                 },
                 {
@@ -600,7 +600,7 @@
             },
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"title\": \"2 BHK Apartment in Al Jaddaf\",\n  \"listing_type\": \"Sale\",\n  \"property_type\": \"Apartment\",\n  \"property_category\": \"Residential\",\n  \"price\": 350000,\n  \"currency\": \"AED\",\n  \"bedrooms\": 2,\n  \"bathrooms\": 2,\n  \"furnishing_status\": \"Furnished\",\n  \"area_sqft\": 1200,\n  \"area_id\": \"{{area_id}}\",\n  \"developer_id\": \"{{developer_id}}\",\n  \"amenities\": [\n    \"Pool\",\n    \"Gym\"\n  ],\n  \"is_featured\": true\n}",
+              "raw": "{\n  \"title\": \"2 BHK Apartment in Al Jaddaf\",\n  \"listing_type\": \"Buy\",\n  \"property_type\": \"Apartment\",\n  \"property_category\": \"Residential\",\n  \"price\": 350000,\n  \"currency\": \"AED\",\n  \"bedrooms\": 2,\n  \"bathrooms\": 2,\n  \"furnishing_status\": \"Furnished\",\n  \"area_sqft\": 1200,\n  \"area_id\": \"{{area_id}}\",\n  \"developer_id\": \"{{developer_id}}\",\n  \"amenities\": [\n    \"Pool\",\n    \"Gym\"\n  ],\n  \"is_featured\": true\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -3806,7 +3806,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"property\": \"PROP-2026-00001\",\n  \"transaction_type\": \"Sale\",\n  \"customer\": \"customer@example.com\",\n  \"transaction_date\": \"2026-02-13\",\n  \"amount\": 500000,\n  \"currency\": \"AED\",\n  \"notes\": \"Full payment completed\"\n}"
+              "raw": "{\n  \"property\": \"PROP-2026-00001\",\n  \"transaction_type\": \"Sold\",\n  \"customer\": \"customer@example.com\",\n  \"transaction_date\": \"2026-02-13\",\n  \"amount\": 500000,\n  \"currency\": \"AED\",\n  \"notes\": \"Full payment completed\"\n}"
             },
             "url": {
               "raw": "{{base_url}}/api/v1/transactions",

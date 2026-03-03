@@ -61,9 +61,23 @@ def list_properties() -> dict[str, Any]:
 		if listing_type:
 			conditions.append(property_dt.listing_type == listing_type)
 
+		# Completion status (All/Ready/Off-Plan): only for Buy listings; hidden for Rent
 		completion_status = (frappe.form_dict.get("completion_status") or "").strip()
-		if completion_status and completion_status != "All":
+		if completion_status and completion_status != "All" and listing_type != "Rent":
 			conditions.append(property_dt.completion_status == completion_status)
+
+		# Buy: filter by is_sold; is_rented filter hidden in UI
+		if listing_type == "Buy":
+			if (is_sold := frappe.form_dict.get("is_sold")) is not None:
+				conditions.append(property_dt.is_sold == int(_coerce_bool(is_sold)))
+
+		# Rent: filter by is_rented and rent_type; is_sold and completion_status hidden in UI
+		if listing_type == "Rent":
+			if (is_rented := frappe.form_dict.get("is_rented")) is not None:
+				conditions.append(property_dt.is_rented == int(_coerce_bool(is_rented)))
+			rent_type_filter = (frappe.form_dict.get("rent_type") or "").strip()
+			if rent_type_filter:
+				conditions.append(property_dt.rent_type == rent_type_filter)
 
 		property_types = _get_list_param("property_types") or _get_list_param("property_type")
 		if property_types:

@@ -77,7 +77,7 @@ class TestTransactions(IntegrationTestCase):
 
 		frappe.local.request = MockRequest({
 			"property": self.property_doc.name,
-			"transaction_type": "Sale",
+			"transaction_type": "Sold",
 			"amount": 1000000,
 			"currency": "AED",
 			"notes": "Sold!"
@@ -89,7 +89,7 @@ class TestTransactions(IntegrationTestCase):
 		# Verify Transaction created
 		self.assertTrue(txn["id"])
 		self.assertEqual(txn["property"], self.property_doc.name)
-		self.assertEqual(txn["transaction_type"], "Sale")
+		self.assertEqual(txn["transaction_type"], "Sold")
 		self.assertEqual(txn["formatted_amount"], "1M")
 
 		# Verify Property is_sold = 1
@@ -124,7 +124,7 @@ class TestTransactions(IntegrationTestCase):
 
 		frappe.local.request = MockRequest({
 			"property": rent_prop.name,
-			"transaction_type": "Rent",
+			"transaction_type": "Rented",
 			"rent_type": "Yearly",
 			"amount": 50000,
 			"currency": "AED",
@@ -137,7 +137,7 @@ class TestTransactions(IntegrationTestCase):
 		# Verify Transaction created
 		self.assertTrue(txn["id"])
 		self.assertEqual(txn["property"], rent_prop.name)
-		self.assertEqual(txn["transaction_type"], "Rent")
+		self.assertEqual(txn["transaction_type"], "Rented")
 		self.assertEqual(txn["rent_type"], "Yearly")
 		self.assertEqual(txn["formatted_amount"], "50K")
 
@@ -167,7 +167,7 @@ class TestTransactions(IntegrationTestCase):
 			"property": off_plan_prop.name,
 			"agent": self.agent_doc.name,
 			"transaction_date": "2025-01-01",
-			"transaction_type": "Sale",
+			"transaction_type": "Sold",
 			"amount": 4500000,
 			"currency": "AED"
 		}).insert(ignore_permissions=True)

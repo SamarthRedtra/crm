@@ -2015,8 +2015,8 @@
             "schema": {
               "type": "string",
               "enum": [
-                "Sale",
-                "Lease"
+                "Sold",
+                "Rented"
               ]
             }
           },
@@ -3422,8 +3422,8 @@
             "schema": {
               "type": "string",
               "enum": [
-                "Sale",
-                "Lease"
+                "Sold",
+                "Rented"
               ]
             }
           },

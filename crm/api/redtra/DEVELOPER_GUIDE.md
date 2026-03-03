@@ -123,7 +123,7 @@ These endpoints work without a token:
 
 #### List Properties (Public)
 ```http
-GET /api/properties?page=1&page_size=20&listing_type=Sale&city=Dubai
+GET /api/properties?page=1&page_size=20&listing_type=Buy&city=Dubai
 ```
 
 **Query Parameters:**
@@ -148,7 +148,7 @@ GET /api/properties?page=1&page_size=20&listing_type=Sale&city=Dubai
     {
       "id": "PROP-2025-00001",
       "title": "2 BHK Apartment in Downtown",
-      "listing_type": "Sale",
+      "listing_type": "Buy",
       "property_type": "Apartment",
       "price": 3500000,
       "currency": "AED",
@@ -195,7 +195,7 @@ Content-Type: application/json
 
 {
   "title": "Luxury 3 BHK Villa in Palm Jumeirah",
-  "listing_type": "Sale",
+  "listing_type": "Buy",
   "property_type": "Villa",
   "property_category": "Residential",
   "price": 8500000,
@@ -951,7 +951,7 @@ sequenceDiagram
 
 1. **Browse Properties (Public)**
    ```http
-   GET /api/properties?listing_type=Sale&city=Dubai&bedrooms=2
+   GET /api/properties?listing_type=Buy&city=Dubai&bedrooms=2
    ```
 
 2. **View Property Details (Public)**
@@ -1030,7 +1030,7 @@ sequenceDiagram
    Authorization: Bearer <token>
    {
      "title": "New Property",
-     "listing_type": "Sale",
+     "listing_type": "Buy",
      "property_type": "Apartment",
      "price": 500000,
      "currency": "AED"
@@ -1272,7 +1272,7 @@ curl -X POST https://your-domain.com/api/auth/login \
   -d '{"email":"user@example.com","password":"password"}'
 
 # Get Properties (Public)
-curl https://your-domain.com/api/properties?city=Dubai&listing_type=Sale
+curl https://your-domain.com/api/properties?city=Dubai&listing_type=Buy
 
 # Get Properties (Authenticated)
 curl https://your-domain.com/api/properties \

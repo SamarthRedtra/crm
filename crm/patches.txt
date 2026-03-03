@@ -20,3 +20,5 @@ crm.patches.v1_0.add_remember_me_field
 crm.patches.v1_0.update_property_code_constraints
 crm.patches.v1_0.add_fields_in_assignment_rule
 crm.patches.v1_0.add_fb_lead_source
+crm.patches.v1_0.migrate_transaction_sale_to_sold
+crm.patches.v1_0.migrate_transaction_rent_to_rented

@@ -179,6 +179,12 @@ def create_transaction() -> dict[str, Any]:
 	if not frappe.db.exists("Property", data["property"]):
 		frappe.throw(_("Property not found"), frappe.DoesNotExistError)
 
+	if data["transaction_type"] not in ("Sold", "Rented"):
+		frappe.throw(
+			_("Transaction type must be Sold or Rented."),
+			frappe.ValidationError,
+		)
+
 	doc = frappe.get_doc(
 		{
 			"doctype": "Property Transaction Log",
@@ -187,7 +193,7 @@ def create_transaction() -> dict[str, Any]:
 			"customer": data.get("customer"),
 			"transaction_date": data.get("transaction_date") or today(),
 			"transaction_type": data["transaction_type"],
-			"rent_type": data.get("rent_type") if data["transaction_type"] == "Rent" else None,
+			"rent_type": data.get("rent_type") if data["transaction_type"] == "Rented" else None,
 			"amount": data.get("amount"),
 			"currency": data.get("currency"),
 			"notes": data.get("notes"),
@@ -195,10 +201,10 @@ def create_transaction() -> dict[str, Any]:
 	)
 	doc.insert(ignore_permissions=True)
 
-	# If transaction type is Sale, mark property as sold
-	if data["transaction_type"] == "Sale":
+	# If transaction type is Sold, mark property as sold
+	if data["transaction_type"] == "Sold":
 		frappe.db.set_value("Property", data["property"], "is_sold", 1)
-	elif data["transaction_type"] == "Rent":
+	elif data["transaction_type"] == "Rented":
 		frappe.db.set_value("Property", data["property"], "is_rented", 1)
 		if data.get("rent_type"):
 			frappe.db.set_value("Property", data["property"], "rent_type", data.get("rent_type"))
@@ -207,7 +213,7 @@ def create_transaction() -> dict[str, Any]:
 	return _serialize_transaction(doc, detail=True)
 
 
-@frappe.whitelist()
+@frappe.whitelist(allow_guest=False)
 @utils.require_jwt()
 def get_transaction(transaction_id: str) -> dict[str, Any]:
 	"""Get a single transaction log."""
