@@ -15,6 +15,13 @@
 * **API (`properties.py`)**:
   * Added logic to map and copy verified agencies for Off-Plan properties (`verified_agencies`).
 
-## 3. Testing
-* **Transactions (`test_transactions.py`)**: Added a new test `test_create_rent_transaction_and_is_rented` to verify the creation of rent transactions perfectly updates the `is_rented` flag and `rent_type` property fields.
+## 3. Sale → Sold and Filter UI Logic
+* **Transaction Type**: Renamed `Sale` to `Sold` across Property Transaction Log doctype, API, and tests. Migration patch updates existing records.
+* **Rent Type**: Added `Daily` option to `rent_type` (Property and Property Transaction Log).
+* **API Filter Logic (`properties.py`)**:
+  * **Buy listings**: `completion_status` (All/Ready/Off-Plan) applies; `is_sold` filter available; `is_rented` hidden in UI.
+  * **Rent listings**: `is_rented` and `rent_type` (Daily/Weekly/Monthly/Yearly) filters; `completion_status` and `is_sold` hidden in UI.
+
+## 4. Testing
+* **Transactions (`test_transactions.py`)**: Added a new test `test_create_rent_transaction_and_is_rented` to verify the creation of rent transactions perfectly updates the `is_rented` flag and `rent_type` property fields. Updated assertions for `Sold` (was `Sale`).
 * **Agencies (`test_off_plan_agencies.py`)**: Updated the test assertions to match the new `Off-Plan` casing.

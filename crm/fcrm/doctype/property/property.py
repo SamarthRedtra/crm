@@ -5,7 +5,7 @@ from datetime import datetime
 import frappe
 from frappe import _
 from frappe.model.document import Document
-from frappe.utils import cint
+from frappe.utils import cint, today
 from crm.api.redtra.utils import get_mandate_agent_verification
 
 
@@ -51,7 +51,7 @@ class Property(Document):
 		property_category: DF.Literal["Residential", "Commercial", "Mixed Use"]
 		property_code: DF.Data | None
 		property_type: DF.Literal["Apartment", "Villa", "Office", "Shop", "Plot", "Other"]
-		rent_type: DF.Literal["Weekly", "Monthly", "Yearly"]
+		rent_type: DF.Literal["", "Weekly", "Monthly", "Yearly"]
 		state: DF.Data | None
 		status: DF.Literal["Draft", "Under Verification", "Active", "Inactive"]
 		title: DF.Data
@@ -70,14 +70,48 @@ class Property(Document):
 
 	def before_validate(self):
 		self._set_property_code()
+		if self.listing_type == "Buy":
+			self.rent_type = ""
+
+	RESIDENTIAL_TYPES = frozenset(
+		{
+			"Apartment", "Villa", "Townhouse", "Penthouse", "Villa Compound", "Hotel Apartment",
+			"Land", "Floor", "Building", "Plot", "Other",  # Plot, Other for backward compatibility
+		}
+	)
+	COMMERCIAL_TYPES = frozenset(
+		{
+			"Office", "Shop", "Warehouse", "Labour Camp", "Villa", "Bulk Unit", "Land", "Floor",
+			"Building", "Factory", "Industrial Land", "Mixed Use Land", "Showroom", "Other Commercial",
+			"Plot", "Other",  # Plot, Other for backward compatibility
+		}
+	)
 
 	def validate(self):
 		self._validate_price()
 		self._validate_coordinates()
+		self._validate_property_type_for_category()
 		self._validate_status_transition()
 		self._ensure_active_developer()
 		self._ensure_verified_agent()
 		self._enforce_property_code_rules()
+
+	def _validate_property_type_for_category(self):
+		if not self.property_type or not self.property_category:
+			return
+		if self.property_category == "Residential":
+			allowed = self.RESIDENTIAL_TYPES
+		elif self.property_category == "Commercial":
+			allowed = self.COMMERCIAL_TYPES
+		else:
+			return  # Legacy or unknown category, skip
+		if self.property_type not in allowed:
+			frappe.throw(
+				_("Property type {0} is not valid for category {1}.").format(
+					frappe.bold(self.property_type),
+					frappe.bold(self.property_category),
+				)
+			)
 
 	def _set_property_code(self):
 		if not self.property_code:
@@ -182,4 +216,52 @@ class Property(Document):
 					agents_display,
 				)
 			)
+
+
+@frappe.whitelist()
+def create_transaction_from_mark(
+	property: str,
+	agent: str,
+	transaction_type: str,
+	amount: float | None = None,
+	currency: str | None = None,
+	customer: str | None = None,
+	rent_type: str | None = None,
+	notes: str | None = None,
+) -> dict:
+	"""Create a Property Transaction Log when marking property as sold/rented from the form."""
+	if not frappe.db.exists("Property", property):
+		frappe.throw(_("Property not found"), frappe.DoesNotExistError)
+	if not frappe.db.exists("Agent", agent):
+		frappe.throw(_("Agent not found"), frappe.DoesNotExistError)
+	if transaction_type not in ("Sold", "Rented"):
+		frappe.throw(_("Transaction type must be Sold or Rented"))
+
+	prop = frappe.get_cached_doc("Property", property)
+	currency = currency or prop.currency
+
+	doc = frappe.get_doc(
+		{
+			"doctype": "Property Transaction Log",
+			"property": property,
+			"agent": agent,
+			"customer": customer,
+			"transaction_date": today(),
+			"transaction_type": transaction_type,
+			"rent_type": rent_type if transaction_type == "Rented" else None,
+			"amount": amount,
+			"currency": currency,
+			"notes": notes,
+		}
+	)
+	doc.insert(ignore_permissions=True)
+
+	if transaction_type == "Sold":
+		frappe.db.set_value("Property", property, "is_sold", 1)
+	elif transaction_type == "Rented":
+		frappe.db.set_value("Property", property, "is_rented", 1)
+		if rent_type:
+			frappe.db.set_value("Property", property, "rent_type", rent_type)
+
+	return {"name": doc.name}
 

@@ -64,7 +64,7 @@ The `items` array contains enriched property metadata and calculated metrics.
       "area_sqft": 929,
       "property_image": "/files/villa_01.jpg",
       "currency": "AED",
-      "transaction_type": "Sale"
+      "transaction_type": "Sold"
     }
   ],
   "page": 1,

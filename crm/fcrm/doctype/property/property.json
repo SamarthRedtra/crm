@@ -83,7 +83,7 @@
    "fieldtype": "Select",
    "in_standard_filter": 1,
    "label": "Property Type",
-   "options": "Apartment\nVilla\nOffice\nShop\nPlot\nOther",
+   "options": "Apartment\nVilla\nTownhouse\nPenthouse\nVilla Compound\nHotel Apartment\nLand\nFloor\nBuilding",
    "reqd": 1
   },
   {
@@ -91,7 +91,7 @@
    "fieldtype": "Select",
    "in_standard_filter": 1,
    "label": "Property Category",
-   "options": "Residential\nCommercial\nMixed Use"
+   "options": "Residential\nCommercial"
   },
   {
    "default": "Draft",
@@ -325,7 +325,7 @@
    "in_standard_filter": 1,
    "label": "Rent Type",
    "mandatory_depends_on": "eval:doc.listing_type == 'Rent'",
-   "options": "Weekly\nMonthly\nYearly"
+   "options": "\nDaily\nWeekly\nMonthly\nYearly"
   },
   {
    "fieldname": "completion_status",
@@ -352,7 +352,7 @@
   }
  ],
  "make_attachments_public": 1,
- "modified": "2026-03-03 10:45:54.524839",
+ "modified": "2026-03-03 17:48:01.052371",
  "modified_by": "Administrator",
  "module": "FCRM",
  "name": "Property",

@@ -62,15 +62,15 @@
             "in_list_view": 1,
             "in_standard_filter": 1,
             "label": "Transaction Type",
-            "options": "Sale\nRent",
+            "options": "Sold\nRented",
             "reqd": 1
         },
         {
-            "depends_on": "eval:doc.transaction_type == 'Rent'",
+            "depends_on": "eval:doc.transaction_type == 'Rented'",
             "fieldname": "rent_type",
             "fieldtype": "Select",
             "label": "Rent Type",
-            "options": "Weekly\nMonthly\nYearly"
+            "options": "Daily\nWeekly\nMonthly\nYearly"
         },
         {
             "fieldname": "amount",

@@ -139,6 +139,7 @@ def register_routes():
 			endpoint=agencies.get_agency_profile,
 		),
 		Rule("/agents/<string:agent_id>/reviews", methods=["GET"], endpoint=reviews.get_agent_reviews),
+		Rule("/agents/<string:agent_id>/reviews", methods=["POST"], endpoint=reviews.submit_agent_review),
 		Rule("/agents/availability", methods=["POST"], endpoint=agents.update_agent_availability),
 		Rule(
 			"/appointments/<string:appointment_id>/review",
