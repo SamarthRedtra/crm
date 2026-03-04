@@ -48,10 +48,10 @@ class Property(Document):
 		pincode: DF.Data | None
 		price: DF.Currency
 		primary_image: DF.AttachImage | None
-		property_category: DF.Literal["Residential", "Commercial", "Mixed Use"]
+		property_category: DF.Literal["Residential", "Commercial"]
 		property_code: DF.Data | None
-		property_type: DF.Literal["Apartment", "Villa", "Office", "Shop", "Plot", "Other"]
-		rent_type: DF.Literal["", "Weekly", "Monthly", "Yearly"]
+		property_type: DF.Literal["Apartment", "Villa", "Townhouse", "Penthouse", "Villa Compound", "Hotel Apartment", "Land", "Floor", "Building"]
+		rent_type: DF.Literal["", "Daily", "Weekly", "Monthly", "Yearly"]
 		state: DF.Data | None
 		status: DF.Literal["Draft", "Under Verification", "Active", "Inactive"]
 		title: DF.Data
