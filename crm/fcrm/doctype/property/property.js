@@ -107,7 +107,7 @@ function _set_completion_status_options(frm) {
 	if (!frm.fields_dict.completion_status) return;
 
 	const is_sold = frm.doc.is_sold;
-	const options = is_sold ? "All\nReady\nOff-Plan" : "All\nReady";
+	const options = is_sold ? "All\nReady\nOff-Plan" : "All\nReady\nOff-Plan";
 	frm.set_df_property("completion_status", "options", options);
 
 	// If current value is Off-Plan but we're hiding it, reset to All
