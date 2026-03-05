@@ -63,14 +63,17 @@ def list_agents() -> dict[str, Any]:
 		frappe.set_user(original_user)
 	total_pages = (total_items + page_size - 1) // page_size if page_size else 0
 
-	property_counts = _get_agent_property_counts([row["name"] for row in items])
+	agent_ids = [row["name"] for row in items]
+	property_counts = _get_agent_property_counts(agent_ids)
+	leads_counts = _get_agent_leads_counts(agent_ids)
 
 	return {
 		"items": [
-			{
-				**_serialize_agent_summary(row),
+			_serialize_agent_summary({
+				**row,
 				"property_count": property_counts.get(row["name"], 0),
-			}
+				"leads": leads_counts.get(row["name"], 0),
+			})
 			for row in items
 		],
 		"page": page,
@@ -262,6 +265,9 @@ def _serialize_agent_summary(row: dict[str, Any]) -> dict[str, Any]:
 		"whatsapp_link": whatsapp_link,
 		"profile_image": row.get("profile_image"),
 		"agency": agency_details,
+		# Optional fields that might be added by batch processing
+		"property_count": row.get("property_count", 0),
+		"leads": row.get("leads", 0),
 	}
 
 
@@ -355,23 +361,45 @@ def _get_agent_property_counts(agent_ids: list[str]) -> dict[str, int]:
 		return {}
 
 	counts: dict[str, int] = {}
-	if agent_ids:
-		# Use raw SQL query to avoid permission issues for public API
-		placeholders = ",".join(["%s"] * len(agent_ids))
-		result = frappe.db.sql(
-			f"""
-			SELECT agent, COUNT(name) as total
-			FROM `tabProperty`
-			WHERE status = 'Active' AND agent IN ({placeholders})
-			GROUP BY agent
-			""",
-			tuple(agent_ids),
-			as_dict=True,
-		)
-		for row in result:
-			agent = row.get("agent")
-			if agent:
-				counts[agent] = int(row.get("total") or 0)
+	# Use raw SQL query to avoid permission issues for public API
+	placeholders = ",".join(["%s"] * len(agent_ids))
+	result = frappe.db.sql(
+		f"""
+		SELECT agent, COUNT(name) as total
+		FROM `tabProperty`
+		WHERE status = 'Active' AND agent IN ({placeholders})
+		GROUP BY agent
+		""",
+		tuple(agent_ids),
+		as_dict=True,
+	)
+	for row in result:
+		agent = row.get("agent")
+		if agent:
+			counts[agent] = int(row.get("total") or 0)
+	return counts
+
+
+def _get_agent_leads_counts(agent_ids: list[str]) -> dict[str, int]:
+	if not agent_ids:
+		return {}
+
+	counts: dict[str, int] = {}
+	placeholders = ",".join(["%s"] * len(agent_ids))
+	result = frappe.db.sql(
+		f"""
+		SELECT agent, COUNT(name) as total
+		FROM `tabProperty Appointment`
+		WHERE agent IN ({placeholders})
+		GROUP BY agent
+		""",
+		tuple(agent_ids),
+		as_dict=True,
+	)
+	for row in result:
+		agent = row.get("agent")
+		if agent:
+			counts[agent] = int(row.get("total") or 0)
 	return counts
 
 
@@ -383,9 +411,10 @@ def _build_whatsapp_link(number: str | None) -> str | None:
 
 
 def _get_agent_activity_stats(agent_id: str) -> dict[str, Any]:
+	# Count properties marked as sold for this agent
 	sales_count = frappe.db.count(
-		"Property",
-		{"status": "Active", "agent": agent_id, "listing_type": "Buy"},
+		"Property", 
+		{"agent": agent_id, "is_sold": 1}
 	)
 	leads_count = frappe.db.count("Property Appointment", {"agent": agent_id})
 	return {"sales": sales_count, "leads": leads_count}

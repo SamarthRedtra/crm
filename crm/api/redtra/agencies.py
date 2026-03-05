@@ -161,10 +161,20 @@ def list_agency_agents(agency_id: str) -> dict[str, Any]:
 		frappe.set_user(original_user)
 	total_pages = (total_items + page_size - 1) // page_size if page_size else 0
 
+	agent_ids = [row["name"] for row in items]
 	from . import agents
+	property_counts = agents._get_agent_property_counts(agent_ids)
+	leads_counts = agents._get_agent_leads_counts(agent_ids)
 
 	return {
-		"items": [agents._serialize_agent_summary(row) for row in items],
+		"items": [
+			agents._serialize_agent_summary({
+				**row,
+				"property_count": property_counts.get(row["name"], 0),
+				"leads": leads_counts.get(row["name"], 0),
+			})
+			for row in items
+		],
 		"page": page,
 		"page_size": page_size,
 		"total_items": total_items,
