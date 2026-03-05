@@ -222,7 +222,8 @@ def get_agent_rating_stats(agent_id: str) -> dict[str, Any]:
 			"customer",
 		],
 		order_by="creation desc",
-		limit=10,  # Get recent reviews for display
+		limit=10,
+		ignore_permissions=True,
 	)
 	
 	if not reviews:
@@ -258,6 +259,7 @@ def get_agent_rating_stats(agent_id: str) -> dict[str, Any]:
 				"status": ["in", ["Submitted", "Published"]],
 			},
 			fields=["overall_rating", "agent_rating", "property_rating"],
+			ignore_permissions=True,
 		)
 		total_count = len(all_reviews)
 		overall_sum = sum(float(r.get("overall_rating") or 0) for r in all_reviews)
@@ -293,8 +295,15 @@ def get_agent_reviews(agent_id: str) -> dict[str, Any]:
 	
 	Returns paginated list of reviews with rating statistics.
 	"""
+	# Resolve agent ID (could be name or BRN)
+	from . import agents
+	current_agent_id = agent_id
+	agent_name = frappe.db.get_value("Agent", {"dfd_registration_id": agent_id}, "name")
+	if agent_name:
+		current_agent_id = agent_name
+	
 	# Verify agent exists
-	if not frappe.db.exists("Agent", agent_id):
+	if not frappe.db.exists("Agent", current_agent_id):
 		frappe.throw(_("Agent not found."), frappe.DoesNotExistError)
 	
 	# Get pagination parameters
@@ -304,13 +313,13 @@ def get_agent_reviews(agent_id: str) -> dict[str, Any]:
 	start = (page - 1) * page_size
 	
 	# Get rating statistics (includes recent reviews)
-	rating_stats = get_agent_rating_stats(agent_id)
+	rating_stats = get_agent_rating_stats(current_agent_id)
 	
 	# Get paginated reviews list
 	reviews = frappe.get_all(
 		"Review and Rating",
 		filters={
-			"agent": agent_id,
+			"agent": current_agent_id,
 			"status": ["in", ["Submitted", "Published"]],
 		},
 		fields=[
@@ -327,6 +336,7 @@ def get_agent_reviews(agent_id: str) -> dict[str, Any]:
 		order_by="creation desc",
 		start=start,
 		limit=page_size,
+		ignore_permissions=True,
 	)
 	
 	# Get total count for pagination
@@ -386,6 +396,7 @@ def get_property_rating_stats(property_id: str) -> dict[str, Any]:
 		],
 		order_by="creation desc",
 		limit=10,
+		ignore_permissions=True,
 	)
 	
 	if not reviews:
@@ -405,6 +416,7 @@ def get_property_rating_stats(property_id: str) -> dict[str, Any]:
 			"status": ["in", ["Submitted", "Published"]],
 		},
 		fields=["overall_rating", "agent_rating", "property_rating"],
+		ignore_permissions=True,
 	)
 	total_count = len(all_reviews)
 	
@@ -469,6 +481,7 @@ def get_property_reviews(property_id: str) -> dict[str, Any]:
 		order_by="creation desc",
 		start=start,
 		limit=page_size,
+		ignore_permissions=True,
 	)
 	
 	total_count = rating_stats.get("total_reviews", 0)

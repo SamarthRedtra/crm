@@ -39,7 +39,7 @@ def list_transactions() -> dict[str, Any]:
 					"total_items": 0,
 					"total_pages": 0,
 				}
-			filters.append(TXN.agent == agent_name)
+			filters.append((TXN.agent == agent_name) | (PROP.agent == agent_name))
 		elif is_system_manager:
 			# Optional agent filter for System Manager
 			agent_filter = (frappe.form_dict.get("agent") or "").strip()
@@ -179,11 +179,14 @@ def create_transaction() -> dict[str, Any]:
 	if not frappe.db.exists("Property", data["property"]):
 		frappe.throw(_("Property not found"), frappe.DoesNotExistError)
 
-	if data["transaction_type"] not in ("Sold", "Rented"):
+	if data["transaction_type"] not in ("Sold", "Rented", "Sale", "Rent"):
 		frappe.throw(
-			_("Transaction type must be Sold or Rented."),
+			_("Transaction type must be Sold or Rented (or Sale/Rent)."),
 			frappe.ValidationError,
 		)
+
+	# Get property details for defaulting amount/currency if missing
+	prop_data = frappe.db.get_value("Property", data["property"], ["price", "currency"], as_dict=True)
 
 	doc = frappe.get_doc(
 		{
@@ -193,18 +196,18 @@ def create_transaction() -> dict[str, Any]:
 			"customer": data.get("customer"),
 			"transaction_date": data.get("transaction_date") or today(),
 			"transaction_type": data["transaction_type"],
-			"rent_type": data.get("rent_type") if data["transaction_type"] == "Rented" else None,
-			"amount": data.get("amount"),
-			"currency": data.get("currency"),
+			"rent_type": data.get("rent_type") if data["transaction_type"] in ("Rented", "Rent") else None,
+			"amount": data.get("amount") or prop_data.get("price"),
+			"currency": data.get("currency") or prop_data.get("currency"),
 			"notes": data.get("notes"),
 		}
 	)
 	doc.insert(ignore_permissions=True)
 
-	# If transaction type is Sold, mark property as sold
-	if data["transaction_type"] == "Sold":
+	# If transaction type is Sold/Sale, mark property as sold
+	if data["transaction_type"] in ("Sold", "Sale"):
 		frappe.db.set_value("Property", data["property"], "is_sold", 1)
-	elif data["transaction_type"] == "Rented":
+	elif data["transaction_type"] in ("Rented", "Rent"):
 		frappe.db.set_value("Property", data["property"], "is_rented", 1)
 		if data.get("rent_type"):
 			frappe.db.set_value("Property", data["property"], "rent_type", data.get("rent_type"))
