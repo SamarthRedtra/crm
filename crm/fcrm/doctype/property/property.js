@@ -52,8 +52,8 @@ frappe.ui.form.on("Property", {
 
 function _show_transaction_dialog(frm, transaction_type) {
 	const fields = [
-		{ fieldname: "amount", fieldtype: "Currency", label: __("Amount") },
-		{ fieldname: "currency", fieldtype: "Link", label: __("Currency"), options: "Currency", default: frm.doc.currency },
+		{ fieldname: "amount", fieldtype: "Currency", label: __("Amount"), default: frm.doc.price },
+		{ fieldname: "currency", fieldtype: "Link", label: __("Currency"), options: "Currency", default: frm.doc.currency, default: frm.doc.currency },
 		{ fieldname: "customer", fieldtype: "Link", label: __("Customer"), options: "Customer" },
 	];
 
@@ -63,6 +63,12 @@ function _show_transaction_dialog(frm, transaction_type) {
 			fieldtype: "Select",
 			label: __("Rent Type"),
 			options: "Daily\nWeekly\nMonthly\nYearly",
+		});
+		fields.push({
+			fieldname: "start_date",
+			fieldtype: "Date",
+			label: __("Start Date"),
+			default: frappe.datetime.get_today(),
 		});
 	}
 
@@ -81,6 +87,7 @@ function _show_transaction_dialog(frm, transaction_type) {
 					currency: values.currency || frm.doc.currency,
 					customer: values.customer || null,
 					rent_type: transaction_type === "Rented" ? values.rent_type : null,
+					start_date: transaction_type === "Rented" ? values.start_date : null,
 					notes: values.notes || null,
 				},
 				callback(r) {
@@ -88,6 +95,10 @@ function _show_transaction_dialog(frm, transaction_type) {
 						frm._original_is_sold = frm.doc.is_sold;
 						frm._original_is_rented = frm.doc.is_rented;
 						frappe.show_alert({ message: __("Transaction created"), indicator: "green" });
+
+						if (r.message && r.message.property_modified) {
+							frm.doc.modified = r.message.property_modified;
+						}
 						frm.save();
 					} else {
 						frm.doc.is_sold = frm._original_is_sold || 0;

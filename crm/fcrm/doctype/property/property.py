@@ -227,6 +227,7 @@ def create_transaction_from_mark(
 	currency: str | None = None,
 	customer: str | None = None,
 	rent_type: str | None = None,
+	start_date: str | None = None,
 	notes: str | None = None,
 ) -> dict:
 	"""Create a Property Transaction Log when marking property as sold/rented from the form."""
@@ -234,8 +235,22 @@ def create_transaction_from_mark(
 		frappe.throw(_("Property not found"), frappe.DoesNotExistError)
 	if not frappe.db.exists("Agent", agent):
 		frappe.throw(_("Agent not found"), frappe.DoesNotExistError)
-	if transaction_type not in ("Sold", "Rented"):
-		frappe.throw(_("Transaction type must be Sold or Rented"))
+	if transaction_type not in ("Sold", "Rented", "Sale", "Rent"):
+		frappe.throw(_("Transaction type must be Sold or Rented (or Sale/Rent)"))
+
+	# Resolve transaction type based on doctype options
+	options = frappe.get_meta("Property Transaction Log").get_field("transaction_type").options or ""
+	options_list = [o.strip() for o in options.split("\n") if o.strip()]
+	
+	resolved_type = transaction_type
+	if resolved_type == "Sold" and "Sale" in options_list:
+		resolved_type = "Sale"
+	elif resolved_type == "Sale" and "Sold" in options_list:
+		resolved_type = "Sold"
+	elif resolved_type == "Rented" and "Rent" in options_list:
+		resolved_type = "Rent"
+	elif resolved_type == "Rent" and "Rented" in options_list:
+		resolved_type = "Rented"
 
 	prop = frappe.get_cached_doc("Property", property)
 	currency = currency or prop.currency
@@ -247,8 +262,9 @@ def create_transaction_from_mark(
 			"agent": agent,
 			"customer": customer,
 			"transaction_date": today(),
-			"transaction_type": transaction_type,
-			"rent_type": rent_type if transaction_type == "Rented" else None,
+			"transaction_type": resolved_type,
+			"rent_type": rent_type if transaction_type in ("Rented", "Rent") else None,
+			"start_date": start_date if transaction_type in ("Rented", "Rent") else None,
 			"amount": amount,
 			"currency": currency,
 			"notes": notes,
@@ -256,12 +272,15 @@ def create_transaction_from_mark(
 	)
 	doc.insert(ignore_permissions=True)
 
-	if transaction_type == "Sold":
+	if transaction_type in ("Sold", "Sale"):
 		frappe.db.set_value("Property", property, "is_sold", 1)
-	elif transaction_type == "Rented":
+	elif transaction_type in ("Rented", "Rent"):
 		frappe.db.set_value("Property", property, "is_rented", 1)
 		if rent_type:
 			frappe.db.set_value("Property", property, "rent_type", rent_type)
 
-	return {"name": doc.name}
+	return {
+		"name": doc.name,
+		"property_modified": frappe.db.get_value("Property", property, "modified"),
+	}
 
