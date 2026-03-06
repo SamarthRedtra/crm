@@ -95,6 +95,38 @@ const routes = [
     component: () => import('@/pages/Welcome.vue'),
   },
   {
+    alias: '/properties',
+    path: '/properties/view/:viewType?',
+    name: 'Properties',
+    component: () => import('@/pages/Properties.vue'),
+  },
+  {
+    path: '/properties/:propertyId',
+    name: 'Property',
+    component: () => import(`@/pages/${handleMobileView('Property')}.vue`),
+    props: true,
+  },
+  {
+    path: '/data-import',
+    name: 'DataImportList',
+    component: () => import('@/pages/DataImport.vue'),
+  },
+  {
+    path: '/data-import/:doctype/:importName?',
+    name: 'Data Import',
+    component: () => import('@/pages/DataImport.vue'),
+  },
+  {
+    path: '/agents/:agentId',
+    name: 'Agent',
+    component: () => import('@/pages/Welcome.vue'),
+  },
+  {
+    path: '/agencies/:agencyId',
+    name: 'Agency',
+    component: () => import('@/pages/Welcome.vue'),
+  },
+  {
     path: '/:invalidpath',
     name: 'Invalid Page',
     component: () => import('@/pages/InvalidPage.vue'),
@@ -137,11 +169,11 @@ router.beforeEach(async (to, from, next) => {
     window.location.href = '/login?redirect-to=/crm'
   } else if (to.matched.length === 0) {
     next({ name: 'Invalid Page' })
-  } else if (['Deal', 'Lead'].includes(to.name) && !to.hash) {
-    let storageKey = to.name === 'Deal' ? 'lastDealTab' : 'lastLeadTab'
+  } else if (['Deal', 'Lead', 'Property'].includes(to.name) && !to.hash) {
+    let storageKey = `last${to.name}Tab`
     const activeTab = localStorage.getItem(storageKey) || 'activity'
     const hash = '#' + activeTab
-    next({ ...to, hash })
+    next({ name: to.name, params: to.params, query: to.query, hash })
   } else {
     next()
   }

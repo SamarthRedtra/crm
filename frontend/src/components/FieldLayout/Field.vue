@@ -32,6 +32,29 @@
       :parentDoctype="doctype"
       :parentFieldname="field.fieldname"
     />
+    <div v-else-if="field.fieldtype === 'Attach Image'" class="space-y-2">
+      <div
+        v-if="data[field.fieldname]"
+        class="overflow-hidden rounded border border-outline-gray-modals"
+      >
+        <img
+          :src="data[field.fieldname]"
+          :alt="field.label"
+          class="h-40 w-full object-cover"
+        />
+      </div>
+      <ImageUploader
+        :image_url="data[field.fieldname]"
+        @upload="(url) => fieldChange(url, field)"
+        @remove="() => fieldChange('', field)"
+      />
+    </div>
+    <FileAttachmentInput
+      v-else-if="field.fieldtype === 'Attach'"
+      :modelValue="data[field.fieldname]"
+      :uploadLabel="__('Attach')"
+      @change="(url) => fieldChange(url, field)"
+    />
     <FormControl
       v-else-if="field.fieldtype === 'Select'"
       type="select"
@@ -220,7 +243,9 @@
 </template>
 <script setup>
 import Password from '@/components/Controls/Password.vue'
+import FileAttachmentInput from '@/components/Controls/FileAttachmentInput.vue'
 import FormattedInput from '@/components/Controls/FormattedInput.vue'
+import ImageUploader from '@/components/Controls/ImageUploader.vue'
 import EditIcon from '@/components/Icons/EditIcon.vue'
 import IndicatorIcon from '@/components/Icons/IndicatorIcon.vue'
 import UserAvatar from '@/components/UserAvatar.vue'

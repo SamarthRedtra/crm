@@ -1,5 +1,6 @@
 import IndicatorIcon from '@/components/Icons/IndicatorIcon.vue'
 import { capture } from '@/telemetry'
+import { PROPERTY_STATUS_META } from '@/utils/propertyFields'
 import { parseColor } from '@/utils'
 import { defineStore } from 'pinia'
 import { createListResource } from 'frappe-ui'
@@ -9,6 +10,12 @@ export const statusesStore = defineStore('crm-statuses', () => {
   let leadStatusesByName = reactive({})
   let dealStatusesByName = reactive({})
   let communicationStatusesByName = reactive({})
+  const propertyStatusesByName = reactive(
+    Object.keys(PROPERTY_STATUS_META).reduce((statuses, name) => {
+      statuses[name] = PROPERTY_STATUS_META[name]
+      return statuses
+    }, {}),
+  )
 
   const leadStatuses = createListResource({
     doctype: 'CRM Lead Status',
@@ -70,6 +77,13 @@ export const statusesStore = defineStore('crm-statuses', () => {
     return dealStatusesByName[name]
   }
 
+  function getPropertyStatus(name) {
+    if (!name) {
+      name = Object.keys(propertyStatusesByName)[0]
+    }
+    return propertyStatusesByName[name]
+  }
+
   function getCommunicationStatus(name) {
     if (!name) {
       name = communicationStatuses.data[0].name
@@ -78,8 +92,12 @@ export const statusesStore = defineStore('crm-statuses', () => {
   }
 
   function statusOptions(doctype, statuses = [], triggerStatusChange = null) {
-    let statusesByName =
-      doctype == 'deal' ? dealStatusesByName : leadStatusesByName
+    let statusesByName = leadStatusesByName
+    if (doctype == 'deal') {
+      statusesByName = dealStatusesByName
+    } else if (doctype == 'property') {
+      statusesByName = propertyStatusesByName
+    }
 
     if (statuses?.length) {
       statusesByName = statuses.reduce((acc, status) => {
@@ -109,6 +127,7 @@ export const statusesStore = defineStore('crm-statuses', () => {
     communicationStatuses,
     getLeadStatus,
     getDealStatus,
+    getPropertyStatus,
     getCommunicationStatus,
     statusOptions,
   }

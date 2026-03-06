@@ -13,7 +13,7 @@
           v-if="doc"
           :options="
             statusOptions(
-              'lead',
+              'property',
               document.statuses?.length
                 ? document.statuses
                 : document._statuses,
@@ -28,7 +28,7 @@
               :iconRight="open ? 'chevron-up' : 'chevron-down'"
             >
               <template #prefix>
-                <IndicatorIcon :class="getLeadStatus(doc.status).color" />
+                <IndicatorIcon :class="getPropertyStatusColor(doc.status)" />
               </template>
             </Button>
           </template>
@@ -40,7 +40,7 @@
     v-if="doc.name"
     class="flex h-12 items-center justify-between gap-2 border-b px-3 py-2.5"
   >
-    <AssignTo v-model="assignees.data" doctype="CRM Lead" :docname="leadId" />
+    <AssignTo v-model="assignees.data" doctype="Property" :docname="propertyId" />
     <div class="flex items-center gap-2">
       <CustomActions
         v-if="document._actions?.length"
@@ -50,40 +50,39 @@
         v-if="document.actions?.length"
         :actions="document.actions"
       />
-      <Button
-        :label="__('Convert')"
-        variant="solid"
-        @click="showConvertToDealModal = true"
-      />
     </div>
+  </div>
+  <div
+    v-if="doc.name && availabilityBadges.length"
+    class="flex items-center gap-2 border-b px-3 py-2"
+  >
+    <Badge
+      v-for="badge in availabilityBadges"
+      :key="badge.label"
+      :label="badge.label"
+      :theme="badge.theme"
+      variant="subtle"
+    />
   </div>
   <div v-if="doc.name" class="flex h-full overflow-hidden">
     <Tabs as="div" v-model="tabIndex" :tabs="tabs" class="overflow-auto">
       <template #tab-panel="{ tab }">
         <div v-if="tab.name == 'Details'">
-          <SLASection
-            v-if="doc.sla_status"
-            v-model="doc"
-            @updateField="updateField"
-          />
-          <div
-            v-if="sections.data"
-            class="flex flex-1 flex-col justify-between overflow-hidden"
-          >
-            <SidePanelLayout
-              :sections="sections.data"
-              doctype="CRM Lead"
-              :docname="leadId"
-              @reload="sections.reload"
+          <div v-if="doc.name" class="flex flex-1 flex-col justify-between overflow-hidden">
+            <PropertySidebar
+              :docname="propertyId"
+              :doc="doc"
               @afterFieldChange="reloadAssignees"
             />
           </div>
         </div>
         <Activities
           v-else
-          doctype="CRM Lead"
-          :docname="leadId"
+          doctype="Property"
+          :docname="propertyId"
           :tabs="tabs"
+          :dataComponent="PropertyDataFields"
+          :disableActions="true"
           v-model:reload="reload"
           v-model:tabIndex="tabIndex"
           @beforeSave="saveChanges"
@@ -97,122 +96,44 @@
     :errorTitle="errorTitle"
     :errorMessage="errorMessage"
   />
-  <Dialog
-    v-model="showConvertToDealModal"
-    :options="{
-      title: __('Convert to Deal'),
-      size: 'xl',
-      actions: [
-        {
-          label: __('Convert'),
-          variant: 'solid',
-          onClick: convertToDeal,
-        },
-      ],
-    }"
-  >
-    <template #body-content>
-      <div class="mb-4 flex items-center gap-2 text-ink-gray-5">
-        <OrganizationsIcon class="h-4 w-4" />
-        <label class="block text-base">{{ __('Organization') }}</label>
-      </div>
-      <div class="ml-6">
-        <div class="flex items-center justify-between text-base">
-          <div>{{ __('Choose Existing') }}</div>
-          <Switch v-model="existingOrganizationChecked" />
-        </div>
-        <Link
-          v-if="existingOrganizationChecked"
-          class="form-control mt-2.5"
-          variant="outline"
-          size="md"
-          :value="existingOrganization"
-          doctype="CRM Organization"
-          @change="(data) => (existingOrganization = data)"
-        />
-        <div v-else class="mt-2.5 text-base">
-          {{
-            __(
-              'New organization will be created based on the data in details section',
-            )
-          }}
-        </div>
-      </div>
-
-      <div class="mb-4 mt-6 flex items-center gap-2 text-ink-gray-5">
-        <ContactsIcon class="h-4 w-4" />
-        <label class="block text-base">{{ __('Contact') }}</label>
-      </div>
-      <div class="ml-6">
-        <div class="flex items-center justify-between text-base">
-          <div>{{ __('Choose Existing') }}</div>
-          <Switch v-model="existingContactChecked" />
-        </div>
-        <Link
-          v-if="existingContactChecked"
-          class="form-control mt-2.5"
-          variant="outline"
-          size="md"
-          :value="existingContact"
-          doctype="Contact"
-          @change="(data) => (existingContact = data)"
-        />
-        <div v-else class="mt-2.5 text-base">
-          {{ __("New contact will be created based on the person's details") }}
-        </div>
-      </div>
-    </template>
-  </Dialog>
   <DeleteLinkedDocModal
     v-if="showDeleteLinkedDocModal"
     v-model="showDeleteLinkedDocModal"
-    :doctype="'CRM Lead'"
-    :docname="leadId"
-    name="Leads"
+    :doctype="'Property'"
+    :docname="propertyId"
+    name="Properties"
   />
 </template>
+
 <script setup>
 import DeleteLinkedDocModal from '@/components/DeleteLinkedDocModal.vue'
 import ErrorPage from '@/components/ErrorPage.vue'
 import Icon from '@/components/Icon.vue'
+import PropertyDataFields from '@/components/Property/PropertyDataFields.vue'
+import PropertySidebar from '@/components/Property/PropertySidebar.vue'
 import DetailsIcon from '@/components/Icons/DetailsIcon.vue'
 import ActivityIcon from '@/components/Icons/ActivityIcon.vue'
-import EmailIcon from '@/components/Icons/EmailIcon.vue'
 import CommentIcon from '@/components/Icons/CommentIcon.vue'
-import PhoneIcon from '@/components/Icons/PhoneIcon.vue'
-import TaskIcon from '@/components/Icons/TaskIcon.vue'
-import NoteIcon from '@/components/Icons/NoteIcon.vue'
 import AttachmentIcon from '@/components/Icons/AttachmentIcon.vue'
-import WhatsAppIcon from '@/components/Icons/WhatsAppIcon.vue'
 import IndicatorIcon from '@/components/Icons/IndicatorIcon.vue'
-import OrganizationsIcon from '@/components/Icons/OrganizationsIcon.vue'
-import ContactsIcon from '@/components/Icons/ContactsIcon.vue'
 import LayoutHeader from '@/components/LayoutHeader.vue'
 import Activities from '@/components/Activities/Activities.vue'
 import AssignTo from '@/components/AssignTo.vue'
-import Link from '@/components/Controls/Link.vue'
-import SidePanelLayout from '@/components/SidePanelLayout.vue'
-import SLASection from '@/components/SLASection.vue'
 import CustomActions from '@/components/CustomActions.vue'
 import { setupCustomizations } from '@/utils'
 import { getView } from '@/utils/view'
 import { getSettings } from '@/stores/settings'
 import { globalStore } from '@/stores/global'
 import { statusesStore } from '@/stores/statuses'
-import { getMeta } from '@/stores/meta'
 import { useDocument } from '@/data/document'
 import {
-  whatsappEnabled,
-  callEnabled,
   isMobileView,
 } from '@/composables/settings'
-import { capture } from '@/telemetry'
 import { useActiveTabManager } from '@/composables/useActiveTabManager'
 import {
-  createResource,
   Dropdown,
+  Badge,
   Tabs,
-  Switch,
   Breadcrumbs,
   call,
   usePageMeta,
@@ -223,13 +144,12 @@ import { useRouter, useRoute } from 'vue-router'
 
 const { brand } = getSettings()
 const { $dialog, $socket } = globalStore()
-const { statusOptions, getLeadStatus } = statusesStore()
-const { doctypeMeta } = getMeta('CRM Lead')
+const { statusOptions, getPropertyStatus } = statusesStore()
 const route = useRoute()
 const router = useRouter()
 
 const props = defineProps({
-  leadId: {
+  propertyId: {
     type: String,
     required: true,
   },
@@ -240,11 +160,21 @@ const errorMessage = ref('')
 const showDeleteLinkedDocModal = ref(false)
 
 const { triggerOnChange, assignees, document, scripts, error } = useDocument(
-  'CRM Lead',
-  props.leadId,
+  'Property',
+  props.propertyId,
 )
 
 const doc = computed(() => document.doc || {})
+const availabilityBadges = computed(() => {
+  let badges = []
+  if (doc.value?.is_sold) {
+    badges.push({ label: __('Sold'), theme: 'red' })
+  }
+  if (doc.value?.is_rented) {
+    badges.push({ label: __('Rented'), theme: 'orange' })
+  }
+  return badges
+})
 
 watch(error, (err) => {
   if (err) {
@@ -272,7 +202,7 @@ watch(
         toast,
         updateField,
         createToast: toast.create,
-        deleteDoc: deleteLead,
+        deleteDoc: deleteProperty,
         call,
       })
       document._actions = s.actions || []
@@ -285,16 +215,16 @@ watch(
 const reload = ref(false)
 
 const breadcrumbs = computed(() => {
-  let items = [{ label: __('Leads'), route: { name: 'Leads' } }]
+  let items = [{ label: __('Properties'), route: { name: 'Properties' } }]
 
   if (route.query.view || route.query.viewType) {
-    let view = getView(route.query.view, route.query.viewType, 'CRM Lead')
+    let view = getView(route.query.view, route.query.viewType, 'Property')
     if (view) {
       items.push({
         label: __(view.label),
         icon: view.icon,
         route: {
-          name: 'Leads',
+          name: 'Properties',
           params: { viewType: route.query.viewType },
           query: { view: route.query.view },
         },
@@ -303,20 +233,15 @@ const breadcrumbs = computed(() => {
   }
 
   items.push({
-    label: title.value,
-    route: { name: 'Lead', params: { leadId: props.leadId } },
+    label: doc.value.title || props.propertyId,
+    route: { name: 'Property', params: { propertyId: props.propertyId } },
   })
   return items
 })
 
-const title = computed(() => {
-  let t = doctypeMeta['CRM Lead']?.title_field || 'name'
-  return doc.value?.[t] || props.leadId
-})
-
 usePageMeta(() => {
   return {
-    title: title.value,
+    title: doc.value.title || props.propertyId,
     icon: brand.favicon,
   }
 })
@@ -335,11 +260,6 @@ const tabs = computed(() => {
       icon: ActivityIcon,
     },
     {
-      name: 'Emails',
-      label: __('Emails'),
-      icon: EmailIcon,
-    },
-    {
       name: 'Comments',
       label: __('Comments'),
       icon: CommentIcon,
@@ -350,43 +270,15 @@ const tabs = computed(() => {
       icon: DetailsIcon,
     },
     {
-      name: 'Calls',
-      label: __('Calls'),
-      icon: PhoneIcon,
-    },
-    {
-      name: 'Tasks',
-      label: __('Tasks'),
-      icon: TaskIcon,
-    },
-    {
-      name: 'Notes',
-      label: __('Notes'),
-      icon: NoteIcon,
-    },
-    {
       name: 'Attachments',
       label: __('Attachments'),
       icon: AttachmentIcon,
-    },
-    {
-      name: 'WhatsApp',
-      label: __('WhatsApp'),
-      icon: WhatsAppIcon,
-      condition: () => whatsappEnabled.value,
     },
   ]
   return tabOptions.filter((tab) => (tab.condition ? tab.condition() : true))
 })
 
-const { tabIndex } = useActiveTabManager(tabs, 'lastLeadTab')
-
-const sections = createResource({
-  url: 'crm.fcrm.doctype.crm_fields_layout.crm_fields_layout.get_sidepanel_sections',
-  cache: ['sidePanelSections', 'CRM Lead'],
-  params: { doctype: 'CRM Lead' },
-  auto: true,
-})
+const { tabIndex } = useActiveTabManager(tabs, 'lastPropertyTab')
 
 function updateField(name, value) {
   value = Array.isArray(name) ? '' : value
@@ -411,52 +303,8 @@ function updateField(name, value) {
   })
 }
 
-function deleteLead() {
+function deleteProperty() {
   showDeleteLinkedDocModal.value = true
-}
-
-// Convert to Deal
-const showConvertToDealModal = ref(false)
-const existingContactChecked = ref(false)
-const existingOrganizationChecked = ref(false)
-
-const existingContact = ref('')
-const existingOrganization = ref('')
-
-async function convertToDeal() {
-  if (existingContactChecked.value && !existingContact.value) {
-    toast.error(__('Please select an existing contact'))
-    return
-  }
-
-  if (existingOrganizationChecked.value && !existingOrganization.value) {
-    toast.error(__('Please select an existing organization'))
-    return
-  }
-
-  if (!existingContactChecked.value && existingContact.value) {
-    existingContact.value = ''
-  }
-
-  if (!existingOrganizationChecked.value && existingOrganization.value) {
-    existingOrganization.value = ''
-  }
-
-  let deal = await call('crm.fcrm.doctype.crm_lead.crm_lead.convert_to_deal', {
-    lead: props.leadId,
-    deal: {},
-    existing_contact: existingContact.value,
-    existing_organization: existingOrganization.value,
-  })
-  if (deal) {
-    showConvertToDealModal.value = false
-    existingContactChecked.value = false
-    existingOrganizationChecked.value = false
-    existingContact.value = ''
-    existingOrganization.value = ''
-    capture('convert_lead_to_deal')
-    router.push({ name: 'Deal', params: { dealId: deal } })
-  }
 }
 
 async function triggerStatusChange(value) {
@@ -471,8 +319,12 @@ function saveChanges(data) {
 }
 
 function reloadAssignees(data) {
-  if (data?.hasOwnProperty('lead_owner')) {
+  if (data?.hasOwnProperty('owner')) {
     assignees.reload()
   }
+}
+
+function getPropertyStatusColor(status) {
+  return getPropertyStatus(status)?.color || 'text-gray-500'
 }
 </script>

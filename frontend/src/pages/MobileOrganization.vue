@@ -84,7 +84,7 @@
       </template>
     </FileUploader>
     <Tabs as="div" v-model="tabIndex" :tabs="tabs" class="overflow-auto">
-      <TabList class="!px-4" v-slot="{ tab, selected }">
+      <template #tab-item="{ tab, selected }">
         <button
           v-if="tab.name !== 'Details'"
           class="group flex items-center gap-2 border-b border-transparent py-2.5 text-base text-ink-gray-5 duration-300 ease-in-out hover:border-outline-gray-3 hover:text-ink-gray-9"
@@ -102,8 +102,8 @@
             {{ tab.count }}
           </Badge>
         </button>
-      </TabList>
-      <TabPanel v-slot="{ tab }">
+      </template>
+      <template #tab-panel="{ tab }">
         <div v-if="tab.name == 'Details'">
           <div
             v-if="sections.data"
@@ -140,7 +140,7 @@
             <div>{{ __('No {0} Found', [__(tab.label)]) }}</div>
           </div>
         </div>
-      </TabPanel>
+      </template>
     </Tabs>
   </div>
 </template>
@@ -170,8 +170,6 @@ import {
   FileUploader,
   Dropdown,
   Tabs,
-  TabList,
-  TabPanel,
   call,
   createListResource,
   usePageMeta,

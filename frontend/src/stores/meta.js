@@ -34,26 +34,30 @@ export function getMeta(doctype) {
   }
 
   function getFormattedFloat(fieldname, doc) {
-    let df = doctypeMeta[doctype]?.fields.find((f) => f.fieldname == fieldname)
+    if (!doc) return ''
+    let df = doctypeMeta[doctype]?.fields?.find((f) => f.fieldname == fieldname)
     let precision = df?.precision || null
     return formatNumber(doc[fieldname], '', precision)
   }
 
   function getFloatWithPrecision(fieldname, doc) {
-    let df = doctypeMeta[doctype]?.fields.find((f) => f.fieldname == fieldname)
+    if (!doc) return ''
+    let df = doctypeMeta[doctype]?.fields?.find((f) => f.fieldname == fieldname)
     let precision = df?.precision || null
     return formatNumber(doc[fieldname], '', precision)
   }
 
   function getCurrencyWithPrecision(fieldname, doc) {
-    let df = doctypeMeta[doctype]?.fields.find((f) => f.fieldname == fieldname)
+    if (!doc) return ''
+    let df = doctypeMeta[doctype]?.fields?.find((f) => f.fieldname == fieldname)
     let precision = df?.precision || null
     return formatCurrency(doc[fieldname], '', '', precision)
   }
 
   function getFormattedCurrency(fieldname, doc, parentDoc = null) {
-    let currency = window.sysdefaults.currency || 'USD'
-    let df = doctypeMeta[doctype]?.fields.find((f) => f.fieldname == fieldname)
+    if (!doc) return ''
+    let currency = window.sysdefaults?.currency || 'USD'
+    let df = doctypeMeta[doctype]?.fields?.find((f) => f.fieldname == fieldname)
     let precision = df?.precision || null
 
     if (df && df.options) {
@@ -82,7 +86,7 @@ export function getMeta(doctype) {
 
   function getFields(dt = null) {
     dt = dt || doctype
-    return doctypeMeta[dt]?.fields.map((f) => {
+    return doctypeMeta[dt]?.fields?.map((f) => {
       if (f.fieldtype === 'Select' && typeof f.options === 'string') {
         f.options = f.options.split('\n').map((option) => {
           return {
@@ -102,7 +106,7 @@ export function getMeta(doctype) {
         f.fieldtype = 'User'
       }
       return f
-    })
+    }) || []
   }
 
   function saveUserSettings(parentDoctype, key, value, callback) {
