@@ -9,7 +9,7 @@ from urllib.parse import quote
 import frappe
 from frappe import _
 from frappe.query_builder import DocType, functions as fn
-from frappe.utils import cint, get_datetime, now_datetime
+from frappe.utils import cint, get_datetime, now_datetime, strip_html
 from pypika import Order
 
 from . import utils
@@ -40,6 +40,7 @@ SUMMARY_FIELDS = [
 	"is_rented",
 	"rent_type",
 	"featured_until",
+	"description",
 ]
 
 
@@ -230,6 +231,7 @@ def list_properties() -> dict[str, Any]:
 				property_dt.is_rented.as_("is_rented"),
 				property_dt.rent_type.as_("rent_type"),
 				property_dt.featured_until.as_("featured_until"),
+				property_dt.description.as_("description"),
 				area_dt.area_name.as_("area_name"),
 				developer_dt.developer_name.as_("developer_name"),
 			)
@@ -581,6 +583,8 @@ def serialize_property_summary(row: dict[str, Any]) -> dict[str, Any]:
 		"furnishing_status": row.get("furnishing_status"),
 		"amenities": amenities,
 		"gallery": gallery,
+		"description": row.get("description"),
+		"description_not_formatted": strip_html(row.get("description")) if row.get("description") else None,
 	}
 
 
@@ -639,6 +643,7 @@ def serialize_property_detail(doc) -> dict[str, Any]:
 		"latitude": doc.latitude,
 		"longitude": doc.longitude,
 		"description": doc.description,
+		"description_not_formatted": strip_html(doc.description) if doc.description else None,
 		"area": doc.area,
 		"area_name": area_name,
 		"developer_id": developer["id"] if developer else None,

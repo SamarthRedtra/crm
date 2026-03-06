@@ -12,6 +12,7 @@
         "transaction_date",
         "transaction_type",
         "rent_type",
+        "start_date",
         "amount",
         "currency",
         "section_break_notes",
@@ -71,6 +72,12 @@
             "fieldtype": "Select",
             "label": "Rent Type",
             "options": "Daily\nWeekly\nMonthly\nYearly"
+        },
+        {
+            "depends_on": "eval:doc.transaction_type == 'Rented'",
+            "fieldname": "start_date",
+            "fieldtype": "Date",
+            "label": "Start Date"
         },
         {
             "fieldname": "amount",
