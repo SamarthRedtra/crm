@@ -217,6 +217,70 @@ class Property(Document):
 				)
 			)
 
+	@staticmethod
+	def default_list_data():
+		columns = [
+			{
+				"label": "Title",
+				"type": "Data",
+				"key": "title",
+				"width": "15rem",
+			},
+			{
+				"label": "Status",
+				"type": "Select",
+				"key": "status",
+				"width": "10rem",
+			},
+			{
+				"label": "Listing Type",
+				"type": "Select",
+				"key": "listing_type",
+				"width": "8rem",
+			},
+			{
+				"label": "Price",
+				"type": "Currency",
+				"key": "price",
+				"align": "right",
+				"width": "9rem",
+			},
+			{
+				"label": "Agent",
+				"type": "Link",
+				"key": "agent",
+				"options": "Agent",
+				"width": "11rem",
+			},
+			{
+				"label": "Last Modified",
+				"type": "Datetime",
+				"key": "modified",
+				"width": "8rem",
+			},
+		]
+		rows = [
+			"name",
+			"title",
+			"status",
+			"listing_type",
+			"price",
+			"currency",
+			"agent",
+			"property_type",
+			"city",
+			"modified",
+		]
+		return {"columns": columns, "rows": rows}
+
+	@staticmethod
+	def default_kanban_settings():
+		return {
+			"column_field": "status",
+			"title_field": "title",
+			"kanban_fields": '["price", "listing_type", "agent", "modified"]',
+		}
+
 
 @frappe.whitelist()
 def create_transaction_from_mark(
@@ -281,6 +345,7 @@ def create_transaction_from_mark(
 
 	return {
 		"name": doc.name,
-		"property_modified": frappe.db.get_value("Property", property, "modified"),
+		"property": property,
+		"transaction_type": resolved_type,
 	}
 

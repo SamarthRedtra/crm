@@ -6,6 +6,7 @@
     <div class="flex h-8 items-center text-xl font-semibold text-ink-gray-8">
       {{ __(title) }}
     </div>
+    <template v-if="!disableActions">
     <Button
       v-if="title == 'Emails'"
       variant="solid"
@@ -79,6 +80,7 @@
         />
       </template>
     </Dropdown>
+    </template>
   </div>
 </template>
 <script setup>
@@ -103,6 +105,10 @@ const props = defineProps({
   modalRef: Object,
   emailBox: Object,
   whatsappBox: Object,
+  disableActions: {
+    type: Boolean,
+    default: false,
+  },
 })
 
 const { makeCall } = globalStore()

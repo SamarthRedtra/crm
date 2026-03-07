@@ -6,6 +6,7 @@ from frappe.custom.doctype.property_setter.property_setter import make_property_
 from frappe.desk.form.assign_to import set_status
 from frappe.model import no_value_fields
 from frappe.model.document import get_controller
+from frappe.utils import cint
 from frappe.utils import make_filter_tuple
 from pypika import Criterion
 
@@ -350,12 +351,25 @@ def get_data(
 
 		if not custom_view and frappe.db.exists("CRM View Settings", default_view_filters):
 			list_view_settings = frappe.get_doc("CRM View Settings", default_view_filters)
-			columns = frappe.parse_json(list_view_settings.columns)
-			rows = frappe.parse_json(list_view_settings.rows)
+			saved_columns = frappe.parse_json(list_view_settings.columns)
+			saved_rows = frappe.parse_json(list_view_settings.rows)
+			load_default_columns = cint(list_view_settings.load_default_columns)
+
+			if saved_columns:
+				columns = saved_columns
+			elif hasattr(_list, "default_list_data") and load_default_columns:
+				columns = _list.default_list_data().get("columns")
+
+			if saved_rows:
+				rows = saved_rows
+			elif default_rows:
+				rows = default_rows
+
 			is_default = False
 		elif not custom_view or (is_default and hasattr(_list, "default_list_data")):
-			rows = default_rows
-			columns = _list.default_list_data().get("columns")
+			if hasattr(_list, "default_list_data"):
+				rows = default_rows
+				columns = _list.default_list_data().get("columns")
 
 		# check if rows has all keys from columns if not add them
 		for column in columns:

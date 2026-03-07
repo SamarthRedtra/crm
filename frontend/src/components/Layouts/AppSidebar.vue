@@ -209,6 +209,11 @@ const links = [
     to: 'Leads',
   },
   {
+    label: 'Properties',
+    icon: NoteIcon, // Using NoteIcon as a placeholder, might need a better one
+    to: 'Properties',
+  },
+  {
     label: 'Deals',
     icon: DealsIcon,
     to: 'Deals',
@@ -307,6 +312,8 @@ function getIcon(routeName, icon) {
       return NoteIcon
     case 'Call Logs':
       return PhoneIcon
+    case 'Properties':
+      return NoteIcon
     default:
       return PinIcon
   }

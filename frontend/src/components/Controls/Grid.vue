@@ -178,6 +178,26 @@
                       @change="(e) => fieldChange(e.target.checked, field, row)"
                     />
                   </div>
+                  <div
+                    v-else-if="field.fieldtype === 'Attach Image'"
+                    class="flex h-full items-center px-2"
+                  >
+                    <ImageUploader
+                      :image_url="row[field.fieldname]"
+                      @upload="(url) => fieldChange(url, field, row)"
+                      @remove="() => fieldChange('', field, row)"
+                    />
+                  </div>
+                  <div
+                    v-else-if="field.fieldtype === 'Attach'"
+                    class="flex h-full items-center px-2"
+                  >
+                    <FileAttachmentInput
+                      :modelValue="row[field.fieldname]"
+                      :uploadLabel="__('Attach')"
+                      @change="(url) => fieldChange(url, field, row)"
+                    />
+                  </div>
                   <TimePicker
                     v-else-if="field.fieldtype === 'Time'"
                     :value="row[field.fieldname]"
@@ -350,10 +370,12 @@
 
 <script setup>
 import Password from '@/components/Controls/Password.vue'
+import FileAttachmentInput from '@/components/Controls/FileAttachmentInput.vue'
 import FormattedInput from '@/components/Controls/FormattedInput.vue'
 import GridFieldsEditorModal from '@/components/Controls/GridFieldsEditorModal.vue'
 import GridRowFieldsModal from '@/components/Controls/GridRowFieldsModal.vue'
 import GridRowModal from '@/components/Controls/GridRowModal.vue'
+import ImageUploader from '@/components/Controls/ImageUploader.vue'
 import EditIcon from '@/components/Icons/EditIcon.vue'
 import Link from '@/components/Controls/Link.vue'
 import UserAvatar from '@/components/UserAvatar.vue'

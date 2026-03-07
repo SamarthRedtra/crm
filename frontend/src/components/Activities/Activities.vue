@@ -9,6 +9,7 @@
     :emailBox="emailBox"
     :whatsappBox="whatsappBox"
     :modalRef="modalRef"
+    :disableActions="disableActions"
   />
   <FadedScrollableDiv
     :maskHeight="30"
@@ -369,9 +370,9 @@
       </div>
     </div>
     <div v-else-if="title == 'Data'" class="h-full flex flex-col px-3 sm:px-10">
-      <DataFields
-        :doctype="doctype"
-        :docname="docname"
+      <component
+        :is="dataComponent || DataFields"
+        v-bind="dataPanelProps"
         @beforeSave="(data) => emit('beforeSave', data)"
         @afterSave="(data) => emit('afterSave', data)"
       />
@@ -382,29 +383,32 @@
     >
       <component :is="emptyTextIcon" class="h-10 w-10" />
       <span>{{ __(emptyText) }}</span>
-      <MultiActionButton v-if="title == 'Calls'" :options="callActions" />
+      <MultiActionButton
+        v-if="title == 'Calls' && !disableActions"
+        :options="callActions"
+      />
       <Button
-        v-else-if="title == 'Notes'"
+        v-else-if="title == 'Notes' && !disableActions"
         :label="__('Create Note')"
         @click="modalRef.showNote()"
       />
       <Button
-        v-else-if="title == 'Emails'"
+        v-else-if="title == 'Emails' && !disableActions"
         :label="__('New Email')"
         @click="emailBox.show = true"
       />
       <Button
-        v-else-if="title == 'Comments'"
+        v-else-if="title == 'Comments' && !disableActions"
         :label="__('New Comment')"
         @click="emailBox.showComment = true"
       />
       <Button
-        v-else-if="title == 'Tasks'"
+        v-else-if="title == 'Tasks' && !disableActions"
         :label="__('Create Task')"
         @click="modalRef.showTask()"
       />
       <Button
-        v-else-if="title == 'Attachments'"
+        v-else-if="title == 'Attachments' && !disableActions"
         :label="__('Upload Attachment')"
         @click="showFilesUploader = true"
       />
@@ -413,7 +417,7 @@
   <div>
     <CommunicationArea
       ref="emailBox"
-      v-if="['Emails', 'Comments', 'Activity'].includes(title)"
+      v-if="!disableActions && ['Emails', 'Comments', 'Activity'].includes(title)"
       v-model="doc"
       v-model:reload="reload_email"
       :doctype="doctype"
@@ -528,6 +532,18 @@ const props = defineProps({
     type: Array,
     default: () => [],
   },
+  disableActions: {
+    type: Boolean,
+    default: false,
+  },
+  dataComponent: {
+    type: [Object, Function],
+    default: null,
+  },
+  dataProps: {
+    type: Object,
+    default: () => ({}),
+  },
 })
 
 const emit = defineEmits(['beforeSave', 'afterSave'])
@@ -546,6 +562,20 @@ const modalRef = ref(null)
 const showFilesUploader = ref(false)
 
 const title = computed(() => props.tabs?.[tabIndex.value]?.name || 'Activity')
+
+const dataPanelProps = computed(() => {
+  if (props.dataComponent) {
+    return {
+      docname: props.docname,
+      ...props.dataProps,
+    }
+  }
+
+  return {
+    doctype: props.doctype,
+    docname: props.docname,
+  }
+})
 
 const changeTabTo = (tabName) => {
   const tabNames = props.tabs?.map((tab) => tab.name?.toLowerCase())
