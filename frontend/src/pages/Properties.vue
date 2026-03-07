@@ -87,12 +87,15 @@ import { getMeta } from '@/stores/meta'
 import { statusesStore } from '@/stores/statuses'
 import { formatDate, timeAgo } from '@/utils'
 import { ref, computed, reactive } from 'vue'
+import { useRouter } from 'vue-router'
 
 const { getFormattedCurrency } = getMeta('Property')
 const { getPropertyStatus } = statusesStore()
 
+const router = useRouter()
+
 function goToImport() {
-  window.location.href = '/crm/data-import/Property'
+  router.push({ name: 'Data Import', params: { doctype: 'Property' } })
 }
 
 const propertiesListView = ref(null)

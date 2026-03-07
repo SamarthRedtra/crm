@@ -1,5 +1,6 @@
 <template>
-  <DataImport
+  <FrappeDataImport
+    :key="refreshKey"
     :doctype="route.params.doctype"
     :importName="route.params.importName"
     :doctypeMap="doctypeMap"
@@ -8,14 +9,14 @@
 
 <script setup>
 import { usePageMeta } from 'frappe-ui'
-import { DataImport } from 'frappe-ui/frappe'
-import { sessionStore } from '@/stores/session'
-import { useRoute, useRouter } from 'vue-router'
-import { inject, onMounted } from 'vue'
+import { DataImport as FrappeDataImport } from 'frappe-ui/frappe'
+import { globalStore } from '@/stores/global'
+import { useRoute } from 'vue-router'
+import { onBeforeUnmount, onMounted, ref } from 'vue'
 
-const { user } = sessionStore()
+const { $socket } = globalStore()
 const route = useRoute()
-const router = useRouter()
+const refreshKey = ref(0)
 
 const doctypeMap = {
   'Property': {
@@ -36,5 +37,25 @@ usePageMeta(() => {
   return {
     title: 'Data Import',
   }
+})
+
+function handleDataImportRefresh(data) {
+  if (!data?.data_import) return
+
+  if (
+    !route.params.importName ||
+    route.params.importName === data.data_import
+  ) {
+    refreshKey.value += 1
+  }
+}
+
+onMounted(() => {
+  $socket?.off('data_import_refresh', handleDataImportRefresh)
+  $socket?.on('data_import_refresh', handleDataImportRefresh)
+})
+
+onBeforeUnmount(() => {
+  $socket?.off('data_import_refresh', handleDataImportRefresh)
 })
 </script>

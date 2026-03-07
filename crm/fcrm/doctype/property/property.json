@@ -1,396 +1,397 @@
 {
-    "actions": [],
-    "allow_import": 1,
-    "autoname": "format:PROP-{YYYY}-{#####}",
-    "creation": "2026-03-03 18:11:16.297368",
-    "default_view": "List",
-    "doctype": "DocType",
-    "engine": "InnoDB",
-    "field_order": [
-        "details_section",
-        "title",
-        "developer",
-        "agent",
-        "status",
-        "is_sold",
-        "is_rented",
-        "column_break_aabd",
-        "property_category",
-        "listing_type",
-        "rent_type",
-        "completion_status",
-        "property_code",
-        "property_type",
-        "off_plan_agencies",
-        "section_break_content",
-        "description",
-        "pricing_tab",
-        "section_break_pricing",
-        "price",
-        "currency",
-        "column_break_pricing",
-        "bedrooms",
-        "bathrooms",
-        "furnishing_status",
-        "area_sqft",
-        "amenties_tab",
-        "amenities",
-        "location_tab",
-        "section_break_location",
-        "area",
-        "address_line1",
-        "address_line2",
-        "city",
-        "state",
-        "country",
-        "pincode",
-        "column_break_location",
-        "latitude",
-        "longitude",
-        "media_tab",
-        "section_break_media",
-        "primary_image",
-        "gallery",
-        "is_featured",
-        "featured_until",
-        "views_count"
-    ],
-    "fields": [
-        {
-            "fieldname": "title",
-            "fieldtype": "Data",
-            "in_list_view": 1,
-            "in_standard_filter": 1,
-            "label": "Title",
-            "reqd": 1,
-            "search_index": 1
-        },
-        {
-            "fieldname": "property_code",
-            "fieldtype": "Data",
-            "label": "Property Code"
-        },
-        {
-            "fieldname": "listing_type",
-            "fieldtype": "Select",
-            "in_standard_filter": 1,
-            "label": "Listing Type",
-            "options": "Buy\nRent",
-            "reqd": 1
-        },
-        {
-            "fieldname": "property_type",
-            "fieldtype": "Select",
-            "in_standard_filter": 1,
-            "label": "Property Type",
-            "options": "Apartment\nVilla\nTownhouse\nPenthouse\nVilla Compound\nHotel Apartment\nLand\nFloor\nBuilding\nOffice\nShop\nWarehouse\nLabour Camp\nVilla\nBulk Unit\nLand\nFloor\nBuilding\nFactory\nIndustrial Land\nMixed Use Land\nShowroom\nOther Commercial",
-            "reqd": 1
-        },
-        {
-            "fieldname": "property_category",
-            "fieldtype": "Select",
-            "in_standard_filter": 1,
-            "label": "Property Category",
-            "options": "Residential\nCommercial"
-        },
-        {
-            "default": "Draft",
-            "fieldname": "status",
-            "fieldtype": "Select",
-            "in_list_view": 1,
-            "in_standard_filter": 1,
-            "label": "Status",
-            "options": "Draft\nUnder Verification\nActive\nInactive",
-            "reqd": 1
-        },
-        {
-            "fieldname": "section_break_pricing",
-            "fieldtype": "Section Break",
-            "label": "Pricing"
-        },
-        {
-            "fieldname": "price",
-            "fieldtype": "Currency",
-            "in_list_view": 1,
-            "in_standard_filter": 1,
-            "label": "Price",
-            "reqd": 1
-        },
-        {
-            "fieldname": "currency",
-            "fieldtype": "Link",
-            "label": "Currency",
-            "options": "Currency",
-            "reqd": 1
-        },
-        {
-            "fieldname": "column_break_pricing",
-            "fieldtype": "Column Break"
-        },
-        {
-            "fieldname": "bedrooms",
-            "fieldtype": "Int",
-            "label": "Bedrooms"
-        },
-        {
-            "fieldname": "bathrooms",
-            "fieldtype": "Int",
-            "label": "Bathrooms"
-        },
-        {
-            "fieldname": "furnishing_status",
-            "fieldtype": "Select",
-            "in_standard_filter": 1,
-            "label": "Furnishing",
-            "options": "Furnished\nSemi-Furnished\nUnfurnished"
-        },
-        {
-            "fieldname": "area_sqft",
-            "fieldtype": "Float",
-            "label": "Area (sq.ft)",
-            "precision": "9"
-        },
-        {
-            "fieldname": "amenities",
-            "fieldtype": "Table",
-            "label": "Amenities",
-            "options": "Property Amenity"
-        },
-        {
-            "fieldname": "section_break_location",
-            "fieldtype": "Section Break",
-            "label": "Location"
-        },
-        {
-            "fieldname": "area",
-            "fieldtype": "Link",
-            "in_standard_filter": 1,
-            "label": "Area",
-            "options": "Area"
-        },
-        {
-            "fieldname": "address_line1",
-            "fieldtype": "Data",
-            "label": "Address Line 1"
-        },
-        {
-            "fieldname": "address_line2",
-            "fieldtype": "Data",
-            "label": "Address Line 2"
-        },
-        {
-            "fieldname": "city",
-            "fieldtype": "Data",
-            "label": "City"
-        },
-        {
-            "fieldname": "state",
-            "fieldtype": "Data",
-            "label": "State"
-        },
-        {
-            "fieldname": "country",
-            "fieldtype": "Link",
-            "label": "Country",
-            "options": "Country"
-        },
-        {
-            "fieldname": "pincode",
-            "fieldtype": "Data",
-            "label": "PIN Code"
-        },
-        {
-            "fieldname": "column_break_location",
-            "fieldtype": "Column Break"
-        },
-        {
-            "fieldname": "latitude",
-            "fieldtype": "Float",
-            "label": "Latitude",
-            "precision": "9"
-        },
-        {
-            "fieldname": "longitude",
-            "fieldtype": "Float",
-            "label": "Longitude",
-            "precision": "9"
-        },
-        {
-            "fieldname": "section_break_content",
-            "fieldtype": "Section Break",
-            "label": "Content"
-        },
-        {
-            "fieldname": "description",
-            "fieldtype": "Text Editor",
-            "label": "Description"
-        },
-        {
-            "fieldname": "developer",
-            "fieldtype": "Link",
-            "in_standard_filter": 1,
-            "label": "Developer",
-            "options": "Developer"
-        },
-        {
-            "fieldname": "agent",
-            "fieldtype": "Link",
-            "in_list_view": 1,
-            "in_standard_filter": 1,
-            "label": "Agent",
-            "options": "Agent",
-            "reqd": 1
-        },
-        {
-            "fieldname": "section_break_media",
-            "fieldtype": "Section Break",
-            "label": "Media"
-        },
-        {
-            "fieldname": "primary_image",
-            "fieldtype": "Attach Image",
-            "label": "Primary Image"
-        },
-        {
-            "fieldname": "gallery",
-            "fieldtype": "Table",
-            "label": "Gallery",
-            "options": "Property Image"
-        },
-        {
-            "default": "0",
-            "fieldname": "is_featured",
-            "fieldtype": "Check",
-            "label": "Featured"
-        },
-        {
-            "fieldname": "featured_until",
-            "fieldtype": "Datetime",
-            "label": "Featured Until"
-        },
-        {
-            "default": "0",
-            "fieldname": "views_count",
-            "fieldtype": "Int",
-            "label": "Views Count",
-            "read_only": 1
-        },
-        {
-            "fieldname": "details_section",
-            "fieldtype": "Section Break",
-            "label": "Details"
-        },
-        {
-            "fieldname": "column_break_aabd",
-            "fieldtype": "Column Break"
-        },
-        {
-            "fieldname": "pricing_tab",
-            "fieldtype": "Tab Break",
-            "label": "Pricing"
-        },
-        {
-            "fieldname": "amenties_tab",
-            "fieldtype": "Tab Break",
-            "label": "Amenties"
-        },
-        {
-            "fieldname": "location_tab",
-            "fieldtype": "Tab Break",
-            "label": "Location"
-        },
-        {
-            "fieldname": "media_tab",
-            "fieldtype": "Tab Break",
-            "label": "Media"
-        },
-        {
-            "default": "0",
-            "fieldname": "is_sold",
-            "fieldtype": "Check",
-            "in_list_view": 1,
-            "label": "Is Sold"
-        },
-        {
-            "default": "0",
-            "fieldname": "is_rented",
-            "fieldtype": "Check",
-            "label": "Is Rented"
-        },
-        {
-            "depends_on": "eval:doc.listing_type == 'Rent'",
-            "fieldname": "rent_type",
-            "fieldtype": "Select",
-            "in_list_view": 1,
-            "in_standard_filter": 1,
-            "label": "Rent Type",
-            "mandatory_depends_on": "eval:doc.listing_type == 'Rent'",
-            "options": "\nDaily\nWeekly\nMonthly\nYearly"
-        },
-        {
-            "depends_on": "eval:!doc.is_rented",
-            "fieldname": "completion_status",
-            "fieldtype": "Select",
-            "in_standard_filter": 1,
-            "label": "Completion Status",
-            "options": "All\nReady\nOff-Plan"
-        },
-        {
-            "depends_on": "eval:doc.completion_status == 'Off-Plan'",
-            "fieldname": "off_plan_agencies",
-            "fieldtype": "Table MultiSelect",
-            "label": "Agencies",
-            "options": "Property Agency"
-        }
-    ],
-    "image_field": "primary_image",
-    "index_web_pages_for_search": 1,
-    "links": [
-        {
-            "group": "Transactions",
-            "link_doctype": "Property Transaction Log",
-            "link_fieldname": "property"
-        }
-    ],
-    "make_attachments_public": 1,
-    "modified": "2026-03-04 11:31:52.385526",
-    "modified_by": "Administrator",
-    "module": "FCRM",
-    "name": "Property",
-    "naming_rule": "Expression (old style)",
-    "owner": "Administrator",
-    "permissions": [
-        {
-            "create": 1,
-            "delete": 1,
-            "email": 1,
-            "export": 1,
-            "print": 1,
-            "read": 1,
-            "report": 1,
-            "role": "System Manager",
-            "share": 1,
-            "write": 1
-        },
-        {
-            "create": 1,
-            "delete": 1,
-            "print": 1,
-            "read": 1,
-            "role": "Agent",
-            "share": 1,
-            "write": 1
-        }
-    ],
-    "quick_entry": 1,
-    "row_format": "Dynamic",
-    "sort_field": "modified",
-    "sort_order": "DESC",
-    "states": [
-        {
-            "color": "Blue",
-            "title": "Draft"
-        }
-    ],
-    "track_changes": 1
+ "actions": [],
+ "allow_import": 1,
+ "autoname": "format:PROP-{YYYY}-{#####}",
+ "creation": "2026-03-03 18:11:16.297368",
+ "default_view": "List",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "details_section",
+  "title",
+  "developer",
+  "agent",
+  "status",
+  "is_sold",
+  "is_rented",
+  "column_break_aabd",
+  "property_category",
+  "listing_type",
+  "rent_type",
+  "completion_status",
+  "property_code",
+  "property_type",
+  "off_plan_agencies",
+  "section_break_content",
+  "description",
+  "pricing_tab",
+  "section_break_pricing",
+  "price",
+  "currency",
+  "column_break_pricing",
+  "bedrooms",
+  "bathrooms",
+  "furnishing_status",
+  "area_sqft",
+  "amenties_tab",
+  "amenities",
+  "location_tab",
+  "section_break_location",
+  "area",
+  "address_line1",
+  "address_line2",
+  "city",
+  "state",
+  "country",
+  "pincode",
+  "column_break_location",
+  "latitude",
+  "longitude",
+  "media_tab",
+  "section_break_media",
+  "primary_image",
+  "gallery",
+  "is_featured",
+  "featured_until",
+  "views_count"
+ ],
+ "fields": [
+  {
+   "fieldname": "title",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Title",
+   "reqd": 1,
+   "search_index": 1
+  },
+  {
+   "fieldname": "property_code",
+   "fieldtype": "Data",
+   "label": "Property Code"
+  },
+  {
+   "fieldname": "listing_type",
+   "fieldtype": "Select",
+   "in_standard_filter": 1,
+   "label": "Listing Type",
+   "options": "Buy\nRent",
+   "reqd": 1
+  },
+  {
+   "fieldname": "property_type",
+   "fieldtype": "Select",
+   "in_standard_filter": 1,
+   "label": "Property Type",
+   "options": "Apartment\nVilla\nTownhouse\nPenthouse\nVilla Compound\nHotel Apartment\nLand\nFloor\nBuilding",
+   "reqd": 1
+  },
+  {
+   "fieldname": "property_category",
+   "fieldtype": "Select",
+   "in_standard_filter": 1,
+   "label": "Property Category",
+   "options": "Residential\nCommercial"
+  },
+  {
+   "default": "Draft",
+   "fieldname": "status",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Status",
+   "options": "Draft\nUnder Verification\nActive\nInactive",
+   "reqd": 1
+  },
+  {
+   "fieldname": "section_break_pricing",
+   "fieldtype": "Section Break",
+   "label": "Pricing"
+  },
+  {
+   "fieldname": "price",
+   "fieldtype": "Currency",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Price",
+   "reqd": 1
+  },
+  {
+   "fieldname": "currency",
+   "fieldtype": "Link",
+   "label": "Currency",
+   "options": "Currency",
+   "reqd": 1
+  },
+  {
+   "fieldname": "column_break_pricing",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "bedrooms",
+   "fieldtype": "Int",
+   "label": "Bedrooms"
+  },
+  {
+   "fieldname": "bathrooms",
+   "fieldtype": "Int",
+   "label": "Bathrooms"
+  },
+  {
+   "fieldname": "furnishing_status",
+   "fieldtype": "Select",
+   "in_standard_filter": 1,
+   "label": "Furnishing",
+   "options": "Furnished\nSemi-Furnished\nUnfurnished"
+  },
+  {
+   "fieldname": "area_sqft",
+   "fieldtype": "Float",
+   "label": "Area (sq.ft)",
+   "precision": "9"
+  },
+  {
+   "fieldname": "amenities",
+   "fieldtype": "Table",
+   "label": "Amenities",
+   "options": "Property Amenity"
+  },
+  {
+   "fieldname": "section_break_location",
+   "fieldtype": "Section Break",
+   "label": "Location"
+  },
+  {
+   "fieldname": "area",
+   "fieldtype": "Link",
+   "in_standard_filter": 1,
+   "label": "Area",
+   "options": "Area"
+  },
+  {
+   "fieldname": "address_line1",
+   "fieldtype": "Data",
+   "label": "Address Line 1"
+  },
+  {
+   "fieldname": "address_line2",
+   "fieldtype": "Data",
+   "label": "Address Line 2"
+  },
+  {
+   "fieldname": "city",
+   "fieldtype": "Data",
+   "label": "City"
+  },
+  {
+   "fieldname": "state",
+   "fieldtype": "Data",
+   "label": "State"
+  },
+  {
+   "fieldname": "country",
+   "fieldtype": "Link",
+   "label": "Country",
+   "options": "Country"
+  },
+  {
+   "fieldname": "pincode",
+   "fieldtype": "Data",
+   "label": "PIN Code"
+  },
+  {
+   "fieldname": "column_break_location",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "latitude",
+   "fieldtype": "Float",
+   "label": "Latitude",
+   "precision": "9"
+  },
+  {
+   "fieldname": "longitude",
+   "fieldtype": "Float",
+   "label": "Longitude",
+   "precision": "9"
+  },
+  {
+   "fieldname": "section_break_content",
+   "fieldtype": "Section Break",
+   "label": "Content"
+  },
+  {
+   "fieldname": "description",
+   "fieldtype": "Text Editor",
+   "label": "Description"
+  },
+  {
+   "fieldname": "developer",
+   "fieldtype": "Link",
+   "in_standard_filter": 1,
+   "label": "Developer",
+   "options": "Developer"
+  },
+  {
+   "fieldname": "agent",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Agent",
+   "options": "Agent",
+   "reqd": 1
+  },
+  {
+   "fieldname": "section_break_media",
+   "fieldtype": "Section Break",
+   "label": "Media"
+  },
+  {
+   "fieldname": "primary_image",
+   "fieldtype": "Attach Image",
+   "label": "Primary Image"
+  },
+  {
+   "fieldname": "gallery",
+   "fieldtype": "Table",
+   "label": "Gallery",
+   "options": "Property Image"
+  },
+  {
+   "default": "0",
+   "fieldname": "is_featured",
+   "fieldtype": "Check",
+   "label": "Featured"
+  },
+  {
+   "fieldname": "featured_until",
+   "fieldtype": "Datetime",
+   "label": "Featured Until"
+  },
+  {
+   "default": "0",
+   "fieldname": "views_count",
+   "fieldtype": "Int",
+   "label": "Views Count",
+   "read_only": 1
+  },
+  {
+   "fieldname": "details_section",
+   "fieldtype": "Section Break",
+   "label": "Details"
+  },
+  {
+   "fieldname": "column_break_aabd",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "pricing_tab",
+   "fieldtype": "Tab Break",
+   "label": "Pricing"
+  },
+  {
+   "fieldname": "amenties_tab",
+   "fieldtype": "Tab Break",
+   "label": "Amenties"
+  },
+  {
+   "fieldname": "location_tab",
+   "fieldtype": "Tab Break",
+   "label": "Location"
+  },
+  {
+   "fieldname": "media_tab",
+   "fieldtype": "Tab Break",
+   "label": "Media"
+  },
+  {
+   "default": "0",
+   "fieldname": "is_sold",
+   "fieldtype": "Check",
+   "in_list_view": 1,
+   "label": "Is Sold"
+  },
+  {
+   "default": "0",
+   "fieldname": "is_rented",
+   "fieldtype": "Check",
+   "label": "Is Rented"
+  },
+  {
+   "depends_on": "eval:doc.listing_type == 'Rent'",
+   "fieldname": "rent_type",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Rent Type",
+   "mandatory_depends_on": "eval:doc.listing_type == 'Rent'",
+   "options": "\nDaily\nWeekly\nMonthly\nYearly"
+  },
+  {
+   "depends_on": "eval:!doc.is_rented",
+   "fieldname": "completion_status",
+   "fieldtype": "Select",
+   "in_standard_filter": 1,
+   "label": "Completion Status",
+   "options": "All\nReady\nOff-Plan"
+  },
+  {
+   "depends_on": "eval:doc.completion_status == 'Off-Plan'",
+   "fieldname": "off_plan_agencies",
+   "fieldtype": "Table MultiSelect",
+   "label": "Agencies",
+   "options": "Property Agency"
+  }
+ ],
+ "image_field": "primary_image",
+ "index_web_pages_for_search": 1,
+ "links": [
+  {
+   "group": "Transactions",
+   "link_doctype": "Property Transaction Log",
+   "link_fieldname": "property"
+  }
+ ],
+ "make_attachments_public": 1,
+ "modified": "2026-03-07 13:24:45.498171",
+ "modified_by": "Administrator",
+ "module": "FCRM",
+ "name": "Property",
+ "naming_rule": "Expression (old style)",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "delete": 1,
+   "print": 1,
+   "read": 1,
+   "role": "Agent",
+   "select": 1,
+   "share": 1,
+   "write": 1
+  }
+ ],
+ "quick_entry": 1,
+ "row_format": "Dynamic",
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": [
+  {
+   "color": "Blue",
+   "title": "Draft"
+  }
+ ],
+ "track_changes": 1
 }

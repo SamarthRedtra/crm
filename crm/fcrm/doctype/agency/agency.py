@@ -16,6 +16,7 @@ class Agency(Document):
 		address_line1: DF.Data | None
 		address_line2: DF.Data | None
 		agency_name: DF.Data
+		brn_id: DF.Data | None
 		city: DF.Data | None
 		country: DF.Link | None
 		description: DF.TextEditor | None
