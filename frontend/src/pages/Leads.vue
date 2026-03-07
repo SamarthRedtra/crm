@@ -9,6 +9,12 @@
         :actions="leadsListView.customListActions"
       />
       <Button
+        variant="ghost"
+        :label="__('Import Leads')"
+        iconLeft="upload"
+        @click="goToImport"
+      />
+      <Button
         variant="solid"
         :label="__('Create')"
         iconLeft="plus"
@@ -263,6 +269,12 @@
         iconLeft="plus"
         @click="showLeadModal = true"
       />
+      <Button
+        variant="ghost"
+        :label="__('Import')"
+        iconLeft="upload"
+        @click="goToImport"
+      />
     </div>
   </div>
   <LeadModal
@@ -333,6 +345,10 @@ const loadMore = ref(1)
 const triggerResize = ref(1)
 const updatedPageCount = ref(20)
 const viewControls = ref(null)
+
+function goToImport() {
+  window.location.href = '/crm/data-import/CRM Lead'
+}
 
 function getRow(name, field) {
   function getValue(value) {
