@@ -117,6 +117,11 @@ const routes = [
     component: () => import('@/pages/DataImport.vue'),
   },
   {
+    path: '/data-imports/:importName',
+    name: 'DataImport',
+    component: () => import('@/pages/DataImport.vue'),
+  },
+  {
     path: '/agents/:agentId',
     name: 'Agent',
     component: () => import('@/pages/Welcome.vue'),
