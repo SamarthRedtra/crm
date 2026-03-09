@@ -16,6 +16,7 @@ declare module 'vue' {
     AddExistingUserModal: typeof import('./src/components/Modals/AddExistingUserModal.vue')['default']
     AddressIcon: typeof import('./src/components/Icons/AddressIcon.vue')['default']
     AddressModal: typeof import('./src/components/Modals/AddressModal.vue')['default']
+    AgentSettings: typeof import('./src/components/Settings/AgentSettings.vue')['default']
     AllModals: typeof import('./src/components/Activities/AllModals.vue')['default']
     AppHeader: typeof import('./src/components/Layouts/AppHeader.vue')['default']
     Apps: typeof import('./src/components/Apps.vue')['default']

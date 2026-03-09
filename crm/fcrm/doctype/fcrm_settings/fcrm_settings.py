@@ -11,6 +11,28 @@ from crm.install import after_install
 
 
 class FCRMSettings(Document):
+	# begin: auto-generated types
+	# This code is auto-generated. Do not modify anything in this block.
+
+	from typing import TYPE_CHECKING
+
+	if TYPE_CHECKING:
+		from crm.fcrm.doctype.crm_dropdown_item.crm_dropdown_item import CRMDropdownItem
+		from frappe.types import DF
+
+		access_key: DF.Data | None
+		auto_update_expected_deal_value: DF.Check
+		brand_logo: DF.Attach | None
+		brand_name: DF.Data | None
+		currency: DF.Link | None
+		dropdown_items: DF.Table[CRMDropdownItem]
+		enable_forecasting: DF.Check
+		favicon: DF.Attach | None
+		mandatory_kyc_documents: DF.Data | None
+		max_agents_per_property_code: DF.Int
+		service_provider: DF.Literal["frankfurter.app", "exchangerate.host"]
+	# end: auto-generated types
+
 	@frappe.whitelist()
 	def restore_defaults(self, force=False):
 		after_install(force)

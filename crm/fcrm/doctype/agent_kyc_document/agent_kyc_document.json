@@ -1,54 +1,68 @@
 {
- "actions": [],
- "allow_import": 0,
- "allow_rename": 0,
- "creation": "2025-12-02 00:00:00.000000",
- "doctype": "DocType",
- "engine": "InnoDB",
- "field_order": [
-  "document_type",
-  "document_file",
-  "verified",
-  "remarks"
- ],
- "fields": [
-  {
-   "fieldname": "document_type",
-   "fieldtype": "Select",
-   "in_list_view": 1,
-   "label": "Document Type",
-   "options": "ID Proof\nAddress Proof\nLicense\nOther",
-   "reqd": 1
-  },
-  {
-   "fieldname": "document_file",
-   "fieldtype": "Attach",
-   "in_list_view": 1,
-   "label": "Document File",
-   "reqd": 1
-  },
-  {
-   "default": "0",
-   "fieldname": "verified",
-   "fieldtype": "Check",
-   "label": "Verified"
-  },
-  {
-   "fieldname": "remarks",
-   "fieldtype": "Small Text",
-   "label": "Remarks"
-  }
- ],
- "index_web_pages_for_search": 0,
- "is_submittable": 0,
- "istable": 1,
- "links": [],
- "modified": "2025-12-02 00:00:00.000000",
- "module": "FCRM",
- "name": "Agent KYC Document",
- "owner": "Administrator",
- "permissions": [],
- "sort_field": "creation",
- "sort_order": "ASC"
+    "actions": [],
+    "creation": "2025-12-02 00:00:00",
+    "doctype": "DocType",
+    "engine": "InnoDB",
+    "field_order": [
+        "document_type",
+        "document_file",
+        "doc_status",
+        "verified",
+        "admin_comment",
+        "remarks"
+    ],
+    "fields": [
+        {
+            "fieldname": "document_type",
+            "fieldtype": "Select",
+            "in_list_view": 1,
+            "label": "Document Type",
+            "options": "ID Proof\nAddress Proof\nLicense\nBRN Certificate\nAgency Agreement\nPhoto\nOther",
+            "reqd": 1
+        },
+        {
+            "fieldname": "document_file",
+            "fieldtype": "Attach",
+            "in_list_view": 1,
+            "label": "Document File",
+            "reqd": 1
+        },
+        {
+            "default": "Pending",
+            "fieldname": "doc_status",
+            "fieldtype": "Select",
+            "in_list_view": 1,
+            "label": "Status",
+            "options": "Pending\nApproved\nRejected"
+        },
+        {
+            "default": "0",
+            "fieldname": "verified",
+            "fieldtype": "Check",
+            "label": "Verified"
+        },
+        {
+            "fieldname": "admin_comment",
+            "fieldtype": "Small Text",
+            "label": "Admin Comment",
+            "description": "Reason shown to the agent when this document is rejected"
+        },
+        {
+            "fieldname": "remarks",
+            "fieldtype": "Small Text",
+            "label": "Remarks"
+        }
+    ],
+    "istable": 1,
+    "links": [],
+    "modified": "2026-03-09 18:36:00.000000",
+    "modified_by": "Administrator",
+    "module": "FCRM",
+    "name": "Agent KYC Document",
+    "owner": "Administrator",
+    "permissions": [],
+    "row_format": "Dynamic",
+    "sort_field": "creation",
+    "sort_order": "ASC",
+    "states": []
 }
-

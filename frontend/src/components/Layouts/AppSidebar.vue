@@ -171,6 +171,7 @@ import {
 } from '@/stores/notifications'
 import { usersStore } from '@/stores/users'
 import { sessionStore } from '@/stores/session'
+import { agentStore } from '@/stores/agent'
 import { showSettings, activeSettingsPage } from '@/composables/settings'
 import { showChangePasswordModal } from '@/composables/modals'
 import { FeatherIcon, call } from 'frappe-ui'
@@ -193,6 +194,14 @@ const { getPinnedViews, getPublicViews } = viewsStore()
 const { toggle: toggleNotificationPanel } = notificationsStore()
 
 const isSidebarCollapsed = useStorage('isSidebarCollapsed', false)
+
+// Agent verification gate — hide all CRM nav until agent is verified
+const { agentResource } = agentStore()
+const isAgentVerified = computed(() => {
+  // If no agent record exists for this user, show everything (non-agent user)
+  if (!agentResource.data?.name) return true
+  return agentResource.data?.status === 'Verified'
+})
 
 const isFCSite = ref(window.is_fc_site)
 const isDemoSite = ref(window.is_demo_site)
@@ -251,6 +260,9 @@ const links = [
 ]
 
 const allViews = computed(() => {
+  // Hide all nav links for unverified agents
+  if (!isAgentVerified.value) return []
+
   let _views = [
     {
       name: 'All Views',
