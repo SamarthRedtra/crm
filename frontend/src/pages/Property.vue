@@ -45,7 +45,7 @@
           :docname="propertyId"
           :tabs="tabs"
           :dataComponent="PropertyDataFields"
-          :disableActions="true"
+          :disableActions="false"
           v-model:reload="reload"
           v-model:tabIndex="tabIndex"
           @beforeSave="saveChanges"
@@ -125,6 +125,11 @@
               </div>
               <div class="flex gap-1.5">
                 <Button
+                  :tooltip="__('Send an email')"
+                  :icon="Email2Icon"
+                  @click="openEmailBox()"
+                />
+                <Button
                   :tooltip="__('Attach a file')"
                   :icon="AttachmentIcon"
                   @click="showFilesUploader = true"
@@ -186,8 +191,15 @@ import PropertyDataFields from '@/components/Property/PropertyDataFields.vue'
 import PropertySidebar from '@/components/Property/PropertySidebar.vue'
 import Resizer from '@/components/Resizer.vue'
 import ActivityIcon from '@/components/Icons/ActivityIcon.vue'
+import EmailIcon from '@/components/Icons/EmailIcon.vue'
+import Email2Icon from '@/components/Icons/Email2Icon.vue'
 import CommentIcon from '@/components/Icons/CommentIcon.vue'
 import DetailsIcon from '@/components/Icons/DetailsIcon.vue'
+import EventIcon from '@/components/Icons/EventIcon.vue'
+import PhoneIcon from '@/components/Icons/PhoneIcon.vue'
+import TaskIcon from '@/components/Icons/TaskIcon.vue'
+import NoteIcon from '@/components/Icons/NoteIcon.vue'
+import WhatsAppIcon from '@/components/Icons/WhatsAppIcon.vue'
 import IndicatorIcon from '@/components/Icons/IndicatorIcon.vue'
 import CameraIcon from '@/components/Icons/CameraIcon.vue'
 import AttachmentIcon from '@/components/Icons/AttachmentIcon.vue'
@@ -206,6 +218,7 @@ import { getSettings } from '@/stores/settings'
 import { globalStore } from '@/stores/global'
 import { statusesStore } from '@/stores/statuses'
 import { useDocument } from '@/data/document'
+import { whatsappEnabled, callEnabled } from '@/composables/settings'
 import {
   FileUploader,
   Dropdown,
@@ -218,7 +231,7 @@ import {
   usePageMeta,
   toast,
 } from 'frappe-ui'
-import { ref, computed, watch } from 'vue'
+import { ref, computed, watch, nextTick } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useActiveTabManager } from '@/composables/useActiveTabManager'
 
@@ -334,11 +347,16 @@ usePageMeta(() => {
 })
 
 const tabs = computed(() => {
-  return [
+  let tabOptions = [
     {
       name: 'Activity',
       label: __('Activity'),
       icon: ActivityIcon,
+    },
+    {
+      name: 'Emails',
+      label: __('Emails'),
+      icon: EmailIcon,
     },
     {
       name: 'Comments',
@@ -351,11 +369,38 @@ const tabs = computed(() => {
       icon: DetailsIcon,
     },
     {
+      name: 'Events',
+      label: __('Events'),
+      icon: EventIcon,
+    },
+    {
+      name: 'Calls',
+      label: __('Calls'),
+      icon: PhoneIcon,
+    },
+    {
+      name: 'Tasks',
+      label: __('Tasks'),
+      icon: TaskIcon,
+    },
+    {
+      name: 'Notes',
+      label: __('Notes'),
+      icon: NoteIcon,
+    },
+    {
       name: 'Attachments',
       label: __('Attachments'),
       icon: AttachmentIcon,
     },
+    {
+      name: 'WhatsApp',
+      label: __('WhatsApp'),
+      icon: WhatsAppIcon,
+      condition: () => whatsappEnabled.value,
+    },
   ]
+  return tabOptions.filter((tab) => (tab.condition ? tab.condition() : true))
 })
 
 const { tabIndex, changeTabTo } = useActiveTabManager(tabs, 'lastPropertyTab')
@@ -406,5 +451,13 @@ function reloadAssignees(data) {
 
 function getPropertyStatusColor(status) {
   return getPropertyStatus(status)?.color || 'text-gray-500'
+}
+
+function openEmailBox() {
+  let currentTab = tabs.value[tabIndex.value]
+  if (!['Emails', 'Comments', 'Activities'].includes(currentTab.name)) {
+    activities.value.changeTabTo('emails')
+  }
+  nextTick(() => (activities.value.emailBox.show = true))
 }
 </script>

@@ -159,9 +159,10 @@
                     </template>
                   </Draggable>
                   <Autocomplete
-                    v-if="fields.data"
+                    v-if="doctype"
                     value=""
-                    :options="fields.data"
+                    :options="availableFields"
+                    :disabled="fields.loading"
                     @change="(e) => addField(column, e)"
                   >
                     <template #target="{ togglePopover }">
@@ -169,8 +170,9 @@
                         <Button
                           class="w-full !h-8 !bg-surface-modal"
                           variant="outline"
-                          :label="__('Add Field')"
+                          :label="fields.loading ? __('Loading...') : __('Add Field')"
                           iconLeft="plus"
+                          :disabled="fields.loading"
                           @click="togglePopover()"
                         />
                       </div>
@@ -251,41 +253,44 @@ const params = computed(() => {
   }
 })
 
+const restrictedFields = [
+  'name',
+  'owner',
+  'creation',
+  'modified',
+  'modified_by',
+  'docstatus',
+  '_comments',
+  '_user_tags',
+  '_assign',
+  '_liked_by',
+]
+
 const fields = createResource({
   url: 'crm.api.doc.get_fields_meta',
   params: params.value,
   cache: ['fieldsMeta', props.doctype],
   auto: true,
-  transform: (data) => {
-    let restrictedFields = [
-      'name',
-      'owner',
-      'creation',
-      'modified',
-      'modified_by',
-      'docstatus',
-      '_comments',
-      '_user_tags',
-      '_assign',
-      '_liked_by',
-    ]
-    let existingFields = []
+  transform: (data) => data,
+})
 
-    props.tabs?.forEach((tab) => {
-      tab.sections?.forEach((section) => {
-        section.columns?.forEach((column) => {
-          existingFields = existingFields.concat(column.fields)
-        })
+const availableFields = computed(() => {
+  const data = fields.data || []
+  let existingFields = []
+  props.tabs?.forEach((tab) => {
+    tab.sections?.forEach((section) => {
+      section.columns?.forEach((column) => {
+        existingFields = existingFields.concat(column.fields || [])
       })
     })
-
-    return data.filter((field) => {
-      return (
-        !existingFields.find((f) => f.fieldname === field.fieldname) &&
-        !restrictedFields.includes(field.fieldname)
-      )
-    })
-  },
+  })
+  const getFieldname = (f) =>
+    typeof f === 'string' ? f : (f?.fieldname ?? f?.name)
+  return data.filter(
+    (field) =>
+      !existingFields.find((f) => getFieldname(f) === field.fieldname) &&
+      !restrictedFields.includes(field.fieldname),
+  )
 })
 
 function addTab() {

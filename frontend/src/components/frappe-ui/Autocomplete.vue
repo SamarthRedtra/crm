@@ -17,7 +17,8 @@
               class="relative flex h-7 w-full items-center justify-between gap-2 rounded px-2 py-1 transition-colors"
               :class="inputClasses"
               :disabled="disabled"
-              @click.prevent.stop="openOptions"
+              type="button"
+              @click="openOptions"
             >
               <div
                 v-if="selectedValue"

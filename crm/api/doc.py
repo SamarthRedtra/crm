@@ -633,8 +633,12 @@ def get_fields_meta(doctype, restricted_fieldtypes=None, as_array=False, only_re
 		restricted_fieldtypes = frappe.parse_json(restricted_fieldtypes)
 		not_allowed_fieldtypes += restricted_fieldtypes
 
-	fields = frappe.get_meta(doctype).fields
-	fields = [field for field in fields if field.fieldtype not in not_allowed_fieldtypes]
+	meta_fields = frappe.get_meta(doctype).fields
+	fields = [
+		f.as_dict() if hasattr(f, "as_dict") else f
+		for f in meta_fields
+		if f.fieldtype not in not_allowed_fieldtypes
+	]
 
 	standard_fields = [
 		{"fieldname": "name", "fieldtype": "Link", "label": "ID", "options": doctype},

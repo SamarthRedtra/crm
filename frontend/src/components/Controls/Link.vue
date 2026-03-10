@@ -1,6 +1,5 @@
 <template>
   <div class="space-y-1.5 p-[2px] -m-[2px]">
-    <span class="sr-only debug-info" :data-options-length="options.data?.length"></span>
     <label class="block" :class="labelClasses" v-if="attrs.label">
       {{ __(attrs.label) }}
     </label>
@@ -20,9 +19,10 @@
         <slot v-if="$slots.target" name="target" v-bind="{ open, togglePopover }" />
         <button
           v-else
+          type="button"
           class="relative flex h-7 w-full items-center justify-between gap-2 rounded px-2 py-1 transition-colors bg-surface-gray-2 border border-surface-gray-3 text-ink-gray-8"
           :disabled="attrs.disabled"
-          @click="() => { console.log('LINK FALLBACK BUTTON CLICKED', attrs.disabled); if (!attrs.disabled) togglePopover(); }"
+          @click="() => !attrs.disabled && togglePopover()"
         >
           <div v-if="value" class="flex text-base leading-5 items-center truncate">
             <span class="truncate">{{ value }}</span>
