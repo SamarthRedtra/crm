@@ -65,11 +65,11 @@ def submit_appointment_review(appointment_id: str) -> dict[str, Any]:
 	
 	# Update review fields
 	if "overall_rating" in data:
-		review_doc.overall_rating = data.get("overall_rating", 0)
+		review_doc.overall_rating = _normalize_rating_input(data.get("overall_rating", 0))
 	if "agent_rating" in data:
-		review_doc.agent_rating = data.get("agent_rating", 0)
+		review_doc.agent_rating = _normalize_rating_input(data.get("agent_rating", 0))
 	if "property_rating" in data:
-		review_doc.property_rating = data.get("property_rating", 0)
+		review_doc.property_rating = _normalize_rating_input(data.get("property_rating", 0))
 	if "review_text" in data:
 		review_doc.review_text = data.get("review_text", "")
 	
@@ -135,11 +135,11 @@ def _submit_general_review(agent_id: str | None = None, property_id: str | None 
 	review_doc.status = "Draft"
 
 	if "overall_rating" in data:
-		review_doc.overall_rating = data.get("overall_rating", 0)
+		review_doc.overall_rating = _normalize_rating_input(data.get("overall_rating", 0))
 	if "agent_rating" in data:
-		review_doc.agent_rating = data.get("agent_rating", 0)
+		review_doc.agent_rating = _normalize_rating_input(data.get("agent_rating", 0))
 	if "property_rating" in data:
-		review_doc.property_rating = data.get("property_rating", 0)
+		review_doc.property_rating = _normalize_rating_input(data.get("property_rating", 0))
 	if "review_text" in data:
 		review_doc.review_text = data.get("review_text", "")
 
@@ -196,9 +196,9 @@ def serialize_review(review_name: str) -> dict[str, Any]:
 		"property_id": review_doc.property,
 		"customer_id": review_doc.customer,
 		"reviewer_name": customer_name,
-		"overall_rating": (float(review_doc.overall_rating or 0) * 5) if review_doc.overall_rating else 0.0,
-		"agent_rating": (float(review_doc.agent_rating or 0) * 5) if review_doc.agent_rating else 0.0,
-		"property_rating": (float(review_doc.property_rating or 0) * 5) if review_doc.property_rating else 0.0,
+		"overall_rating": _denormalize_rating(review_doc.overall_rating),
+		"agent_rating": _denormalize_rating(review_doc.agent_rating),
+		"property_rating": _denormalize_rating(review_doc.property_rating),
 		"review_text": review_doc.review_text or "",
 		"status": review_doc.status,
 		"submitted_at": review_doc.submitted_at,
@@ -278,9 +278,9 @@ def get_agent_rating_stats(agent_id: str) -> dict[str, Any]:
 	for review in reviews[:5]:  # Show only 5 most recent in detail
 		customer_name = frappe.db.get_value("Customer", review.get("customer"), "full_name")
 		recent_reviews.append({
-			"overall_rating": float(review.get("overall_rating") or 0) * 5,
-			"agent_rating": float(review.get("agent_rating") or 0) * 5,
-			"property_rating": float(review.get("property_rating") or 0) * 5,
+			"overall_rating": _denormalize_rating(review.get("overall_rating")),
+			"agent_rating": _denormalize_rating(review.get("agent_rating")),
+			"property_rating": _denormalize_rating(review.get("property_rating")),
 			"review_text": review.get("review_text") or "",
 			"reviewer_name": customer_name,
 			"created_at": review.get("creation"),
@@ -357,9 +357,9 @@ def get_agent_reviews(agent_id: str) -> dict[str, Any]:
 		
 		review_items.append({
 			"id": review.get("name"),
-			"overall_rating": (float(review.get("overall_rating") or 0) * 5) if review.get("overall_rating") else 0.0,
-			"agent_rating": (float(review.get("agent_rating") or 0) * 5) if review.get("agent_rating") else 0.0,
-			"property_rating": (float(review.get("property_rating") or 0) * 5) if review.get("property_rating") else 0.0,
+			"overall_rating": _denormalize_rating(review.get("overall_rating")),
+			"agent_rating": _denormalize_rating(review.get("agent_rating")),
+			"property_rating": _denormalize_rating(review.get("property_rating")),
 			"review_text": review.get("review_text") or "",
 			"reviewer_name": customer_name,
 			"property_title": property_title,
@@ -436,9 +436,9 @@ def get_property_rating_stats(property_id: str) -> dict[str, Any]:
 	for review in reviews[:5]:
 		customer_name = frappe.db.get_value("Customer", review.get("customer"), "full_name")
 		recent_reviews.append({
-			"overall_rating": float(review.get("overall_rating") or 0) * 5,
-			"agent_rating": float(review.get("agent_rating") or 0) * 5,
-			"property_rating": float(review.get("property_rating") or 0) * 5,
+			"overall_rating": _denormalize_rating(review.get("overall_rating")),
+			"agent_rating": _denormalize_rating(review.get("agent_rating")),
+			"property_rating": _denormalize_rating(review.get("property_rating")),
 			"review_text": review.get("review_text") or "",
 			"customer_name": customer_name,
 			"created_at": review.get("creation"),
@@ -499,9 +499,9 @@ def get_property_reviews(property_id: str) -> dict[str, Any]:
 		
 		review_items.append({
 			"id": review.get("name"),
-			"overall_rating": (float(review.get("overall_rating") or 0) * 5) if review.get("overall_rating") else 0.0,
-			"agent_rating": (float(review.get("agent_rating") or 0) * 5) if review.get("agent_rating") else 0.0,
-			"property_rating": (float(review.get("property_rating") or 0) * 5) if review.get("property_rating") else 0.0,
+			"overall_rating": _denormalize_rating(review.get("overall_rating")),
+			"agent_rating": _denormalize_rating(review.get("agent_rating")),
+			"property_rating": _denormalize_rating(review.get("property_rating")),
 			"review_text": review.get("review_text") or "",
 			"reviewer_name": customer_name,
 			"appointment_id": review.get("appointment"),
@@ -522,3 +522,16 @@ def get_property_reviews(property_id: str) -> dict[str, Any]:
 		"total_items": total_count,
 		"total_pages": (total_count + page_size - 1) // page_size if page_size else 0,
 	}
+
+
+def _normalize_rating_input(value: Any) -> float:
+	rating = float(value or 0)
+	if rating < 0:
+		return 0.0
+	if rating > 1:
+		rating = rating / 5
+	return min(rating, 1.0)
+
+
+def _denormalize_rating(value: Any) -> float:
+	return float(value or 0) * 5 if value else 0.0
