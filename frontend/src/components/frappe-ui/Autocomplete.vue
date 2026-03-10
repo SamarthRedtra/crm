@@ -6,17 +6,18 @@
           name="target"
           v-bind="{
             open: openPopover,
-            togglePopover,
+            togglePopover: openOptions,
             isOpen: showOptions,
             selectedValue,
             displayValue,
           }"
         >
-          <div class="w-full">
+          <div class="w-full h-full">
             <button
               class="relative flex h-7 w-full items-center justify-between gap-2 rounded px-2 py-1 transition-colors"
               :class="inputClasses"
-              @click="() => !disabled && togglePopover()"
+              :disabled="disabled"
+              @click.prevent.stop="openOptions"
             >
               <div
                 v-if="selectedValue"
@@ -186,6 +187,12 @@ const query = ref('')
 const showOptions = ref(false)
 const search = ref(null)
 
+function openOptions() {
+  if (!props.disabled) {
+    showOptions.value = !showOptions.value
+  }
+}
+
 const attrs = useAttrs()
 const slots = useSlots()
 
@@ -302,5 +309,5 @@ const inputClasses = computed(() => {
   ]
 })
 
-defineExpose({ query })
+defineExpose({ query, togglePopover: openOptions })
 </script>
