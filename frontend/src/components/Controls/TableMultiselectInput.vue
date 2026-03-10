@@ -73,7 +73,18 @@ const valuesRef = ref([])
 const error = ref(null)
 const query = ref('')
 
-const linkField = ref('')
+const linkField = computed(() => {
+  let fields = getFields()
+  if (!fields || !fields.length) return null
+
+  let field = fields.find((df) => ['Link', 'User'].includes(df.fieldtype))
+  if (!field) {
+    error.value = 'Table MultiSelect requires a Table with atleast one Link field'
+  } else {
+    error.value = null
+  }
+  return field
+})
 
 const filters = computed(() => {
   if (!linkField.value) return []
@@ -83,26 +94,9 @@ const filters = computed(() => {
 })
 
 const parsedValues = computed(() => {
-  error.value = ''
-  getLinkField()
   if (!linkField.value) return []
   return values.value.map((row) => row[linkField.value.fieldname])
 })
-
-const getLinkField = () => {
-  error.value = ''
-  if (!linkField.value) {
-    let fields = getFields()
-    linkField.value = fields?.find((df) =>
-      ['Link', 'User'].includes(df.fieldtype),
-    )
-    if (!linkField.value) {
-      error.value =
-        'Table MultiSelect requires a Table with atleast one Link field'
-    }
-  }
-  return linkField.value
-}
 
 const addValue = (value) => {
   error.value = null

@@ -132,6 +132,11 @@ const routes = [
     component: () => import('@/pages/Welcome.vue'),
   },
   {
+    path: '/onboarding',
+    name: 'Agent Onboarding',
+    component: () => import('@/pages/AgentOnboarding.vue'),
+  },
+  {
     path: '/:invalidpath',
     name: 'Invalid Page',
     component: () => import('@/pages/InvalidPage.vue'),
@@ -147,10 +152,30 @@ let router = createRouter({
   routes,
 })
 
+import { agentStore } from '@/stores/agent'
+
 router.beforeEach(async (to, from, next) => {
   const { isLoggedIn } = sessionStore()
 
   isLoggedIn && (await userResource.promise)
+
+  if (isLoggedIn) {
+    const { agentResource } = agentStore()
+    if (!agentResource.data) {
+      await agentResource.reload()
+    }
+    const isUnverifiedAgent = agentResource.data && agentResource.data.name && agentResource.data.status !== 'Verified'
+
+    if (isUnverifiedAgent && to.name !== 'Agent Onboarding' && to.name !== 'Logout') {
+      next({ name: 'Agent Onboarding' })
+      return
+    }
+
+    if (!isUnverifiedAgent && to.name === 'Agent Onboarding') {
+      next({ name: 'Home' })
+      return
+    }
+  }
 
   if (to.name === 'Home' && isLoggedIn) {
     const { views, getDefaultView } = viewsStore()

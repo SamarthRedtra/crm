@@ -8,6 +8,24 @@ from frappe.model.document import Document
 
 
 class Area(Document):
+	# begin: auto-generated types
+	# This code is auto-generated. Do not modify anything in this block.
+
+	from typing import TYPE_CHECKING
+
+	if TYPE_CHECKING:
+		from frappe.types import DF
+
+		area_name: DF.Data
+		city: DF.Data | None
+		country: DF.Link | None
+		geo_json: DF.LongText | None
+		latitude: DF.Float
+		longitude: DF.Float
+		pincode: DF.Data | None
+		state: DF.Data | None
+	# end: auto-generated types
+
 	def validate(self):
 		self._validate_coordinates()
 		self._validate_geojson()

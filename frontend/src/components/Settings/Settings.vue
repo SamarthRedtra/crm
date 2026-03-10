@@ -68,6 +68,7 @@ import CurrencySettings from '@/components/Settings/CurrencySettings.vue'
 import EmailTemplatePage from '@/components/Settings/EmailTemplate/EmailTemplatePage.vue'
 import TelephonySettings from '@/components/Settings/TelephonySettings.vue'
 import EmailConfig from '@/components/Settings/EmailConfig.vue'
+import AgentSettings from '@/components/Settings/AgentSettings.vue'
 import SidebarLink from '@/components/SidebarLink.vue'
 import { usersStore } from '@/stores/users'
 import {
@@ -119,6 +120,11 @@ const tabs = computed(() => {
           label: __('Brand Settings'),
           icon: SparkleIcon,
           component: markRaw(BrandSettings),
+        },
+        {
+          label: __('Agent Settings'),
+          icon: 'users',
+          component: markRaw(AgentSettings),
         },
       ],
       condition: () => isManager(),

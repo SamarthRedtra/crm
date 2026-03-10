@@ -92,32 +92,23 @@ class TestNewAPIs(IntegrationTestCase):
 
 		# 1. Submit Agent Review
 		frappe.set_user(self.user)
-		
-		# Mock request data
-		frappe.form_dict = frappe._dict({
-			"overall_rating": 5,
-			"agent_rating": 4,
-			"review_text": "_Test Review_"
-		})
-		
-		# Calling internal methods directly as mocking HTTP request full stack is complex in unit test
-		# Use `reviews._submit_general_review` or modify `reviews.submit_agent_review` to accept args if needed, 
-		# but `reviews.submit_agent_review` reads from `frappe.request.json` usually.
-		# Ideally we refactor `reviews.py` to accept data as args or mock `utils.get_request_json`.
-		# For this test, let's call `_submit_general_review` if possible, but it takes no args for data.
-		# IMPORTANT: `reviews.py` uses `utils.get_request_json()`. We need to mock that or allow it to read form_dict.
-		# `utils.get_request_json` typically reads `frappe.request.json`.
-		
-		# Workaround: Manually create review to verify listing, as mocking pure API calls in this env is tricky without Request object.
-		review = frappe.get_doc({
-			"doctype": "Review and Rating",
-			"agent": agent_id,
-			"customer": self.user, # Assuming name is email
-			"status": "Published",
-			"overall_rating": 5,
-			"agent_rating": 4,
-			"review_text": "_Test Review_"
-		}).insert(ignore_permissions=True)
+		original_get_request_json = reviews.utils.get_request_json
+		try:
+			reviews.utils.get_request_json = lambda required_fields=None: {
+				"overall_rating": 5,
+				"agent_rating": 4,
+				"review_text": "_Test Review_",
+			}
+			frappe.local.redtra_auth = {"payload": {"user": self.user}}
+			submitted = reviews._submit_general_review(agent_id=agent_id)
+		finally:
+			reviews.utils.get_request_json = original_get_request_json
+			if hasattr(frappe.local, "redtra_auth"):
+				delattr(frappe.local, "redtra_auth")
+
+		self.assertEqual(submitted["overall_rating"], 5.0)
+		self.assertEqual(submitted["agent_rating"], 4.0)
+		self.assertEqual(submitted["review_text"], "_Test Review_")
 
 		# 2. List Agent Reviews
 		frappe.set_user("Guest")
@@ -125,6 +116,10 @@ class TestNewAPIs(IntegrationTestCase):
 		
 		self.assertEqual(result["ratings"]["total_reviews"], 1)
 		self.assertEqual(result["items"][0]["review_text"], "_Test Review_")
+		self.assertEqual(result["items"][0]["overall_rating"], 5.0)
+		self.assertEqual(result["items"][0]["agent_rating"], 4.0)
+		self.assertEqual(result["ratings"]["average_overall_rating"], 5.0)
+		self.assertEqual(result["ratings"]["average_agent_rating"], 4.0)
 
 	def test_property_review_apis(self):
 		# Setup: Create Property
@@ -160,7 +155,8 @@ class TestNewAPIs(IntegrationTestCase):
 			"agent": agent.name,
 			"listing_type": "Buy",
 			"property_type": "Apartment",
-			"price": 1000000
+			"price": 1000000,
+			"currency": "AED",
 		}).insert(ignore_permissions=True)
 		property_id = property_doc.name
 
@@ -170,8 +166,8 @@ class TestNewAPIs(IntegrationTestCase):
 			"property": property_id,
 			"customer": self.user,
 			"status": "Published",
-			"overall_rating": 4.5,
-			"property_rating": 5,
+			"overall_rating": 0.9,
+			"property_rating": 1,
 			"review_text": "_Test Property Review_"
 		}).insert(ignore_permissions=True)
 
@@ -181,6 +177,30 @@ class TestNewAPIs(IntegrationTestCase):
 		
 		self.assertEqual(result["ratings"]["total_reviews"], 1)
 		self.assertEqual(result["items"][0]["review_text"], "_Test Property Review_")
+		self.assertEqual(result["items"][0]["overall_rating"], 4.5)
+		self.assertEqual(result["items"][0]["property_rating"], 5.0)
+		self.assertEqual(result["ratings"]["average_overall_rating"], 4.5)
+		self.assertEqual(result["ratings"]["average_property_rating"], 5.0)
+
+	def test_serialize_review_returns_five_point_scale(self):
+		frappe.set_user("Administrator")
+
+		review = frappe.get_doc({
+			"doctype": "Review and Rating",
+			"customer": self.user,
+			"status": "Submitted",
+			"overall_rating": 0.6,
+			"agent_rating": 0.8,
+			"property_rating": 1,
+			"review_text": "_Serialized Review_"
+		}).insert(ignore_permissions=True)
+
+		result = reviews.serialize_review(review.name)
+
+		self.assertEqual(result["overall_rating"], 3.0)
+		self.assertEqual(result["agent_rating"], 4.0)
+		self.assertEqual(result["property_rating"], 5.0)
+		self.assertEqual(result["review_text"], "_Serialized Review_")
 
 
 	def test_crm_lead_creation(self):

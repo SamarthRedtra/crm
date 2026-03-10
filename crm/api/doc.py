@@ -633,8 +633,12 @@ def get_fields_meta(doctype, restricted_fieldtypes=None, as_array=False, only_re
 		restricted_fieldtypes = frappe.parse_json(restricted_fieldtypes)
 		not_allowed_fieldtypes += restricted_fieldtypes
 
-	fields = frappe.get_meta(doctype).fields
-	fields = [field for field in fields if field.fieldtype not in not_allowed_fieldtypes]
+	meta_fields = frappe.get_meta(doctype).fields
+	fields = [
+		f.as_dict() if hasattr(f, "as_dict") else f
+		for f in meta_fields
+		if f.fieldtype not in not_allowed_fieldtypes
+	]
 
 	standard_fields = [
 		{"fieldname": "name", "fieldtype": "Link", "label": "ID", "options": doctype},
@@ -659,6 +663,10 @@ def get_fields_meta(doctype, restricted_fieldtypes=None, as_array=False, only_re
 
 	if only_required:
 		fields = [field for field in fields if field.get("reqd")]
+
+	for field in fields:
+		if "value" not in field:
+			field["value"] = field.get("fieldname")
 
 	if as_array:
 		return fields
@@ -798,11 +806,24 @@ def get_linked_docs_of_document(doctype, docname):
 			{
 				"doc": data.doctype,
 				"title": title or data.get("name"),
-				"reference_docname": doc["reference_docname"],
-				"reference_doctype": doc["reference_doctype"],
+				"name": data.get("name"),
+				"url": f"/app/{data.doctype.lower().replace(' ', '-')}/{data.get('name')}",
+				"reference_docname": doc.get("reference_docname"),
+				"reference_doctype": doc.get("reference_doctype"),
 			}
 		)
 	return docs_data
+
+
+@frappe.whitelist()
+def get_current_agent():
+	agent = frappe.db.get_value(
+		"Agent",
+		{"user": frappe.session.user},
+		["name", "status", "dfd_registration_id", "full_name"],
+		as_dict=True
+	)
+	return agent or {}
 
 
 def remove_doc_link(doctype, docname):

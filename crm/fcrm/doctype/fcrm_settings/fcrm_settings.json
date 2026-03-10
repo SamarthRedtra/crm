@@ -21,7 +21,9 @@
   "brand_logo",
   "favicon",
   "dropdown_items_tab",
-  "dropdown_items"
+  "dropdown_items",
+  "agent_settings_tab",
+  "mandatory_kyc_documents"
  ],
  "fields": [
   {
@@ -74,11 +76,11 @@
    "label": "Enable Forecasting"
   },
   {
+   "default": "3",
+   "description": "Maximum number of distinct agents allowed per property code. Set 0 to disable the limit.",
    "fieldname": "max_agents_per_property_code",
    "fieldtype": "Int",
-   "label": "Max Agents per Property Code",
-   "default": "3",
-   "description": "Maximum number of distinct agents allowed per property code. Set 0 to disable the limit."
+   "label": "Max Agents per Property Code"
   },
   {
    "fieldname": "currency",
@@ -121,12 +123,23 @@
    "fieldname": "auto_update_expected_deal_value",
    "fieldtype": "Check",
    "label": "Auto Update Expected Deal Value"
+  },
+  {
+   "fieldname": "agent_settings_tab",
+   "fieldtype": "Tab Break",
+   "label": "Agent Settings"
+  },
+  {
+   "description": "Select which document type is mandatory for agent verification. Agents must upload this type before submitting.",
+   "fieldname": "mandatory_kyc_documents",
+   "fieldtype": "Data",
+   "label": "Mandatory KYC Document Types"
   }
  ],
  "index_web_pages_for_search": 1,
  "issingle": 1,
  "links": [],
- "modified": "2025-09-16 17:33:26.406549",
+ "modified": "2026-03-09 18:34:14.064396",
  "modified_by": "Administrator",
  "module": "FCRM",
  "name": "FCRM Settings",
