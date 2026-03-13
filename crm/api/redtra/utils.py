@@ -30,11 +30,19 @@ def get_jwt_secret() -> str:
 	return secret
 
 
-def get_jwt_expiry_hours(remember_me: bool = False) -> int:
-	"""Read access token expiry from site_config. Default 24h, 168h (7d) when remember_me."""
+def get_jwt_expiry_hours(remember_me: bool = False) -> int | float:
+	"""Read access token expiry from site_config. Supports minutes or hours.
+	Defaults: 24h, 168h (7d) when remember_me.
+	Use redtra_jwt_expiry_minutes (e.g. 20) for sub-hour expiry."""
 	conf = getattr(frappe.local, "conf", None) or frappe.conf or {}
 	if remember_me:
+		mins = conf.get("redtra_jwt_remember_me_expiry_minutes")
+		if mins is not None:
+			return float(mins) / 60
 		return cint(conf.get("redtra_jwt_remember_me_expiry_hours") or 168)
+	mins = conf.get("redtra_jwt_expiry_minutes")
+	if mins is not None:
+		return float(mins) / 60
 	return cint(conf.get("redtra_jwt_expiry_hours") or 24)
 
 
@@ -44,7 +52,7 @@ def get_refresh_token_expiry_days() -> int:
 	return cint(conf.get("redtra_refresh_token_expiry_days") or 30)
 
 
-def generate_jwt(user: str, expires_in_hours: int | None = None) -> str:
+def generate_jwt(user: str, expires_in_hours: int | float | None = None) -> str:
 	if expires_in_hours is None:
 		expires_in_hours = get_jwt_expiry_hours(remember_me=False)
 	now = datetime.utcnow()
