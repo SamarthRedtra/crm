@@ -9,6 +9,8 @@ from . import utils
 EXEMPT_PATHS = {
 	"/api/auth/login",
 	"/api/auth/register",
+	"/api/auth/refresh",
+	"/api/auth/set-session-from-sid",
 	"/api/method/crm.api.redtra.auth.login",
 	"/api/method/crm.api.redtra.auth.register",
 }

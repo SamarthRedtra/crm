@@ -21,6 +21,7 @@ from . import (
 	reviews,
 	reminders,
 	icons,
+	sid_handler,
 )
 
 
@@ -28,6 +29,8 @@ def register_routes():
 	new_rules = [
 		Rule("/auth/register", methods=["POST"], endpoint=auth.register),
 		Rule("/auth/login", methods=["POST"], endpoint=auth.login),
+		Rule("/auth/refresh", methods=["POST"], endpoint=auth.refresh_token),
+		Rule("/auth/set-session-from-sid", methods=["GET"], endpoint=sid_handler.set_session_from_sid),
 		Rule("/auth/forgot-password", methods=["POST"], endpoint=auth.forgot_password),
 		Rule("/auth/logout", methods=["POST"], endpoint=auth.logout),
 		Rule("/user/profile", methods=["GET"], endpoint=auth.get_profile),

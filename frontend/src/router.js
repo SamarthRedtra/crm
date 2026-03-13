@@ -157,6 +157,14 @@ import { agentStore } from '@/stores/agent'
 router.beforeEach(async (to, from, next) => {
   const { isLoggedIn } = sessionStore()
 
+  // If sid is in URL and not logged in, use set-session-from-sid to establish session
+  const sidFromUrl = to.query.sid || (typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('sid'))
+  if (!isLoggedIn && sidFromUrl) {
+    const redirect = (typeof window !== 'undefined' && window.location.pathname) || '/crm'
+    window.location.href = `/api/auth/set-session-from-sid?sid=${encodeURIComponent(sidFromUrl)}&redirect=${encodeURIComponent(redirect)}`
+    return
+  }
+
   isLoggedIn && (await userResource.promise)
 
   if (isLoggedIn) {
