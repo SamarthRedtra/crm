@@ -214,7 +214,8 @@ def _serialize_developer_detail(doc) -> dict[str, Any]:
 		"country": doc.country,
 		"pincode": doc.pincode,
 		"logo": doc.logo,
-		"description": strip_html(doc.description) if doc.description else None,
+		"description": doc.description,
+		"description_not_formatted": strip_html(doc.description) if doc.description else None,
 		"location": _build_location(doc.city, doc.state, doc.country),
 	}
 

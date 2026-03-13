@@ -202,13 +202,37 @@
         "properties": {
           "token": {
             "type": "string",
-            "description": "JWT token"
+            "description": "JWT access token"
+          },
+          "refresh_token": {
+            "type": "string",
+            "description": "Refresh token for obtaining new access tokens"
+          },
+          "sid": {
+            "type": "string",
+            "description": "Frappe session ID; use in URL /crm?sid=... for web app auth"
           },
           "user_id": {
             "type": "string"
           },
           "full_name": {
             "type": "string"
+          },
+          "remember_me": {
+            "type": "boolean"
+          },
+          "token_expires_in_hours": {
+            "type": "integer"
+          }
+        }
+      },
+      "RefreshTokenRequest": {
+        "type": "object",
+        "required": ["refresh_token"],
+        "properties": {
+          "refresh_token": {
+            "type": "string",
+            "description": "Refresh token from login response"
           }
         }
       },
@@ -1690,6 +1714,44 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/AuthResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/UnauthorizedError"
+          }
+        }
+      }
+    },
+    "/api/auth/refresh": {
+      "post": {
+        "tags": ["Authentication"],
+        "summary": "Refresh access token",
+        "description": "Exchange a valid refresh token for a new access token and refresh token.",
+        "security": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RefreshTokenRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "New tokens",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "token": { "type": "string" },
+                    "refresh_token": { "type": "string" },
+                    "token_expires_in_hours": { "type": "integer" }
+                  }
                 }
               }
             }

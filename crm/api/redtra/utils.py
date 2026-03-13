@@ -1,7 +1,9 @@
 from __future__ import annotations
 
 import functools
+import hashlib
 import math
+import secrets
 from contextlib import contextmanager
 from datetime import datetime, timedelta
 from typing import Any, Callable, Iterable
@@ -28,7 +30,23 @@ def get_jwt_secret() -> str:
 	return secret
 
 
-def generate_jwt(user: str, expires_in_hours: int = 24) -> str:
+def get_jwt_expiry_hours(remember_me: bool = False) -> int:
+	"""Read access token expiry from site_config. Default 24h, 168h (7d) when remember_me."""
+	conf = getattr(frappe.local, "conf", None) or frappe.conf or {}
+	if remember_me:
+		return cint(conf.get("redtra_jwt_remember_me_expiry_hours") or 168)
+	return cint(conf.get("redtra_jwt_expiry_hours") or 24)
+
+
+def get_refresh_token_expiry_days() -> int:
+	"""Read refresh token expiry from site_config. Default 30 days."""
+	conf = getattr(frappe.local, "conf", None) or frappe.conf or {}
+	return cint(conf.get("redtra_refresh_token_expiry_days") or 30)
+
+
+def generate_jwt(user: str, expires_in_hours: int | None = None) -> str:
+	if expires_in_hours is None:
+		expires_in_hours = get_jwt_expiry_hours(remember_me=False)
 	now = datetime.utcnow()
 	payload = {
 		"user": user,
@@ -55,6 +73,77 @@ def blacklist_token(token: str, expires_at: int):
 
 def is_token_blacklisted(token: str) -> bool:
 	return bool(frappe.cache().get_value(f"redtra_jwt_blacklist::{token}"))
+
+
+def _hash_refresh_token(token: str) -> str:
+	return hashlib.sha256(token.encode()).hexdigest()
+
+
+def generate_refresh_token(user: str) -> str:
+	"""Generate a cryptographically random refresh token and store its hash in DB."""
+	token_str = secrets.token_hex(32)
+	token_hash = _hash_refresh_token(token_str)
+	expiry_days = get_refresh_token_expiry_days()
+	expires_at = datetime.utcnow() + timedelta(days=expiry_days)
+
+	doc = frappe.get_doc(
+		{
+			"doctype": "Redtra Refresh Token",
+			"user": user,
+			"token_hash": token_hash,
+			"expires_at": expires_at,
+		}
+	)
+	doc.flags.ignore_permissions = True
+	doc.insert()
+	return token_str
+
+
+def validate_refresh_token(token_str: str) -> str | None:
+	"""Validate refresh token and return user. Returns None if invalid."""
+	if not token_str or not token_str.strip():
+		return None
+	token_hash = _hash_refresh_token(token_str)
+	now = datetime.utcnow()
+	row = frappe.db.get_value(
+		"Redtra Refresh Token",
+		{
+			"token_hash": token_hash,
+			"revoked": 0,
+		},
+		["user", "expires_at"],
+		as_dict=True,
+	)
+	if not row:
+		return None
+	return row["user"] if row["expires_at"] and row["expires_at"] > now else None
+
+
+def revoke_refresh_token(token_str: str) -> bool:
+	"""Revoke a refresh token by its value. Returns True if revoked."""
+	if not token_str or not token_str.strip():
+		return False
+	token_hash = _hash_refresh_token(token_str)
+	doc = frappe.db.get_value(
+		"Redtra Refresh Token",
+		{"token_hash": token_hash},
+		["name"],
+		as_dict=True,
+	)
+	if not doc:
+		return False
+	frappe.db.set_value("Redtra Refresh Token", doc["name"], "revoked", 1)
+	frappe.db.commit()
+	return True
+
+
+def revoke_refresh_tokens_for_user(user: str) -> None:
+	"""Revoke all refresh tokens for a user."""
+	frappe.db.sql(
+		"UPDATE `tabRedtra Refresh Token` SET revoked=1 WHERE user=%s AND revoked=0",
+		(user,),
+	)
+	frappe.db.commit()
 
 
 def extract_bearer_token() -> str:

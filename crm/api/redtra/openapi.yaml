@@ -131,7 +131,13 @@ components:
       properties:
         token:
           type: string
-          description: JWT token
+          description: JWT access token
+        refresh_token:
+          type: string
+          description: Refresh token for obtaining new access tokens
+        sid:
+          type: string
+          description: Frappe session ID; use in URL /crm?sid=... for web app auth
         user_id:
           type: string
         full_name:
@@ -141,7 +147,15 @@ components:
           description: Whether remember_me was set during login
         token_expires_in_hours:
           type: integer
-          description: Token expiration time in hours (24 for normal, 168 for remember_me)
+          description: Token expiration time in hours (from site_config or 24/168)
+    RefreshTokenRequest:
+      type: object
+      required:
+      - refresh_token
+      properties:
+        refresh_token:
+          type: string
+          description: Refresh token from login response
     ProfileResponse:
       type: object
       properties:
@@ -1145,6 +1159,35 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/AuthResponse'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+  /api/auth/refresh:
+    post:
+      tags:
+      - Authentication
+      summary: Refresh access token
+      description: Exchange a valid refresh token for a new access token and refresh token.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RefreshTokenRequest'
+      responses:
+        '200':
+          description: New tokens
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  token:
+                    type: string
+                  refresh_token:
+                    type: string
+                  token_expires_in_hours:
+                    type: integer
         '401':
           $ref: '#/components/responses/UnauthorizedError'
   /api/auth/forgot-password:

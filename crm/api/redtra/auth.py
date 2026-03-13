@@ -62,14 +62,15 @@ def login() -> dict[str, Any]:
 	login_manager.authenticate(user=email, pwd=password)
 	login_manager.post_login()
 
-	# Set JWT expiration based on remember_me
-	# 7 days if remember_me is True, otherwise 24 hours
-	token_expiry_hours = 24 * 7 if remember_me else 24
+	token_expiry_hours = utils.get_jwt_expiry_hours(remember_me=remember_me)
 	token = utils.generate_jwt(login_manager.user, expires_in_hours=token_expiry_hours)
+	refresh_token = utils.generate_refresh_token(login_manager.user)
 
 	user_doc = frappe.get_doc("User", login_manager.user)
 	return {
 		"token": token,
+		"refresh_token": refresh_token,
+		"sid": frappe.session.sid,
 		"user_id": login_manager.user,
 		"full_name": user_doc.full_name,
 		"remember_me": remember_me,
@@ -109,6 +110,26 @@ def forgot_password() -> dict[str, Any]:
 	return {"message": _("Password has been reset successfully.")}
 
 
+@frappe.whitelist(methods=["POST"], allow_guest=True)
+def refresh_token() -> dict[str, Any]:
+	data = utils.get_request_json(["refresh_token"])
+	token_str = (data.get("refresh_token") or "").strip()
+	user = utils.validate_refresh_token(token_str)
+	if not user:
+		frappe.throw(_("Invalid or expired refresh token."), frappe.AuthenticationError)
+
+	utils.revoke_refresh_token(token_str)
+	token_expiry_hours = utils.get_jwt_expiry_hours(remember_me=False)
+	access_token = utils.generate_jwt(user, expires_in_hours=token_expiry_hours)
+	new_refresh_token = utils.generate_refresh_token(user)
+
+	return {
+		"token": access_token,
+		"refresh_token": new_refresh_token,
+		"token_expires_in_hours": token_expiry_hours,
+	}
+
+
 @frappe.whitelist()
 @utils.require_jwt()
 def logout() -> dict[str, Any]:
@@ -117,6 +138,9 @@ def logout() -> dict[str, Any]:
 	payload = auth.get("payload") or {}
 	if token and payload:
 		utils.blacklist_token(token, payload.get("exp", 0))
+	user = payload.get("user")
+	if user:
+		utils.revoke_refresh_tokens_for_user(user)
 	return {"message": _("Logged out successfully.")}
 
 
