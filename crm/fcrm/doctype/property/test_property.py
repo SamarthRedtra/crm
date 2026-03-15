@@ -95,3 +95,21 @@ class TestProperty(UnitTestCase):
 
 		with self.assertRaises(frappe.ValidationError):
 			doc.run_method("validate")
+
+	def test_validate_allows_commercial_shop(self):
+		doc = frappe.get_doc(
+			{
+				"doctype": "Property",
+				"title": "Test Shop",
+				"property_category": "Commercial",
+				"property_type": "Shop",
+				"agent": "Test Agent", # Placeholder
+				"price": 1000,
+				"currency": "AED",
+				"listing_type": "Buy"
+			}
+		)
+		# We don't call doc.insert() because it requires db setup, 
+		# but validate() should pass now that 'Shop' is in property.json options
+		# and COMMERCIAL_TYPES.
+		doc.run_method("validate")
