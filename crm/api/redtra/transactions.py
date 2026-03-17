@@ -11,12 +11,33 @@ from frappe.utils import cint, today
 from . import utils
 
 
+def _resolve_agent_name(agent_id: str) -> str | None:
+	"""Resolve agent_id (name or BRN) to Agent doc name."""
+	if not agent_id or not agent_id.strip():
+		return None
+	agent_id = agent_id.strip()
+	name = frappe.db.get_value("Agent", {"dfd_registration_id": agent_id}, "name")
+	if name:
+		return name
+	return frappe.db.get_value("Agent", {"name": agent_id}, "name")
+
+
 @frappe.whitelist(allow_guest=True)
 def list_transactions() -> dict[str, Any]:
-	"""List transactions for the authenticated agent (or all for System Manager/Guest)."""
+	"""List transactions. When agent param provided, no auth required (public agent profile).
+	When agent not provided, auth required (scoped to logged-in agent or System Manager)."""
 	with utils.maybe_authenticate_jwt():
 		current_user = utils.get_current_user()
 		is_system_manager = current_user and "System Manager" in frappe.get_roles(current_user)
+		agent_filter = (frappe.form_dict.get("agent") or "").strip()
+
+		# Guest/unauthenticated: allow only when agent param provided (public agent profile)
+		is_guest = not current_user or current_user == "Guest"
+		if is_guest and not agent_filter:
+			frappe.throw(
+				_("Authentication required or provide agent parameter to view agent transactions."),
+				frappe.AuthenticationError,
+			)
 
 		page = max(1, cint(frappe.form_dict.get("page") or 1))
 		page_size = cint(frappe.form_dict.get("page_size") or 20)
@@ -28,8 +49,20 @@ def list_transactions() -> dict[str, Any]:
 
 		filters = []
 
-		# Scope to the agent unless System Manager or Guest
-		if current_user and not is_system_manager:
+		# When agent param provided (guest or any user): filter by that agent
+		if agent_filter:
+			agent_name = _resolve_agent_name(agent_filter)
+			if not agent_name:
+				return {
+					"items": [],
+					"page": page,
+					"page_size": page_size,
+					"total_items": 0,
+					"total_pages": 0,
+				}
+			filters.append((TXN.agent == agent_name) | (PROP.agent == agent_name))
+		elif current_user and not is_system_manager:
+			# Authenticated agent: scope to own transactions
 			agent_name = frappe.db.get_value("Agent", {"user": current_user}, "name")
 			if not agent_name:
 				return {
@@ -40,11 +73,7 @@ def list_transactions() -> dict[str, Any]:
 					"total_pages": 0,
 				}
 			filters.append((TXN.agent == agent_name) | (PROP.agent == agent_name))
-		elif is_system_manager:
-			# Optional agent filter for System Manager
-			agent_filter = (frappe.form_dict.get("agent") or "").strip()
-			if agent_filter:
-				filters.append(TXN.agent == agent_filter)
+		# System Manager without agent_filter: no agent scope (sees all)
 
 		# Optional filters
 		property_filter = (frappe.form_dict.get("property") or "").strip()
@@ -231,10 +260,9 @@ def create_transaction() -> dict[str, Any]:
 	return _serialize_transaction(doc, detail=True)
 
 
-@frappe.whitelist(allow_guest=False)
-@utils.require_jwt()
+@frappe.whitelist(allow_guest=True)
 def get_transaction(transaction_id: str) -> dict[str, Any]:
-	"""Get a single transaction log."""
+	"""Get a single transaction log. No auth required - anyone can view transaction details."""
 	if not frappe.db.exists("Property Transaction Log", transaction_id):
 		frappe.throw(_("Transaction not found"), frappe.DoesNotExistError)
 

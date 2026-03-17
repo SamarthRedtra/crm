@@ -5,11 +5,20 @@ When a user logs in via the Redtra API, they receive a sid in the response.
 Visiting /crm?sid=xxx should authenticate them. This module ensures:
 1. sid from URL is preserved in form_dict before session creation
 2. A fallback endpoint /api/auth/set-session-from-sid for explicit cookie setting
+3. GET /api/auth/get-sid to obtain a fresh SID when JWT is valid but SID expired
 """
 from __future__ import annotations
 
+from urllib.parse import quote
+
 import frappe
 from frappe import _
+
+from . import utils
+
+
+def _encode_redirect(path: str) -> str:
+	return quote(path, safe="")
 
 
 def ensure_sid_in_form_dict():
@@ -48,12 +57,16 @@ def set_session_from_sid():
 	redirect_to = (frappe.form_dict.get("redirect") or "/crm").strip() or "/crm"
 
 	if not sid:
-		frappe.throw(_("Missing sid parameter."), frappe.ValidationError)
+		frappe.local.response["type"] = "redirect"
+		frappe.local.response["location"] = f"/login?redirect-to={_encode_redirect(redirect_to)}"
+		return
 
 	# Validate sid by loading session data
 	session_data = _get_session_data(sid)
 	if not session_data or not session_data.get("user") or session_data.get("user") == "Guest":
-		frappe.throw(_("Invalid or expired session."), frappe.AuthenticationError)
+		frappe.local.response["type"] = "redirect"
+		frappe.local.response["location"] = f"/login?redirect-to={_encode_redirect(redirect_to)}"
+		return
 
 	# Set sid cookie so subsequent requests are authenticated
 	from frappe.auth import get_expiry_in_seconds
@@ -105,3 +118,65 @@ def _get_session_data(sid: str) -> dict | None:
 		return None
 
 	return frappe._dict({"user": user, "data": json.loads(r.get("sessiondata") or "{}")})
+
+
+@frappe.whitelist()
+@utils.require_jwt()
+def get_sid() -> dict[str, str]:
+	"""
+	Endpoint: GET /api/auth/get-sid (Bearer JWT required)
+	Returns a fresh SID for the authenticated user. Use when SID expired but JWT is still valid.
+	"""
+	user = utils.get_current_user()
+	if not user or user == "Guest":
+		frappe.throw(_("Invalid authentication."), frappe.AuthenticationError)
+
+	user_doc = frappe.get_cached_doc("User", user)
+	if not user_doc.enabled:
+		frappe.throw(_("User account is disabled."), frappe.PermissionError)
+
+	sid = frappe.generate_hash()
+	request_ip = getattr(frappe.local, "request_ip", None) or "127.0.0.1"
+	user_agent = None
+	if getattr(frappe.local, "request", None):
+		user_agent = frappe.local.request.headers.get("User-Agent")
+
+	from frappe.sessions import get_expiry_period
+
+	session_data = frappe._dict({
+		"user": user,
+		"session_ip": request_ip,
+		"user_agent": user_agent,
+		"last_updated": frappe.utils.now(),
+		"creation": frappe.utils.now(),
+		"session_expiry": get_expiry_period(),
+		"full_name": user_doc.full_name,
+		"user_type": user_doc.user_type or "Website User",
+	})
+
+	# Build full session structure (matches Frappe Session.data)
+	full_data = frappe._dict({
+		"user": user,
+		"sid": sid,
+		"data": session_data,
+	})
+
+	Sessions = frappe.qb.DocType("Sessions")
+	now = frappe.utils.now()
+	(
+		frappe.qb.into(Sessions)
+		.columns(Sessions.sessiondata, Sessions.user, Sessions.lastupdate, Sessions.sid, Sessions.status)
+		.insert(
+			(
+				frappe.as_json(session_data, indent=None, separators=(",", ":")),
+				user,
+				now,
+				sid,
+				"Active",
+			)
+		)
+	).run()
+	frappe.cache().hset("session", sid, full_data)
+	frappe.db.commit()
+
+	return {"sid": sid}

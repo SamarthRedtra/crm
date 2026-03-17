@@ -69,6 +69,11 @@
       "key": "base64_image",
       "value": "iVBORw0KGgoAAAANSUhEUgAAAAUA",
       "type": "string"
+    },
+    {
+      "key": "sid",
+      "value": "",
+      "type": "string"
     }
   ],
   "item": [
@@ -190,6 +195,47 @@
                   "  const json = pm.response.json();",
                   "  if (json.token) pm.collectionVariables.set('token', json.token);",
                   "  if (json.refresh_token) pm.collectionVariables.set('refresh_token', json.refresh_token);",
+                  "  if (json.sid) pm.collectionVariables.set('sid', json.sid);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "Get SID",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/auth/get-sid",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "auth",
+                "get-sid"
+              ]
+            },
+            "description": "Get a fresh SID when JWT is valid but session (SID) has expired. Use for Switch to CRM flow. Returns {\"sid\": \"...\"}."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "  const json = pm.response.json();",
+                  "  if (json.sid) pm.collectionVariables.set('sid', json.sid);",
                   "}"
                 ],
                 "type": "text/javascript"
@@ -1216,7 +1262,8 @@
             },
             "auth": {
               "type": "noauth"
-            }
+            },
+            "description": "Returns agencies with active_listings, sale_listings, rent_listings counts per agency."
           },
           "response": []
         },
@@ -3808,21 +3855,14 @@
           "name": "List Transactions",
           "request": {
             "method": "GET",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "Bearer {{token}}",
-                "type": "text"
-              }
-            ],
+            "header": [],
             "url": {
-              "raw": "{{base_url}}/api/v1/transactions?page=1&page_size=20",
+              "raw": "{{base_url}}/api/transactions?page=1&page_size=20&agent={{agent_id}}",
               "host": [
                 "{{base_url}}"
               ],
               "path": [
                 "api",
-                "v1",
                 "transactions"
               ],
               "query": [
@@ -3833,6 +3873,11 @@
                 {
                   "key": "page_size",
                   "value": "20"
+                },
+                {
+                  "key": "agent",
+                  "value": "{{agent_id}}",
+                  "description": "Agent ID (name or BRN). Required for guest access. When provided, no auth needed."
                 },
                 {
                   "key": "property",
@@ -3855,7 +3900,11 @@
                   "disabled": true
                 }
               ]
-            }
+            },
+            "auth": {
+              "type": "noauth"
+            },
+            "description": "No auth required when agent param provided (public agent profile). Auth required when agent not provided (scoped to logged-in agent)."
           },
           "response": []
         },
@@ -3880,13 +3929,12 @@
               "raw": "{\n  \"property\": \"PROP-2026-00001\",\n  \"transaction_type\": \"Sold\",\n  \"customer\": \"customer@example.com\",\n  \"transaction_date\": \"2026-02-13\",\n  \"amount\": 500000,\n  \"currency\": \"AED\",\n  \"notes\": \"Full payment completed\"\n}"
             },
             "url": {
-              "raw": "{{base_url}}/api/v1/transactions",
+              "raw": "{{base_url}}/api/transactions",
               "host": [
                 "{{base_url}}"
               ],
               "path": [
                 "api",
-                "v1",
                 "transactions"
               ]
             }
@@ -3897,25 +3945,22 @@
           "name": "Get Transaction",
           "request": {
             "method": "GET",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "Bearer {{token}}",
-                "type": "text"
-              }
-            ],
+            "header": [],
             "url": {
-              "raw": "{{base_url}}/api/v1/transactions/TXN-2026-00001",
+              "raw": "{{base_url}}/api/transactions/TXN-2026-00001",
               "host": [
                 "{{base_url}}"
               ],
               "path": [
                 "api",
-                "v1",
                 "transactions",
                 "TXN-2026-00001"
               ]
-            }
+            },
+            "auth": {
+              "type": "noauth"
+            },
+            "description": "No auth required. Anyone can view transaction details."
           },
           "response": []
         }

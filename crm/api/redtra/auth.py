@@ -67,6 +67,8 @@ def login() -> dict[str, Any]:
 	refresh_token = utils.generate_refresh_token(login_manager.user)
 
 	user_doc = frappe.get_doc("User", login_manager.user)
+	user_roles = set(frappe.get_roles(login_manager.user))
+	is_agent = "Agent" in user_roles
 	return {
 		"token": token,
 		"refresh_token": refresh_token,
@@ -75,6 +77,7 @@ def login() -> dict[str, Any]:
 		"full_name": user_doc.full_name,
 		"remember_me": remember_me,
 		"token_expires_in_hours": token_expiry_hours,
+		"is_agent": is_agent,
 	}
 
 
