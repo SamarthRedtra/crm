@@ -30,7 +30,6 @@ def list_agencies() -> dict[str, Any]:
 	page_size = cint(frappe.form_dict.get("page_size") or 20)
 	status = (frappe.form_dict.get("status") or "").strip()
 	search = (frappe.form_dict.get("search") or "").strip()
-	print("abc")
 
 	page = max(1, page)
 	page_size = max(1, min(page_size, 100))
@@ -64,8 +63,15 @@ def list_agencies() -> dict[str, Any]:
 		frappe.set_user(original_user)
 	total_pages = (total_items + page_size - 1) // page_size if page_size else 0
 
+	items_with_stats = []
+	for row in items:
+		summary = _serialize_agency_summary(row)
+		stats = _build_agency_property_stats(row.get("name") or "")
+		summary.update(stats)
+		items_with_stats.append(summary)
+
 	return {
-		"items": [_serialize_agency_summary(row) for row in items],
+		"items": items_with_stats,
 		"page": page,
 		"page_size": page_size,
 		"total_items": total_items,

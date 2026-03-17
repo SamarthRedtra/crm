@@ -621,6 +621,18 @@ def serialize_property_detail(doc) -> dict[str, Any]:
 	}
 	if completion_status_key in {"off-plan", "offplan"}:
 		agent_payload = None
+	else:
+		try:
+			from . import reviews
+			agent_payload["ratings"] = reviews.get_agent_rating_stats(doc.agent)
+		except Exception:
+			agent_payload["ratings"] = {
+				"average_overall_rating": 0.0,
+				"average_agent_rating": 0.0,
+				"average_property_rating": 0.0,
+				"total_reviews": 0,
+				"recent_reviews": [],
+			}
 
 	return {
 		"id": doc.name,
