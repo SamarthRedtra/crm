@@ -8,6 +8,41 @@ from frappe.utils import cint
 
 from . import utils
 
+_ANONYMOUS_REVIEWER_USER = "redtra.public.reviewer@anonymous.local"
+
+
+def _get_anonymous_reviewer_customer() -> str:
+	"""Shared Customer used when a review is submitted without a logged-in CRM customer."""
+	if frappe.db.exists("Customer", _ANONYMOUS_REVIEWER_USER):
+		return _ANONYMOUS_REVIEWER_USER
+	if not frappe.db.exists("User", _ANONYMOUS_REVIEWER_USER):
+		frappe.get_doc(
+			{
+				"doctype": "User",
+				"email": _ANONYMOUS_REVIEWER_USER,
+				"first_name": "Public",
+				"last_name": "Reviewer",
+				"send_welcome_email": 0,
+			}
+		).insert(ignore_permissions=True)
+	frappe.get_doc(
+		{
+			"doctype": "Customer",
+			"user": _ANONYMOUS_REVIEWER_USER,
+			"full_name": "Anonymous Reviewer",
+		}
+	).insert(ignore_permissions=True)
+	return _ANONYMOUS_REVIEWER_USER
+
+
+def _resolve_reviewer_name(customer_id: str | None, guest_display_name: str | None) -> str | None:
+	label = (guest_display_name or "").strip()
+	if label:
+		return label
+	if customer_id:
+		return frappe.db.get_value("Customer", customer_id, "full_name")
+	return None
+
 
 @frappe.whitelist()
 @utils.require_jwt()
@@ -82,15 +117,13 @@ def submit_appointment_review(appointment_id: str) -> dict[str, Any]:
 	return serialize_review(review_doc.name)
 
 
-@frappe.whitelist()
-@utils.require_jwt()
+@frappe.whitelist(allow_guest=True)
 def submit_agent_review(agent_id: str) -> dict[str, Any]:
 	"""Submit a review for an agent (without appointment)"""
 	return _submit_general_review(agent_id=agent_id)
 
 
-@frappe.whitelist()
-@utils.require_jwt()
+@frappe.whitelist(allow_guest=True)
 def submit_property_review(property_id: str) -> dict[str, Any]:
 	"""Submit a review for a property (without appointment)"""
 	return _submit_general_review(property_id=property_id)
@@ -100,25 +133,22 @@ def _submit_general_review(agent_id: str | None = None, property_id: str | None 
 	data = utils.get_request_json()
 	current_user = utils.get_current_user()
 	customer = utils.get_customer_by_user(current_user)
-	
-	if not customer:
-		frappe.throw(_("Customer profile is required to submit reviews."), frappe.PermissionError)
+	guest_label = (data.get("reviewer_name") or data.get("guest_display_name") or "").strip()
 
-	filters = {"customer": customer.name}
+	if not customer:
+		customer_name = _get_anonymous_reviewer_customer()
+	else:
+		customer_name = customer.name
+
 	if agent_id:
 		# Resolve agent ID (could be BRN)
 		agent_name = frappe.db.get_value("Agent", {"dfd_registration_id": agent_id}, "name")
 		if agent_name:
 			agent_id = agent_name
-		
-		filters["agent"] = agent_id
-		filters["appointment"] = ["is", "not set"] # Explicitly filter NULL
 		# Ensure agent exists
 		if not frappe.db.exists("Agent", agent_id):
 			frappe.throw(_("Agent not found."), frappe.DoesNotExistError)
 	elif property_id:
-		filters["property"] = property_id
-		filters["appointment"] = ["is", "not set"]
 		# Ensure property exists
 		if not frappe.db.exists("Property", property_id):
 			frappe.throw(_("Property not found."), frappe.DoesNotExistError)
@@ -127,7 +157,9 @@ def _submit_general_review(agent_id: str | None = None, property_id: str | None 
 
 	# Always create a new review record instead of updating existing ones
 	review_doc = frappe.new_doc("Review and Rating")
-	review_doc.customer = customer.name
+	review_doc.customer = customer_name
+	if not customer and guest_label:
+		review_doc.guest_display_name = guest_label
 	if agent_id:
 		review_doc.agent = agent_id
 	if property_id:
@@ -187,7 +219,9 @@ def serialize_review(review_name: str) -> dict[str, Any]:
 	"""Serialize review document for API response"""
 	review_doc = frappe.get_doc("Review and Rating", review_name)
 	
-	customer_name = frappe.db.get_value("Customer", review_doc.customer, "full_name")
+	reviewer_name = _resolve_reviewer_name(
+		review_doc.customer, getattr(review_doc, "guest_display_name", None)
+	)
 	
 	return {
 		"id": review_doc.name,
@@ -195,7 +229,7 @@ def serialize_review(review_name: str) -> dict[str, Any]:
 		"agent_id": review_doc.agent,
 		"property_id": review_doc.property,
 		"customer_id": review_doc.customer,
-		"reviewer_name": customer_name,
+		"reviewer_name": reviewer_name,
 		"overall_rating": _denormalize_rating(review_doc.overall_rating),
 		"agent_rating": _denormalize_rating(review_doc.agent_rating),
 		"property_rating": _denormalize_rating(review_doc.property_rating),
@@ -206,9 +240,89 @@ def serialize_review(review_name: str) -> dict[str, Any]:
 	}
 
 
-def get_agent_rating_stats(agent_id: str) -> dict[str, Any]:
-	"""Get rating statistics for an agent"""
-	# Get all submitted/published reviews for this agent
+def empty_agent_rating_summary() -> dict[str, Any]:
+	"""Default shape for agent ratings (averages + empty review list)."""
+	return {
+		"average_overall_rating": 0.0,
+		"average_agent_rating": 0.0,
+		"average_property_rating": 0.0,
+		"total_reviews": 0,
+		"recent_reviews": [],
+	}
+
+
+def _stats_from_aggregate_row(row: dict[str, Any]) -> dict[str, Any]:
+	cnt = int(row.get("cnt") or 0)
+	if cnt <= 0:
+		return empty_agent_rating_summary()
+	ao = float(row.get("avg_overall") or 0)
+	aa = float(row.get("avg_agent") or 0)
+	ap = float(row.get("avg_property") or 0)
+	return {
+		"average_overall_rating": round(ao * 5, 2),
+		"average_agent_rating": round(aa * 5, 2),
+		"average_property_rating": round(ap * 5, 2),
+		"total_reviews": cnt,
+		"recent_reviews": [],
+	}
+
+
+def get_agent_rating_stats_summary_only(agent_id: str) -> dict[str, Any]:
+	"""Averages and counts only (no per-review rows). Uses one SQL aggregate."""
+	if not agent_id:
+		return empty_agent_rating_summary()
+	rows = frappe.db.sql(
+		"""
+		SELECT
+			COUNT(*) AS cnt,
+			AVG(overall_rating) AS avg_overall,
+			AVG(agent_rating) AS avg_agent,
+			AVG(property_rating) AS avg_property
+		FROM `tabReview and Rating`
+		WHERE agent = %s
+			AND status IN ('Submitted', 'Published')
+		""",
+		(agent_id,),
+		as_dict=True,
+	)
+	if not rows:
+		return empty_agent_rating_summary()
+	return _stats_from_aggregate_row(rows[0])
+
+
+def get_agent_rating_stats_batch(agent_ids: list[str]) -> dict[str, dict[str, Any]]:
+	"""Summary-only stats for many agents (one grouped SQL query)."""
+	seen: list[str] = []
+	for a in agent_ids:
+		if a and a not in seen:
+			seen.append(a)
+	if not seen:
+		return {}
+	placeholders = ", ".join(["%s"] * len(seen))
+	rows = frappe.db.sql(
+		f"""
+		SELECT
+			agent,
+			COUNT(*) AS cnt,
+			AVG(overall_rating) AS avg_overall,
+			AVG(agent_rating) AS avg_agent,
+			AVG(property_rating) AS avg_property
+		FROM `tabReview and Rating`
+		WHERE status IN ('Submitted', 'Published')
+			AND agent IN ({placeholders})
+		GROUP BY agent
+		""",
+		tuple(seen),
+		as_dict=True,
+	)
+	by_agent = {r["agent"]: _stats_from_aggregate_row(r) for r in rows if r.get("agent")}
+	return {aid: by_agent.get(aid, empty_agent_rating_summary()) for aid in seen}
+
+
+def get_agent_rating_stats(agent_id: str, *, include_review_items: bool = True) -> dict[str, Any]:
+	"""Get rating statistics for an agent."""
+	if not include_review_items:
+		return get_agent_rating_stats_summary_only(agent_id)
 	reviews = frappe.get_all(
 		"Review and Rating",
 		filters={
@@ -216,76 +330,49 @@ def get_agent_rating_stats(agent_id: str) -> dict[str, Any]:
 			"status": ["in", ["Submitted", "Published"]],
 		},
 		fields=[
+			"name",
 			"overall_rating",
 			"agent_rating",
 			"property_rating",
 			"review_text",
 			"creation",
 			"customer",
+			"guest_display_name",
+			"property",
+			"appointment",
 		],
 		order_by="creation desc",
-		limit=10,
 		ignore_permissions=True,
 	)
-	
+
 	if not reviews:
-		return {
-			"average_overall_rating": 0.0,
-			"average_agent_rating": 0.0,
-			"average_property_rating": 0.0,
-			"total_reviews": 0,
-			"recent_reviews": [],
-		}
-	
-	# Calculate averages
+		return empty_agent_rating_summary()
+
 	total_count = len(reviews)
 	overall_sum = sum(float(r.get("overall_rating") or 0) for r in reviews)
 	agent_sum = sum(float(r.get("agent_rating") or 0) for r in reviews)
 	property_sum = sum(float(r.get("property_rating") or 0) for r in reviews)
-	
-	# Get all reviews for accurate averages (not just recent 10)
-	# Use frappe.get_all with ignore_permissions for guest access
-	all_reviews = frappe.get_all(
-		"Review and Rating",
-		filters={
-			"agent": agent_id,
-			"status": ["in", ["Submitted", "Published"]],
-		},
-		fields=["overall_rating", "agent_rating", "property_rating"],
-		ignore_permissions=True,
-	)
-	all_reviews_count = len(all_reviews)
-	
-	if all_reviews_count > total_count:
-		# Already fetched all_reviews above, use it
-		total_count = all_reviews_count
-		overall_sum = sum(float(r.get("overall_rating") or 0) for r in all_reviews)
-		agent_sum = sum(float(r.get("agent_rating") or 0) for r in all_reviews)
-		property_sum = sum(float(r.get("property_rating") or 0) for r in all_reviews)
-	elif all_reviews_count == 0:
-		total_count = 0
-		overall_sum = agent_sum = property_sum = 0
-	else:
-		# total_count from the first get_all (recent 10) might be <= all_reviews_count
-		# Re-calculate averages from the full list for accuracy
-		total_count = all_reviews_count
-		overall_sum = sum(float(r.get("overall_rating") or 0) for r in all_reviews)
-		agent_sum = sum(float(r.get("agent_rating") or 0) for r in all_reviews)
-		property_sum = sum(float(r.get("property_rating") or 0) for r in all_reviews)
-	
-	# Serialize recent reviews
+
 	recent_reviews = []
-	for review in reviews[:5]:  # Show only 5 most recent in detail
-		customer_name = frappe.db.get_value("Customer", review.get("customer"), "full_name")
-		recent_reviews.append({
-			"overall_rating": _denormalize_rating(review.get("overall_rating")),
-			"agent_rating": _denormalize_rating(review.get("agent_rating")),
-			"property_rating": _denormalize_rating(review.get("property_rating")),
-			"review_text": review.get("review_text") or "",
-			"reviewer_name": customer_name,
-			"created_at": review.get("creation"),
-		})
-	
+	for review in reviews:
+		recent_reviews.append(
+			{
+				"id": review.get("name"),
+				"overall_rating": _denormalize_rating(review.get("overall_rating")),
+				"agent_rating": _denormalize_rating(review.get("agent_rating")),
+				"property_rating": _denormalize_rating(review.get("property_rating")),
+				"review_text": review.get("review_text") or "",
+				"reviewer_name": _resolve_reviewer_name(
+					review.get("customer"), review.get("guest_display_name")
+				),
+				"property_title": frappe.db.get_value("Property", review.get("property"), "title")
+				if review.get("property")
+				else None,
+				"appointment_id": review.get("appointment"),
+				"created_at": review.get("creation"),
+			}
+		)
+
 	return {
 		"average_overall_rating": round((overall_sum / total_count) * 5, 2) if total_count > 0 else 0.0,
 		"average_agent_rating": round((agent_sum / total_count) * 5, 2) if total_count > 0 else 0.0,
@@ -337,6 +424,7 @@ def get_agent_reviews(agent_id: str) -> dict[str, Any]:
 			"review_text",
 			"creation",
 			"customer",
+			"guest_display_name",
 			"property",
 			"appointment",
 		],
@@ -352,7 +440,6 @@ def get_agent_reviews(agent_id: str) -> dict[str, Any]:
 	# Serialize reviews
 	review_items = []
 	for review in reviews:
-		customer_name = frappe.db.get_value("Customer", review.get("customer"), "full_name")
 		property_title = frappe.db.get_value("Property", review.get("property"), "title") if review.get("property") else None
 		
 		review_items.append({
@@ -361,7 +448,9 @@ def get_agent_reviews(agent_id: str) -> dict[str, Any]:
 			"agent_rating": _denormalize_rating(review.get("agent_rating")),
 			"property_rating": _denormalize_rating(review.get("property_rating")),
 			"review_text": review.get("review_text") or "",
-			"reviewer_name": customer_name,
+			"reviewer_name": _resolve_reviewer_name(
+				review.get("customer"), review.get("guest_display_name")
+			),
 			"property_title": property_title,
 			"appointment_id": review.get("appointment"),
 			"created_at": review.get("creation"),
@@ -482,6 +571,7 @@ def get_property_reviews(property_id: str) -> dict[str, Any]:
 			"review_text",
 			"creation",
 			"customer",
+			"guest_display_name",
 			"property",
 			"appointment",
 		],
@@ -495,15 +585,15 @@ def get_property_reviews(property_id: str) -> dict[str, Any]:
 	
 	review_items = []
 	for review in reviews:
-		customer_name = frappe.db.get_value("Customer", review.get("customer"), "full_name")
-		
 		review_items.append({
 			"id": review.get("name"),
 			"overall_rating": _denormalize_rating(review.get("overall_rating")),
 			"agent_rating": _denormalize_rating(review.get("agent_rating")),
 			"property_rating": _denormalize_rating(review.get("property_rating")),
 			"review_text": review.get("review_text") or "",
-			"reviewer_name": customer_name,
+			"reviewer_name": _resolve_reviewer_name(
+				review.get("customer"), review.get("guest_display_name")
+			),
 			"appointment_id": review.get("appointment"),
 			"created_at": review.get("creation"),
 		})

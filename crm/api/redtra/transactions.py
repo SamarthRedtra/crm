@@ -8,7 +8,7 @@ from frappe import _
 from frappe.query_builder import DocType, Order, functions as fn
 from frappe.utils import cint, today
 
-from . import utils
+from . import reviews, utils
 
 
 def _resolve_agent_name(agent_id: str) -> str | None:
@@ -179,7 +179,19 @@ def list_transactions() -> dict[str, Any]:
 			count_query = count_query.where(f)
 
 		rows = query.run(as_dict=True)
-		items = [_serialize_transaction(row) for row in rows]
+		agent_ids = [r.get("agent") for r in rows if r.get("agent")]
+		ratings_map = reviews.get_agent_rating_stats_batch(agent_ids)
+		items = [
+			_serialize_transaction(
+				row,
+				agent_ratings=(
+					ratings_map.get(row["agent"], reviews.empty_agent_rating_summary())
+					if row.get("agent")
+					else reviews.empty_agent_rating_summary()
+				),
+			)
+			for row in rows
+		]
 
 		total_items = int(count_query.run()[0][0] or 0)
 		total_pages = math.ceil(total_items / page_size) if page_size else 0
@@ -270,7 +282,12 @@ def get_transaction(transaction_id: str) -> dict[str, Any]:
 	return _serialize_transaction(doc, detail=True)
 
 
-def _serialize_transaction(row: Any, detail: bool = False) -> dict[str, Any]:
+def _serialize_transaction(
+	row: Any,
+	detail: bool = False,
+	*,
+	agent_ratings: dict[str, Any] | None = None,
+) -> dict[str, Any]:
 	if isinstance(row, dict):
 		result = {
 			"id": row.get("id") or row.get("name"),
@@ -339,5 +356,17 @@ def _serialize_transaction(row: Any, detail: bool = False) -> dict[str, Any]:
 		customer_name = frappe.db.get_value("Customer", result["customer"], "full_name") if result.get("customer") else None
 		result["agent_name"] = agent_name
 		result["customer_name"] = customer_name
+
+	if agent_ratings is not None:
+		result["agent_ratings"] = agent_ratings
+	elif result.get("agent"):
+		try:
+			result["agent_ratings"] = reviews.get_agent_rating_stats(
+				result["agent"], include_review_items=False
+			)
+		except Exception:
+			result["agent_ratings"] = reviews.empty_agent_rating_summary()
+	else:
+		result["agent_ratings"] = reviews.empty_agent_rating_summary()
 
 	return result

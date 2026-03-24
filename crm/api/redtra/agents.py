@@ -7,7 +7,7 @@ from frappe import _
 from frappe.utils import cint, get_time
 from frappe.query_builder import DocType, functions as fn
 
-from . import properties, utils
+from . import properties, reviews, utils
 
 SUMMARY_FIELDS = [
 	"name",
@@ -66,6 +66,7 @@ def list_agents() -> dict[str, Any]:
 	agent_ids = [row["name"] for row in items]
 	property_counts = _get_agent_property_counts(agent_ids)
 	leads_counts = _get_agent_leads_counts(agent_ids)
+	ratings_by_agent = reviews.get_agent_rating_stats_batch(agent_ids)
 
 	return {
 		"items": [
@@ -73,6 +74,7 @@ def list_agents() -> dict[str, Any]:
 				**row,
 				"property_count": property_counts.get(row["name"], 0),
 				"leads": leads_counts.get(row["name"], 0),
+				"ratings": ratings_by_agent.get(row["name"], reviews.empty_agent_rating_summary()),
 			})
 			for row in items
 		],
@@ -268,6 +270,7 @@ def _serialize_agent_summary(row: dict[str, Any]) -> dict[str, Any]:
 		# Optional fields that might be added by batch processing
 		"property_count": row.get("property_count", 0),
 		"leads": row.get("leads", 0),
+		"ratings": row.get("ratings") or reviews.empty_agent_rating_summary(),
 	}
 
 
@@ -307,17 +310,9 @@ def _serialize_agent_detail(doc) -> dict[str, Any]:
 
 	# Get rating statistics
 	try:
-		from . import reviews
 		rating_stats = reviews.get_agent_rating_stats(doc.name)
 	except Exception:
-		# If reviews module not available or error, return empty stats
-		rating_stats = {
-			"average_overall_rating": 0.0,
-			"average_agent_rating": 0.0,
-			"average_property_rating": 0.0,
-			"total_reviews": 0,
-			"recent_reviews": [],
-		}
+		rating_stats = reviews.empty_agent_rating_summary()
 
 	# Get agency details if available
 	agency_details = None

@@ -7,7 +7,7 @@ import frappe
 from frappe import _
 from frappe.utils import get_datetime, getdate, get_time, add_to_date
 
-from . import properties, utils
+from . import properties, reviews, utils
 
 
 @frappe.whitelist()
@@ -251,6 +251,27 @@ def serialize_appointment(name: str) -> dict[str, Any]:
 			has_review = True
 			review_id = review_name
 
+	agent_payload: dict[str, Any] = {
+		"id": agent_doc.name if agent_doc else None,
+		"name": agent_doc.full_name if agent_doc else None,
+		"phone": agent_doc.phone if agent_doc else None,
+		"whatsapp_number": agent_doc.whatsapp_number if agent_doc else None,
+		"whatsapp_link": (
+			f"https://wa.me/{(agent_doc.whatsapp_number or agent_doc.phone).replace('+', '').replace(' ', '')}"
+			if agent_doc and (agent_doc.whatsapp_number or agent_doc.phone)
+			else None
+		),
+	}
+	if agent_doc:
+		try:
+			agent_payload["ratings"] = reviews.get_agent_rating_stats(
+				agent_doc.name, include_review_items=False
+			)
+		except Exception:
+			agent_payload["ratings"] = reviews.empty_agent_rating_summary()
+	else:
+		agent_payload["ratings"] = reviews.empty_agent_rating_summary()
+
 	return {
 		"id": doc.name,
 		"status": doc.status,
@@ -264,17 +285,7 @@ def serialize_appointment(name: str) -> dict[str, Any]:
 			"phone": customer.phone,
 			"email": customer.email,
 		},
-		"agent": {
-			"id": agent_doc.name if agent_doc else None,
-			"name": agent_doc.full_name if agent_doc else None,
-			"phone": agent_doc.phone if agent_doc else None,
-			"whatsapp_number": agent_doc.whatsapp_number if agent_doc else None,
-			"whatsapp_link": (
-				f"https://wa.me/{(agent_doc.whatsapp_number or agent_doc.phone).replace('+', '').replace(' ', '')}"
-				if agent_doc and (agent_doc.whatsapp_number or agent_doc.phone)
-				else None
-			),
-		},
+		"agent": agent_payload,
 		"property": property_summary,
 		"calendar_event": doc.calendar_event,
 		"review": {

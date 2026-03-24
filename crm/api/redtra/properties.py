@@ -12,7 +12,7 @@ from frappe.query_builder import DocType, functions as fn
 from frappe.utils import cint, get_datetime, now_datetime, strip_html
 from pypika import Order
 
-from . import utils
+from . import reviews, utils
 
 SUMMARY_FIELDS = [
 	"name",
@@ -491,6 +491,12 @@ def serialize_property_summary(row: dict[str, Any]) -> dict[str, Any]:
 					"profile_image": agent_data.get("profile_image"),
 					"status": agent_data.get("status"),
 				}
+				try:
+					agent["ratings"] = reviews.get_agent_rating_stats(
+						agent_data.get("name"), include_review_items=False
+					)
+				except Exception:
+					agent["ratings"] = reviews.empty_agent_rating_summary()
 		except Exception:
 			# If agent doesn't exist or error, leave as None
 			pass
@@ -623,16 +629,9 @@ def serialize_property_detail(doc) -> dict[str, Any]:
 		agent_payload = None
 	else:
 		try:
-			from . import reviews
 			agent_payload["ratings"] = reviews.get_agent_rating_stats(doc.agent)
 		except Exception:
-			agent_payload["ratings"] = {
-				"average_overall_rating": 0.0,
-				"average_agent_rating": 0.0,
-				"average_property_rating": 0.0,
-				"total_reviews": 0,
-				"recent_reviews": [],
-			}
+			agent_payload["ratings"] = reviews.empty_agent_rating_summary()
 
 	return {
 		"id": doc.name,
