@@ -12,6 +12,7 @@
         "agent",
         "property",
         "customer",
+        "guest_display_name",
         "column_break_1",
         "status",
         "section_break_ratings",
@@ -59,7 +60,13 @@
             "in_standard_filter": 1,
             "label": "Customer",
             "options": "Customer",
-            "reqd": 1
+            "reqd": 0
+        },
+        {
+            "description": "Shown for public reviews when the reviewer is not a logged-in customer.",
+            "fieldname": "guest_display_name",
+            "fieldtype": "Data",
+            "label": "Guest display name"
         },
         {
             "fieldname": "column_break_1",

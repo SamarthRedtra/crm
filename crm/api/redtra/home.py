@@ -4,7 +4,7 @@ from typing import Any
 
 import frappe
 
-from . import properties
+from . import properties, reviews
 
 MAX_FEATURED_PROPERTIES = 8
 MAX_HOME_ITEMS = 8
@@ -141,6 +141,9 @@ def _get_top_agents() -> list[dict[str, Any]]:
 			)
 		}
 
+	agent_ids = [row["name"] for row in rows]
+	ratings_by_agent = reviews.get_agent_rating_stats_batch(agent_ids)
+
 	return [
 		{
 			"id": row["name"],
@@ -150,6 +153,7 @@ def _get_top_agents() -> list[dict[str, Any]]:
 			"whatsapp_number": row.get("whatsapp_number"),
 			"profile_image": row.get("profile_image"),
 			"property_count": property_counts.get(row["name"], 0),
+			"ratings": ratings_by_agent.get(row["name"], reviews.empty_agent_rating_summary()),
 		}
 		for row in rows
 	]

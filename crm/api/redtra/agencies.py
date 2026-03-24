@@ -4,10 +4,10 @@ from typing import Any
 
 import frappe
 from frappe import _
-from frappe.utils import cint
+from frappe.utils import cint, strip_html
 from frappe.query_builder import DocType, functions as fn
 
-from . import properties, utils
+from . import properties, reviews, utils
 
 SUMMARY_FIELDS = [
 	"name",
@@ -171,6 +171,7 @@ def list_agency_agents(agency_id: str) -> dict[str, Any]:
 	from . import agents
 	property_counts = agents._get_agent_property_counts(agent_ids)
 	leads_counts = agents._get_agent_leads_counts(agent_ids)
+	ratings_by_agent = reviews.get_agent_rating_stats_batch(agent_ids)
 
 	return {
 		"items": [
@@ -178,6 +179,7 @@ def list_agency_agents(agency_id: str) -> dict[str, Any]:
 				**row,
 				"property_count": property_counts.get(row["name"], 0),
 				"leads": leads_counts.get(row["name"], 0),
+				"ratings": ratings_by_agent.get(row["name"], reviews.empty_agent_rating_summary()),
 			})
 			for row in items
 		],
@@ -354,6 +356,7 @@ def _serialize_agency_detail(doc) -> dict[str, Any]:
 		"pincode": doc.pincode,
 		"logo": doc.logo,
 		"description": doc.description,
+		"description_not_formatted": strip_html(doc.description) if doc.description else None,
 		"location": _build_location(doc.city, doc.state, doc.country),
 	}
 

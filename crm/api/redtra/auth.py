@@ -10,7 +10,7 @@ from frappe.utils import add_months, cint, get_datetime_str, now_datetime
 from frappe.utils.password import update_password
 
 
-from . import properties, utils, agencies, favorites, appointments
+from . import agencies, appointments, favorites, properties, reviews, utils
 
 
 
@@ -374,6 +374,11 @@ def _build_agent_profile(user_doc, agent_doc, start_of_day, end_of_day) -> dict[
 	if hasattr(agent_doc, "agency") and agent_doc.agency:
 		agency_details = agencies.get_agency_details(agent_doc.agency, include_stats=True)
 
+	try:
+		agent_ratings = reviews.get_agent_rating_stats(agent_doc.name)
+	except Exception:
+		agent_ratings = reviews.empty_agent_rating_summary()
+
 	return {
 
 		"user_id": user_doc.name,
@@ -389,6 +394,7 @@ def _build_agent_profile(user_doc, agent_doc, start_of_day, end_of_day) -> dict[
 			"about_me": agent_doc.bio,
 			"profile_image": getattr(agent_doc, "profile_image", None),
 			"max_daily_appointments": agent_doc.max_daily_appointments,
+			"ratings": agent_ratings,
 		},
 		"appointments_today": appointments_today,
 		"properties": properties_listed,
