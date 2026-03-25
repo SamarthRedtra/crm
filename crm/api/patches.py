@@ -7,6 +7,8 @@ _patched = False
 _original_handle = None
 _make_form_dict_patched = False
 _original_make_form_dict = None
+_validate_auth_patched = False
+_original_validate_auth = None
 
 
 def _patched_make_form_dict(request):
@@ -55,6 +57,39 @@ def _patched_handle(request):
 	return _original_handle(request)
 
 
+def _patched_validate_auth():
+	"""Frappe raises AuthenticationError if Authorization: Bearer x is sent but user is still Guest.
+
+	Redtra sends JWTs in the same header; when the token is expired/invalid our hook leaves Guest.
+	That must not block allow_guest API routes (e.g. POST /api/agents/.../reviews).
+	"""
+	authorization_header = frappe.get_request_header("Authorization", "").split(" ")
+
+	if len(authorization_header) == 2:
+		frappe.auth.validate_oauth(authorization_header)
+		frappe.auth.validate_auth_via_api_keys(authorization_header)
+
+	frappe.auth.validate_auth_via_hooks()
+
+	if len(authorization_header) == 2 and frappe.session.user in ("", "Guest"):
+		if getattr(frappe.local, "redtra_guest_after_stale_bearer", False):
+			return
+		raise frappe.AuthenticationError
+
+
+def patch_validate_auth_for_redtra_bearer():
+	global _validate_auth_patched, _original_validate_auth
+
+	if _validate_auth_patched:
+		return
+
+	import frappe.auth as auth_module
+
+	_original_validate_auth = auth_module.validate_auth
+	auth_module.validate_auth = _patched_validate_auth
+	_validate_auth_patched = True
+
+
 def patch_frappe_api_handler():
 	global _patched, _original_handle
 
@@ -66,4 +101,5 @@ def patch_frappe_api_handler():
 	frappe.api.handle = _patched_handle
 	_patched = True
 	patch_make_form_dict_for_sid()
+	patch_validate_auth_for_redtra_bearer()
 

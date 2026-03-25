@@ -73,6 +73,20 @@ def decode_jwt(token: str) -> dict[str, Any]:
 		frappe.throw(_("Invalid authentication token."), exc=frappe.AuthenticationError)
 
 
+def decode_jwt_optional(token: str) -> dict[str, Any] | None:
+	"""Decode JWT when valid; return None if expired or invalid (no exception).
+
+	Used by the global auth hook and maybe_authenticate_jwt so guest/public endpoints
+	still work when the client sends a stale Authorization header.
+	"""
+	if not token or not str(token).strip():
+		return None
+	try:
+		return jwt.decode(str(token).strip(), get_jwt_secret(), algorithms=["HS256"])
+	except (jwt.ExpiredSignatureError, jwt.InvalidTokenError):
+		return None
+
+
 def blacklist_token(token: str, expires_at: int):
 	cache = frappe.cache()
 	ttl = max(expires_at - int(datetime.utcnow().timestamp()), 0)
@@ -214,10 +228,15 @@ def maybe_authenticate_jwt(roles: Iterable[str] | None = None):
 	if is_token_blacklisted(token):
 		frappe.throw(_("Token has been revoked."), frappe.AuthenticationError)
 
-	payload = decode_jwt(token)
+	payload = decode_jwt_optional(token)
+	if not payload:
+		yield None
+		return
+
 	user = payload.get("user")
 	if not user:
-		frappe.throw(_("Invalid authentication token."), frappe.AuthenticationError)
+		yield None
+		return
 
 	required_roles = set(roles or [])
 	if required_roles:

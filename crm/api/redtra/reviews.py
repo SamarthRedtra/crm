@@ -11,20 +11,36 @@ from . import utils
 _ANONYMOUS_REVIEWER_USER = "redtra.public.reviewer@anonymous.local"
 
 
-def _get_anonymous_reviewer_customer() -> str:
-	"""Shared Customer used when a review is submitted without a logged-in CRM customer."""
-	if frappe.db.exists("Customer", _ANONYMOUS_REVIEWER_USER):
-		return _ANONYMOUS_REVIEWER_USER
+def _ensure_anonymous_reviewer_user() -> None:
+	"""System User for pooled public reviews — must have at least one enabled role (Frappe requirement)."""
 	if not frappe.db.exists("User", _ANONYMOUS_REVIEWER_USER):
-		frappe.get_doc(
+		user = frappe.get_doc(
 			{
 				"doctype": "User",
 				"email": _ANONYMOUS_REVIEWER_USER,
 				"first_name": "Public",
 				"last_name": "Reviewer",
 				"send_welcome_email": 0,
+				"enabled": 1,
+				"user_type": "Website User",
+				"roles": [{"role": "Customer"}],
 			}
-		).insert(ignore_permissions=True)
+		)
+		user.flags.ignore_permissions = True
+		user.insert()
+		return
+
+	user = frappe.get_doc("User", _ANONYMOUS_REVIEWER_USER)
+	if not frappe.get_roles(_ANONYMOUS_REVIEWER_USER):
+		user.flags.ignore_permissions = True
+		user.add_roles("Customer")
+
+
+def _get_anonymous_reviewer_customer() -> str:
+	"""Shared Customer used when a review is submitted without a logged-in CRM customer."""
+	if frappe.db.exists("Customer", _ANONYMOUS_REVIEWER_USER):
+		return _ANONYMOUS_REVIEWER_USER
+	_ensure_anonymous_reviewer_user()
 	frappe.get_doc(
 		{
 			"doctype": "Customer",
@@ -44,77 +60,95 @@ def _resolve_reviewer_name(customer_id: str | None, guest_display_name: str | No
 	return None
 
 
-@frappe.whitelist()
-@utils.require_jwt()
+@frappe.whitelist(allow_guest=True)
 def submit_appointment_review(appointment_id: str) -> dict[str, Any]:
 	"""
 	Submit a review and rating for a completed appointment.
-	
-	Only the customer who booked the appointment can submit a review.
-	One review per appointment is allowed.
+
+	One review per appointment. No login required if the request body includes
+	``email`` / ``reviewer_email`` or ``phone`` matching the booking customer; or send
+	an optional bearer token for that customer (JWT).
 	"""
-	data = utils.get_request_json()
-	
-	# Get appointment details
-	appointment_doc = frappe.get_doc("Property Appointment", appointment_id)
-	
-	# Verify appointment is completed
-	if appointment_doc.status != "Completed":
-		frappe.throw(
-			_("Reviews can only be submitted for completed appointments."),
-			frappe.ValidationError
+	with utils.maybe_authenticate_jwt():
+		data = utils.get_request_json()
+
+		# Get appointment details
+		appointment_doc = frappe.get_doc("Property Appointment", appointment_id)
+
+		# Verify appointment is completed
+		if appointment_doc.status != "Completed":
+			frappe.throw(
+				_("Reviews can only be submitted for completed appointments."),
+				frappe.ValidationError,
+			)
+
+		current_user = utils.get_current_user()
+		customer = utils.get_customer_by_user(current_user)
+
+		if customer:
+			if appointment_doc.customer != customer.name:
+				frappe.throw(
+					_("You can only review appointments that you booked."),
+					frappe.PermissionError,
+				)
+			customer_name = customer.name
+		else:
+			appt_customer = frappe.get_doc("Customer", appointment_doc.customer)
+			verify_email = (data.get("email") or data.get("reviewer_email") or "").strip().lower()
+			appt_email = (appt_customer.email or "").strip().lower()
+			verify_phone = (data.get("phone") or "").replace(" ", "").replace("-", "")
+			appt_phone = (appt_customer.phone or "").replace(" ", "").replace("-", "")
+			verified = False
+			if appt_email and verify_email and verify_email == appt_email:
+				verified = True
+			elif appt_phone and verify_phone and verify_phone == appt_phone:
+				verified = True
+			if not verified:
+				frappe.throw(
+					_(
+						"Provide the same email or phone used for this booking to submit a review, "
+						"or sign in with your customer account."
+					),
+					frappe.PermissionError,
+				)
+			customer_name = appointment_doc.customer
+
+		# Check if review already exists
+		existing_review = frappe.db.get_value(
+			"Review and Rating",
+			{"appointment": appointment_id},
+			"name",
 		)
-	
-	# Verify customer access
-	current_user = utils.get_current_user()
-	customer = utils.get_customer_by_user(current_user)
-	if not customer:
-		frappe.throw(_("Customer profile is required to submit reviews."), frappe.PermissionError)
-	
-	if appointment_doc.customer != customer.name:
-		frappe.throw(
-			_("You can only review appointments that you booked."),
-			frappe.PermissionError
-		)
-	
-	# Check if review already exists
-	existing_review = frappe.db.get_value(
-		"Review and Rating",
-		{"appointment": appointment_id},
-		"name"
-	)
-	
-	if existing_review:
-		# Update existing review
-		review_doc = frappe.get_doc("Review and Rating", existing_review)
-	else:
-		# Create new review
-		review_doc = frappe.get_doc({
-			"doctype": "Review and Rating",
-			"appointment": appointment_id,
-			"agent": appointment_doc.agent,
-			"property": appointment_doc.property,
-			"customer": customer.name,
-			"status": "Draft",
-		})
-	
-	# Update review fields
-	if "overall_rating" in data:
-		review_doc.overall_rating = _normalize_rating_input(data.get("overall_rating", 0))
-	if "agent_rating" in data:
-		review_doc.agent_rating = _normalize_rating_input(data.get("agent_rating", 0))
-	if "property_rating" in data:
-		review_doc.property_rating = _normalize_rating_input(data.get("property_rating", 0))
-	if "review_text" in data:
-		review_doc.review_text = data.get("review_text", "")
-	
-	# Set status to Submitted
-	review_doc.status = "Submitted"
-	
-	review_doc.save(ignore_permissions=True)
-	frappe.db.commit()
-	
-	return serialize_review(review_doc.name)
+
+		if existing_review:
+			review_doc = frappe.get_doc("Review and Rating", existing_review)
+		else:
+			review_doc = frappe.get_doc(
+				{
+					"doctype": "Review and Rating",
+					"appointment": appointment_id,
+					"agent": appointment_doc.agent,
+					"property": appointment_doc.property,
+					"customer": customer_name,
+					"status": "Draft",
+				}
+			)
+
+		if "overall_rating" in data:
+			review_doc.overall_rating = _normalize_rating_input(data.get("overall_rating", 0))
+		if "agent_rating" in data:
+			review_doc.agent_rating = _normalize_rating_input(data.get("agent_rating", 0))
+		if "property_rating" in data:
+			review_doc.property_rating = _normalize_rating_input(data.get("property_rating", 0))
+		if "review_text" in data:
+			review_doc.review_text = data.get("review_text", "")
+
+		review_doc.status = "Submitted"
+
+		review_doc.save(ignore_permissions=True)
+		frappe.db.commit()
+
+		return serialize_review(review_doc.name)
 
 
 @frappe.whitelist(allow_guest=True)
@@ -141,13 +175,13 @@ def _submit_general_review(agent_id: str | None = None, property_id: str | None 
 		customer_name = customer.name
 
 	if agent_id:
-		# Resolve agent ID (could be BRN)
-		agent_name = frappe.db.get_value("Agent", {"dfd_registration_id": agent_id}, "name")
-		if agent_name:
-			agent_id = agent_name
-		# Ensure agent exists
-		if not frappe.db.exists("Agent", agent_id):
+		# Resolve agent ID: BRN (dfd_registration_id) or document name (same as get_agent / get_agent_reviews)
+		resolved = frappe.db.get_value("Agent", {"dfd_registration_id": agent_id}, "name")
+		if not resolved:
+			resolved = frappe.db.get_value("Agent", {"name": agent_id}, "name")
+		if not resolved:
 			frappe.throw(_("Agent not found."), frappe.DoesNotExistError)
+		agent_id = resolved
 	elif property_id:
 		# Ensure property exists
 		if not frappe.db.exists("Property", property_id):
@@ -217,7 +251,12 @@ def get_appointment_review(appointment_id: str) -> dict[str, Any] | None:
 
 def serialize_review(review_name: str) -> dict[str, Any]:
 	"""Serialize review document for API response"""
-	review_doc = frappe.get_doc("Review and Rating", review_name)
+	original_user = frappe.session.user
+	try:
+		frappe.set_user("Administrator")
+		review_doc = frappe.get_doc("Review and Rating", review_name)
+	finally:
+		frappe.set_user(original_user)
 	
 	reviewer_name = _resolve_reviewer_name(
 		review_doc.customer, getattr(review_doc, "guest_display_name", None)
@@ -319,42 +358,55 @@ def get_agent_rating_stats_batch(agent_ids: list[str]) -> dict[str, dict[str, An
 	return {aid: by_agent.get(aid, empty_agent_rating_summary()) for aid in seen}
 
 
-def get_agent_rating_stats(agent_id: str, *, include_review_items: bool = True) -> dict[str, Any]:
-	"""Get rating statistics for an agent."""
+def get_agent_rating_stats(
+	agent_id: str,
+	*,
+	include_review_items: bool = True,
+	review_items_limit: int | None = None,
+) -> dict[str, Any]:
+	"""Get rating statistics for an agent.
+
+	Averages and total_reviews always come from the full review set (SQL aggregate).
+	When include_review_items is True, recent_reviews lists review rows; use
+	review_items_limit to cap how many are returned (e.g. for property list APIs).
+	When review_items_limit is None, all reviews are loaded for recent_reviews.
+	"""
 	if not include_review_items:
 		return get_agent_rating_stats_summary_only(agent_id)
-	reviews = frappe.get_all(
-		"Review and Rating",
-		filters={
-			"agent": agent_id,
-			"status": ["in", ["Submitted", "Published"]],
-		},
-		fields=[
-			"name",
-			"overall_rating",
-			"agent_rating",
-			"property_rating",
-			"review_text",
-			"creation",
-			"customer",
-			"guest_display_name",
-			"property",
-			"appointment",
-		],
-		order_by="creation desc",
-		ignore_permissions=True,
-	)
 
-	if not reviews:
-		return empty_agent_rating_summary()
+	base = get_agent_rating_stats_summary_only(agent_id)
+	if base["total_reviews"] == 0:
+		return base
 
-	total_count = len(reviews)
-	overall_sum = sum(float(r.get("overall_rating") or 0) for r in reviews)
-	agent_sum = sum(float(r.get("agent_rating") or 0) for r in reviews)
-	property_sum = sum(float(r.get("property_rating") or 0) for r in reviews)
+	filters = {
+		"agent": agent_id,
+		"status": ["in", ["Submitted", "Published"]],
+	}
+	fields = [
+		"name",
+		"overall_rating",
+		"agent_rating",
+		"property_rating",
+		"review_text",
+		"creation",
+		"customer",
+		"guest_display_name",
+		"property",
+		"appointment",
+	]
+	list_kwargs: dict[str, Any] = {
+		"filters": filters,
+		"fields": fields,
+		"order_by": "creation desc",
+		"ignore_permissions": True,
+	}
+	if review_items_limit is not None:
+		list_kwargs["limit"] = max(1, cint(review_items_limit))
+
+	rows = frappe.get_all("Review and Rating", **list_kwargs)
 
 	recent_reviews = []
-	for review in reviews:
+	for review in rows:
 		recent_reviews.append(
 			{
 				"id": review.get("name"),
@@ -374,10 +426,10 @@ def get_agent_rating_stats(agent_id: str, *, include_review_items: bool = True) 
 		)
 
 	return {
-		"average_overall_rating": round((overall_sum / total_count) * 5, 2) if total_count > 0 else 0.0,
-		"average_agent_rating": round((agent_sum / total_count) * 5, 2) if total_count > 0 else 0.0,
-		"average_property_rating": round((property_sum / total_count) * 5, 2) if total_count > 0 else 0.0,
-		"total_reviews": total_count,
+		"average_overall_rating": base["average_overall_rating"],
+		"average_agent_rating": base["average_agent_rating"],
+		"average_property_rating": base["average_property_rating"],
+		"total_reviews": base["total_reviews"],
 		"recent_reviews": recent_reviews,
 	}
 
