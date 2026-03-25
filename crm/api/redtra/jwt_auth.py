@@ -34,15 +34,23 @@ def authenticate():
 
 	token = parts[1].strip()
 	if not token:
+		# Frappe rejects Guest + any Bearer header unless we opt out (see patch_validate_auth).
+		frappe.local.redtra_guest_after_stale_bearer = True
 		return
 
 	if utils.is_token_blacklisted(token):
 		frappe.throw(_("Token has been revoked."), frappe.AuthenticationError)
 
-	payload = utils.decode_jwt(token)
+	payload = utils.decode_jwt_optional(token)
+	if not payload:
+		# Expired or invalid Redtra JWT: let request continue as Guest (Frappe otherwise raises).
+		frappe.local.redtra_guest_after_stale_bearer = True
+		return
+
 	user = payload.get("user")
 	if not user:
-		frappe.throw(_("Invalid authentication token."), frappe.AuthenticationError)
+		frappe.local.redtra_guest_after_stale_bearer = True
+		return
 
 	frappe.set_user(user)
 	login_manager = getattr(frappe.local, "login_manager", None)

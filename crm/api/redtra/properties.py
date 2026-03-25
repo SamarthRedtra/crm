@@ -14,6 +14,9 @@ from pypika import Order
 
 from . import reviews, utils
 
+# Agent review rows embedded under agent.ratings.recent_reviews in list responses
+LIST_PROPERTY_AGENT_REVIEW_LIMIT = 25
+
 SUMMARY_FIELDS = [
 	"name",
 	"title",
@@ -493,7 +496,9 @@ def serialize_property_summary(row: dict[str, Any]) -> dict[str, Any]:
 				}
 				try:
 					agent["ratings"] = reviews.get_agent_rating_stats(
-						agent_data.get("name"), include_review_items=False
+						agent_data.get("name"),
+						include_review_items=True,
+						review_items_limit=LIST_PROPERTY_AGENT_REVIEW_LIMIT,
 					)
 				except Exception:
 					agent["ratings"] = reviews.empty_agent_rating_summary()

@@ -265,7 +265,9 @@ def serialize_appointment(name: str) -> dict[str, Any]:
 	if agent_doc:
 		try:
 			agent_payload["ratings"] = reviews.get_agent_rating_stats(
-				agent_doc.name, include_review_items=False
+				agent_doc.name,
+				include_review_items=True,
+				review_items_limit=25,
 			)
 		except Exception:
 			agent_payload["ratings"] = reviews.empty_agent_rating_summary()
