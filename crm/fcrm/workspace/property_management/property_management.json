@@ -1,7 +1,7 @@
 {
  "app": "crm",
  "charts": [],
- "content": "[{\"id\":\"headerPropMgmt\",\"type\":\"header\",\"data\":{\"text\":\"<span class=\\\"h5\\\"><b>Property Management</b></span>\",\"col\":12}},{\"id\":\"descPropMgmt\",\"type\":\"paragraph\",\"data\":{\"text\":\"Centralize listings, developer records, and viewing appointments.\",\"col\":12}},{\"id\":\"spacerOne\",\"type\":\"spacer\",\"data\":{\"col\":12}},{\"id\":\"operationsLabel\",\"type\":\"paragraph\",\"data\":{\"text\":\"<b>OPERATIONS</b>\",\"col\":12}},{\"id\":\"shortcutProperties\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Properties\",\"col\":3}},{\"id\":\"shortcutAppointments\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Property Appointments\",\"col\":3}},{\"id\":\"shortcutFavorites\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Favorite Properties\",\"col\":3}},{\"id\":\"spacerTwo\",\"type\":\"spacer\",\"data\":{\"col\":12}},{\"id\":\"mastersLabel\",\"type\":\"paragraph\",\"data\":{\"text\":\"<b>MASTER DATA</b>\",\"col\":12}},{\"id\":\"shortcutDevelopers\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Developers\",\"col\":3}},{\"id\":\"rjjd4tHpyo\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Agency\",\"col\":3}},{\"id\":\"shortcutAreas\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Areas\",\"col\":3}},{\"id\":\"shortcutAgents\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Agents\",\"col\":3}},{\"id\":\"DqdMSJrv0w\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Customer\",\"col\":3}}]",
+ "content": "[{\"id\":\"headerPropMgmt\",\"type\":\"header\",\"data\":{\"text\":\"<span class=\\\"h5\\\"><b>Property Management</b></span>\",\"col\":12}},{\"id\":\"descPropMgmt\",\"type\":\"paragraph\",\"data\":{\"text\":\"Centralize listings, developer records, and viewing appointments.\",\"col\":12}},{\"id\":\"spacerBeforeSetup\",\"type\":\"spacer\",\"data\":{\"col\":12}},{\"id\":\"setupGuideLabel\",\"type\":\"paragraph\",\"data\":{\"text\":\"<b>SETUP (STEP BY STEP)</b>\",\"col\":12}},{\"id\":\"shortcutSetupGuide\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Setup Guide\",\"col\":3}},{\"id\":\"spacerBillingShortcuts\",\"type\":\"spacer\",\"data\":{\"col\":12}},{\"id\":\"billingShortcutsLabel\",\"type\":\"paragraph\",\"data\":{\"text\":\"<b>AGENCY BILLING (SHORTCUTS)</b>\",\"col\":12}},{\"id\":\"shortcutBillingSetup\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Billing setup\",\"col\":3}},{\"id\":\"shortcutBillingSettings\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Billing settings\",\"col\":3}},{\"id\":\"shortcutAgentLevels\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Agent levels\",\"col\":3}},{\"id\":\"shortcutBillingAddons\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Billing addons\",\"col\":3}},{\"id\":\"shortcutBillingInvoices\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Billing invoices\",\"col\":3}},{\"id\":\"shortcutBillingAccruals\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Billing accruals\",\"col\":3}},{\"id\":\"spacerOne\",\"type\":\"spacer\",\"data\":{\"col\":12}},{\"id\":\"operationsLabel\",\"type\":\"paragraph\",\"data\":{\"text\":\"<b>OPERATIONS</b>\",\"col\":12}},{\"id\":\"shortcutProperties\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Properties\",\"col\":3}},{\"id\":\"shortcutAppointments\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Property Appointments\",\"col\":3}},{\"id\":\"shortcutFavorites\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Favorite Properties\",\"col\":3}},{\"id\":\"spacerTwo\",\"type\":\"spacer\",\"data\":{\"col\":12}},{\"id\":\"mastersLabel\",\"type\":\"paragraph\",\"data\":{\"text\":\"<b>MASTER DATA</b>\",\"col\":12}},{\"id\":\"shortcutDevelopers\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Developers\",\"col\":3}},{\"id\":\"rjjd4tHpyo\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Agency\",\"col\":3}},{\"id\":\"shortcutAreas\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Areas\",\"col\":3}},{\"id\":\"shortcutAgents\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Agents\",\"col\":3}},{\"id\":\"DqdMSJrv0w\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Customer\",\"col\":3}},{\"id\":\"spacerBillingCards\",\"type\":\"spacer\",\"data\":{\"col\":12}},{\"id\":\"billingCardsLabel\",\"type\":\"paragraph\",\"data\":{\"text\":\"<b>AGENCY BILLING (LINK CARDS)</b>\",\"col\":12}},{\"id\":\"cardAgencyBillingMain\",\"type\":\"card\",\"data\":{\"card_name\":\"Agency billing\",\"col\":4}},{\"id\":\"cardBillingCatalog\",\"type\":\"card\",\"data\":{\"card_name\":\"Billing catalog\",\"col\":4}},{\"id\":\"cardBillingRecords\",\"type\":\"card\",\"data\":{\"card_name\":\"Billing records\",\"col\":4}}]",
  "creation": "2025-12-10 00:00:00",
  "custom_blocks": [],
  "docstatus": 0,
@@ -13,8 +13,91 @@
  "indicator_color": "",
  "is_hidden": 0,
  "label": "Property Management",
- "links": [],
- "modified": "2026-02-13 18:21:24.308866",
+ "links": [
+  {
+   "hidden": 0,
+   "icon": "credit-card",
+   "is_query_report": 0,
+   "label": "Agency billing",
+   "link_count": 0,
+   "onboard": 0,
+   "type": "Card Break"
+  },
+  {
+   "dependencies": "",
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Agency Billing Settings",
+   "link_count": 0,
+   "link_to": "Agency Billing Settings",
+   "link_type": "DocType",
+   "onboard": 0,
+   "type": "Link"
+  },
+  {
+   "hidden": 0,
+   "icon": "tag",
+   "is_query_report": 0,
+   "label": "Billing catalog",
+   "link_count": 0,
+   "onboard": 0,
+   "type": "Card Break"
+  },
+  {
+   "dependencies": "",
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Agent Level",
+   "link_count": 0,
+   "link_to": "Agent Level",
+   "link_type": "DocType",
+   "onboard": 0,
+   "type": "Link"
+  },
+  {
+   "dependencies": "",
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Billing Addon",
+   "link_count": 0,
+   "link_to": "Billing Addon",
+   "link_type": "DocType",
+   "onboard": 0,
+   "type": "Link"
+  },
+  {
+   "hidden": 0,
+   "icon": "file-text",
+   "is_query_report": 0,
+   "label": "Billing records",
+   "link_count": 0,
+   "onboard": 0,
+   "type": "Card Break"
+  },
+  {
+   "dependencies": "",
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Agency Billing Invoice",
+   "link_count": 0,
+   "link_to": "Agency Billing Invoice",
+   "link_type": "DocType",
+   "onboard": 0,
+   "type": "Link"
+  },
+  {
+   "dependencies": "",
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Agency Billing Accrual",
+   "link_count": 0,
+   "link_to": "Agency Billing Accrual",
+   "link_type": "DocType",
+   "onboard": 0,
+   "type": "Link"
+  }
+ ],
+ "modified": "2026-03-29 00:00:00",
  "modified_by": "Administrator",
  "module": "FCRM",
  "name": "Property Management",
@@ -28,11 +111,68 @@
    "role": "System Manager"
   },
   {
+   "role": "Sales Manager"
+  },
+  {
    "role": "Agent"
   }
  ],
  "sequence_id": 2.0,
  "shortcuts": [
+  {
+   "color": "Pink",
+   "doc_view": "List",
+   "label": "Setup Guide",
+   "type": "URL",
+   "url": "/desk/property_management_setup"
+  },
+  {
+   "color": "Amber",
+   "doc_view": "List",
+   "label": "Billing setup",
+   "type": "URL",
+   "url": "/desk/agency_billing_setup"
+  },
+  {
+   "color": "Yellow",
+   "doc_view": "List",
+   "label": "Billing settings",
+   "link_to": "Agency Billing Settings",
+   "stats_filter": "[]",
+   "type": "DocType"
+  },
+  {
+   "color": "Yellow",
+   "doc_view": "List",
+   "label": "Agent levels",
+   "link_to": "Agent Level",
+   "stats_filter": "[]",
+   "type": "DocType"
+  },
+  {
+   "color": "Yellow",
+   "doc_view": "List",
+   "label": "Billing addons",
+   "link_to": "Billing Addon",
+   "stats_filter": "[]",
+   "type": "DocType"
+  },
+  {
+   "color": "Red",
+   "doc_view": "List",
+   "label": "Billing invoices",
+   "link_to": "Agency Billing Invoice",
+   "stats_filter": "[]",
+   "type": "DocType"
+  },
+  {
+   "color": "Orange",
+   "doc_view": "List",
+   "label": "Billing accruals",
+   "link_to": "Agency Billing Accrual",
+   "stats_filter": "[]",
+   "type": "DocType"
+  },
   {
    "color": "Grey",
    "doc_view": "List",

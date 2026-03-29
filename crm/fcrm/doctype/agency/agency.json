@@ -25,7 +25,28 @@
   "pincode",
   "section_break_profile",
   "logo",
-  "description"
+  "description",
+  "section_break_billing",
+  "billing_contact_name",
+  "billing_email",
+  "billing_currency",
+  "billing_start_date",
+  "column_break_billing",
+  "onboarding_status",
+  "verification_status",
+  "verification_notes",
+  "verified_on",
+  "verified_by",
+  "is_on_trial",
+  "trial_status",
+  "trial_start_date",
+  "trial_end_date",
+  "trial_grace_end_date",
+  "billing_status",
+  "section_break_stripe",
+  "stripe_customer_id",
+  "stripe_default_payment_method_id",
+  "billing_addons"
  ],
  "fields": [
   {
@@ -126,6 +147,132 @@
    "fieldname": "description",
    "fieldtype": "Text Editor",
    "label": "Description"
+  },
+  {
+   "fieldname": "section_break_billing",
+   "fieldtype": "Section Break",
+   "label": "Billing"
+  },
+  {
+   "fieldname": "billing_contact_name",
+   "fieldtype": "Data",
+   "label": "Billing Contact Name"
+  },
+  {
+   "fieldname": "billing_email",
+   "fieldtype": "Data",
+   "label": "Billing Email",
+   "options": "Email"
+  },
+  {
+   "fieldname": "billing_currency",
+   "fieldtype": "Link",
+   "label": "Billing Currency",
+   "options": "Currency"
+  },
+  {
+   "fieldname": "billing_start_date",
+   "fieldtype": "Date",
+   "label": "Billing Start Date"
+  },
+  {
+   "fieldname": "column_break_billing",
+   "fieldtype": "Column Break"
+  },
+  {
+   "default": "Not Started",
+   "fieldname": "onboarding_status",
+   "fieldtype": "Select",
+   "label": "Onboarding Status",
+   "options": "Not Started\nIn Progress\nCompleted"
+  },
+  {
+   "default": "Verified",
+   "fieldname": "verification_status",
+   "fieldtype": "Select",
+   "label": "Verification Status",
+   "options": "Pending Verification\nVerified\nRejected"
+  },
+  {
+   "fieldname": "verification_notes",
+   "fieldtype": "Small Text",
+   "label": "Verification Notes"
+  },
+  {
+   "fieldname": "verified_on",
+   "fieldtype": "Datetime",
+   "label": "Verified On",
+   "read_only": 1
+  },
+  {
+   "fieldname": "verified_by",
+   "fieldtype": "Link",
+   "label": "Verified By",
+   "options": "User",
+   "read_only": 1
+  },
+  {
+   "default": "0",
+   "fieldname": "is_on_trial",
+   "fieldtype": "Check",
+   "label": "Is On Trial",
+   "read_only": 1
+  },
+  {
+   "default": "Not Started",
+   "fieldname": "trial_status",
+   "fieldtype": "Select",
+   "label": "Trial Status",
+   "options": "Not Started\nActive\nGrace\nExpired\nConverted",
+   "read_only": 1
+  },
+  {
+   "fieldname": "trial_start_date",
+   "fieldtype": "Date",
+   "label": "Trial Start Date",
+   "read_only": 1
+  },
+  {
+   "fieldname": "trial_end_date",
+   "fieldtype": "Date",
+   "label": "Trial End Date",
+   "read_only": 1
+  },
+  {
+   "fieldname": "trial_grace_end_date",
+   "fieldtype": "Date",
+   "label": "Trial Grace End Date",
+   "read_only": 1
+  },
+  {
+   "default": "Not Configured",
+   "fieldname": "billing_status",
+   "fieldtype": "Select",
+   "label": "Billing Status",
+   "options": "Not Configured\nActive\nPast Due\nSuspended"
+  },
+  {
+   "fieldname": "section_break_stripe",
+   "fieldtype": "Section Break",
+   "label": "Stripe"
+  },
+  {
+   "fieldname": "stripe_customer_id",
+   "fieldtype": "Data",
+   "label": "Stripe Customer ID",
+   "read_only": 1
+  },
+  {
+   "fieldname": "stripe_default_payment_method_id",
+   "fieldtype": "Data",
+   "label": "Stripe Default Payment Method ID",
+   "read_only": 1
+  },
+  {
+   "fieldname": "billing_addons",
+   "fieldtype": "Table",
+   "label": "Billing Addons",
+   "options": "Agency Billing Addon"
   }
  ],
  "index_web_pages_for_search": 1,

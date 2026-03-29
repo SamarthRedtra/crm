@@ -1,8 +1,11 @@
 <template>
   <FrappeUIProvider>
-    <Layout class="isolate" v-if="session().isLoggedIn">
-      <router-view :key="$route.fullPath"/>
-    </Layout>
+    <component
+      :is="shellComponent"
+      class="isolate"
+    >
+      <router-view :key="$route.fullPath" />
+    </component>
     <Dialogs />
   </FrappeUIProvider>
 </template>
@@ -12,6 +15,7 @@ import { Dialogs } from '@/utils/dialogs'
 import { sessionStore as session } from '@/stores/session'
 import { FrappeUIProvider, setConfig } from 'frappe-ui'
 import { computed, defineAsyncComponent } from 'vue'
+import { useRoute } from 'vue-router'
 
 const MobileLayout = defineAsyncComponent(
   () => import('./components/Layouts/MobileLayout.vue'),
@@ -25,6 +29,13 @@ const Layout = computed(() => {
   } else {
     return DesktopLayout
   }
+})
+const route = useRoute()
+
+const shellComponent = computed(() => {
+  const isLoggedIn = session().isLoggedIn
+  const isPublicAuthPage = Boolean(route.meta?.publicAuthPage)
+  return isLoggedIn && !isPublicAuthPage ? Layout.value : 'div'
 })
 
 setConfig('systemTimezone', window.timezone?.system || null)

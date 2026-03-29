@@ -12,6 +12,11 @@
   "dfd_registration_id",
   "brn_id",
   "agency",
+  "agency_role",
+  "agent_level",
+  "billable",
+  "billing_start_date",
+  "billing_end_date",
   "column_break_primary",
   "full_name",
   "email",
@@ -68,6 +73,37 @@
    "in_standard_filter": 1,
    "label": "Agency",
    "options": "Agency"
+  },
+  {
+   "default": "Agent",
+   "fieldname": "agency_role",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "label": "Agency Role",
+   "options": "Admin\nManager\nAgent"
+  },
+  {
+   "fieldname": "agent_level",
+   "fieldtype": "Link",
+   "label": "Agent Level",
+   "options": "Agent Level"
+  },
+  {
+   "default": "1",
+   "fieldname": "billable",
+   "fieldtype": "Check",
+   "in_list_view": 1,
+   "label": "Billable"
+  },
+  {
+   "fieldname": "billing_start_date",
+   "fieldtype": "Date",
+   "label": "Billing Start Date"
+  },
+  {
+   "fieldname": "billing_end_date",
+   "fieldtype": "Date",
+   "label": "Billing End Date"
   },
   {
    "fieldname": "column_break_primary",

@@ -1,0 +1,139 @@
+{
+ "actions": [],
+ "creation": "2026-03-20 00:00:00",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "billing_tab",
+  "billing_enabled",
+  "payment_mode",
+  "default_currency",
+  "invoice_due_days",
+  "trial_enabled",
+  "trial_days",
+  "trial_grace_days",
+  "trial_requires_payment_method",
+  "stripe_tab",
+  "stripe_collection_method",
+  "stripe_publishable_key",
+  "stripe_secret_key",
+  "stripe_webhook_secret"
+ ],
+ "fields": [
+  {
+   "fieldname": "billing_tab",
+   "fieldtype": "Tab Break",
+   "label": "Billing"
+  },
+  {
+   "default": "1",
+   "fieldname": "billing_enabled",
+   "fieldtype": "Check",
+   "label": "Enable Billing"
+  },
+  {
+   "default": "two_step",
+   "fieldname": "payment_mode",
+   "fieldtype": "Select",
+   "label": "Payment Mode",
+   "options": "after_verification\nbefore_verification\ntwo_step"
+  },
+  {
+   "fieldname": "default_currency",
+   "fieldtype": "Link",
+   "label": "Default Currency",
+   "options": "Currency"
+  },
+  {
+   "default": "7",
+   "fieldname": "invoice_due_days",
+   "fieldtype": "Int",
+   "label": "Invoice Due Days"
+  },
+  {
+   "default": "1",
+   "fieldname": "trial_enabled",
+   "fieldtype": "Check",
+   "label": "Enable Trial"
+  },
+  {
+   "default": "30",
+   "fieldname": "trial_days",
+   "fieldtype": "Int",
+   "label": "Trial Days"
+  },
+  {
+   "default": "0",
+   "fieldname": "trial_grace_days",
+   "fieldtype": "Int",
+   "label": "Trial Grace Days"
+  },
+  {
+   "default": "0",
+   "fieldname": "trial_requires_payment_method",
+   "fieldtype": "Check",
+   "label": "Trial Requires Payment Method"
+  },
+  {
+   "fieldname": "stripe_tab",
+   "fieldtype": "Tab Break",
+   "label": "Stripe"
+  },
+  {
+   "default": "send_invoice",
+   "fieldname": "stripe_collection_method",
+   "fieldtype": "Select",
+   "label": "Collection Method",
+   "options": "send_invoice\ncharge_automatically"
+  },
+  {
+   "fieldname": "stripe_publishable_key",
+   "fieldtype": "Data",
+   "label": "Stripe Publishable Key"
+  },
+  {
+   "fieldname": "stripe_secret_key",
+   "fieldtype": "Password",
+   "label": "Stripe Secret Key"
+  },
+  {
+   "fieldname": "stripe_webhook_secret",
+   "fieldtype": "Password",
+   "label": "Stripe Webhook Secret"
+  }
+ ],
+ "index_web_pages_for_search": 1,
+ "issingle": 1,
+ "links": [],
+ "modified": "2026-03-20 00:00:00",
+ "modified_by": "Administrator",
+ "module": "FCRM",
+ "name": "Agency Billing Settings",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "print": 1,
+   "read": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "print": 1,
+   "read": 1,
+   "role": "Sales Manager",
+   "share": 1,
+   "write": 1
+  }
+ ],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": [],
+ "track_changes": 1
+}

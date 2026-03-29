@@ -166,11 +166,11 @@
               </div>
               <div class="flex flex-col gap-1.5">
                 <label class="text-p-sm font-medium text-ink-gray-7">{{ __('Phone') }}</label>
-                <TextInput v-model="formData.phone" :placeholder="__('+971 50 000 0000')" size="md" />
+                <PhoneInput v-model="formData.phone" :national-placeholder="__('50 000 0000')" />
               </div>
               <div class="flex flex-col gap-1.5">
                 <label class="text-p-sm font-medium text-ink-gray-7">{{ __('WhatsApp Number') }}</label>
-                <TextInput v-model="formData.whatsapp_number" :placeholder="__('+971 50 000 0000')" size="md" />
+                <PhoneInput v-model="formData.whatsapp_number" :national-placeholder="__('50 000 0000')" />
               </div>
             </div>
             <div class="flex flex-col gap-1.5">
@@ -387,6 +387,7 @@
 import { ref, computed, watch, onMounted } from 'vue'
 import { agentStore } from '@/stores/agent'
 import { sessionStore } from '@/stores/session'
+import PhoneInput from '@/components/PhoneInput.vue'
 import { FeatherIcon, Button, TextInput, FileUploader, Badge, createResource, toast } from 'frappe-ui'
 import { useRouter } from 'vue-router'
 

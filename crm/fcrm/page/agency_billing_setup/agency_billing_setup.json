@@ -1,0 +1,30 @@
+{
+ "content": null,
+ "creation": "2026-03-29 00:00:00",
+ "docstatus": 0,
+ "doctype": "Page",
+ "icon": "credit-card",
+ "idx": 0,
+ "modified": "2026-03-29 00:00:00",
+ "modified_by": "Administrator",
+ "module": "FCRM",
+ "name": "agency_billing_setup",
+ "owner": "Administrator",
+ "page_name": "agency_billing_setup",
+ "roles": [
+  {
+   "role": "System Manager"
+  },
+  {
+   "role": "Sales Manager"
+  },
+  {
+   "role": "Agent"
+  }
+ ],
+ "script": null,
+ "standard": "Yes",
+ "style": null,
+ "system_page": 0,
+ "title": "Agency Billing Setup"
+}

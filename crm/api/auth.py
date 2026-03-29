@@ -1,5 +1,19 @@
 import frappe
 
+
+@frappe.whitelist(allow_guest=True)
+def public_brand():
+	"""Brand name and logo URL for public surfaces (e.g. CRM login)."""
+	try:
+		settings = frappe.get_single("FCRM Settings")
+	except frappe.DoesNotExistError:
+		return {"brand_name": "", "brand_logo": ""}
+	return {
+		"brand_name": (settings.brand_name or "").strip(),
+		"brand_logo": settings.brand_logo or "",
+	}
+
+
 @frappe.whitelist(allow_guest=True)
 def oauth_providers():
 	from frappe.utils.html_utils import get_icon_html

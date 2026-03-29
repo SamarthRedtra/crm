@@ -5,6 +5,19 @@ import { viewsStore } from '@/stores/views'
 
 const routes = [
   {
+    path: '/login',
+    name: 'CRM Login',
+    meta: { publicAuthPage: true, allowGuest: true },
+    component: () => import('@/pages/Login.vue'),
+  },
+  {
+    alias: ['/signup', '/register'],
+    path: '/register-agency',
+    name: 'Register Agency',
+    meta: { publicAuthPage: true, allowGuest: true },
+    component: () => import('@/pages/RegisterAgency.vue'),
+  },
+  {
     path: '/',
     name: 'Home',
   },
@@ -137,6 +150,24 @@ const routes = [
     component: () => import('@/pages/AgentOnboarding.vue'),
   },
   {
+    alias: ['/agency_onboarding', '/agency-onboarding'],
+    path: '/agencies/onboarding',
+    name: 'Agency Onboarding',
+    component: () => import('@/pages/AgencyOnboarding.vue'),
+  },
+  {
+    alias: ['/agency_verification', '/agency-verification'],
+    path: '/agencies/verification',
+    name: 'Agency Verification',
+    component: () => import('@/pages/AgencyVerification.vue'),
+  },
+  {
+    alias: ['/billing_activation', '/billing-activation'],
+    path: '/agencies/billing-activation',
+    name: 'Billing Activation',
+    component: () => import('@/pages/BillingActivation.vue'),
+  },
+  {
     path: '/:invalidpath',
     name: 'Invalid Page',
     component: () => import('@/pages/InvalidPage.vue'),
@@ -153,9 +184,11 @@ let router = createRouter({
 })
 
 import { agentStore } from '@/stores/agent'
+import { agencyStore } from '@/stores/agency'
 
 router.beforeEach(async (to, from, next) => {
   const { isLoggedIn } = sessionStore()
+  const isGuestAllowedRoute = Boolean(to.meta?.allowGuest)
 
   // If sid is in URL and not logged in, use set-session-from-sid to establish session
   const sidFromUrl = to.query.sid || (typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('sid'))
@@ -165,21 +198,84 @@ router.beforeEach(async (to, from, next) => {
     return
   }
 
+  if (!isLoggedIn && isGuestAllowedRoute) {
+    next()
+    return
+  }
+
   isLoggedIn && (await userResource.promise)
+
+  if (isLoggedIn && to.meta?.publicAuthPage) {
+    next({ name: 'Home' })
+    return
+  }
 
   if (isLoggedIn) {
     const { agentResource } = agentStore()
+    const {
+      contextResource,
+      needsAgencyVerification,
+      needsAgencyOnboarding,
+      needsBillingActivation,
+    } = agencyStore()
+
+    if (!contextResource.data) {
+      try {
+        await contextResource.reload()
+      } catch {
+        // Keep navigation resilient for non-agency users.
+      }
+    }
+
+    const routingName = String(to.name || '')
+    const bypassRoutes = new Set(['Agency Verification', 'Billing Activation', 'Logout'])
+
+    if (needsAgencyVerification() && routingName !== 'Agency Verification') {
+      next({ name: 'Agency Verification' })
+      return
+    }
+
+    if (!needsAgencyVerification() && routingName === 'Agency Verification') {
+      next({ name: 'Home' })
+      return
+    }
+
     if (!agentResource.data) {
       await agentResource.reload()
     }
     const isUnverifiedAgent = agentResource.data && agentResource.data.name && agentResource.data.status !== 'Verified'
 
-    if (isUnverifiedAgent && to.name !== 'Agent Onboarding' && to.name !== 'Logout') {
+    if (isUnverifiedAgent && to.name !== 'Agent Onboarding' && !bypassRoutes.has(routingName)) {
       next({ name: 'Agent Onboarding' })
       return
     }
 
     if (!isUnverifiedAgent && to.name === 'Agent Onboarding') {
+      next({ name: 'Home' })
+      return
+    }
+
+    if (!needsAgencyVerification() && needsAgencyOnboarding() && routingName !== 'Agency Onboarding') {
+      next({ name: 'Agency Onboarding' })
+      return
+    }
+
+    if (!needsAgencyVerification() && !needsAgencyOnboarding() && routingName === 'Agency Onboarding') {
+      next({ name: 'Home' })
+      return
+    }
+
+    if (
+      !needsAgencyVerification() &&
+      !needsAgencyOnboarding() &&
+      needsBillingActivation() &&
+      routingName !== 'Billing Activation'
+    ) {
+      next({ name: 'Billing Activation' })
+      return
+    }
+
+    if (!needsBillingActivation() && routingName === 'Billing Activation') {
       next({ name: 'Home' })
       return
     }
@@ -204,7 +300,7 @@ router.beforeEach(async (to, from, next) => {
       next({ name: route_name, params: { viewType: type } })
     }
   } else if (!isLoggedIn) {
-    window.location.href = '/login?redirect-to=/crm'
+    next({ name: 'CRM Login', query: { redirect: to.fullPath || '/dashboard' } })
   } else if (to.matched.length === 0) {
     next({ name: 'Invalid Page' })
   } else if (['Deal', 'Lead', 'Property'].includes(to.name) && !to.hash) {

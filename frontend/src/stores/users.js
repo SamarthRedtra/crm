@@ -26,7 +26,7 @@ export const usersStore = defineStore('crm-users', () => {
     },
     onError(error) {
       if (error && error.exc_type === 'AuthenticationError') {
-        router.push('/login')
+        router.push('/crm/login')
       }
     },
   })

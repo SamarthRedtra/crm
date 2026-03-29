@@ -17,8 +17,13 @@ class Agent(Document):
 		from frappe.types import DF
 
 		agency: DF.Link | None
+		agency_role: DF.Literal["Admin", "Manager", "Agent"] | None
+		agent_level: DF.Link | None
 		availability_slots: DF.Table[AgentAvailabilitySlot]
 		bio: DF.SmallText | None
+		billable: DF.Check
+		billing_end_date: DF.Date | None
+		billing_start_date: DF.Date | None
 		brn_id: DF.Data | None
 		dfd_registration_id: DF.Data
 		email: DF.Data | None
