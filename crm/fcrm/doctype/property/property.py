@@ -50,7 +50,7 @@ class Property(Document):
 		primary_image: DF.AttachImage | None
 		property_category: DF.Literal["Residential", "Commercial"]
 		property_code: DF.Data | None
-		property_type: DF.Literal["Apartment", "Villa", "Townhouse", "Penthouse", "Villa Compound", "Hotel Apartment", "Land", "Floor", "Building"]
+		property_type: DF.Literal["Apartment", "Villa", "Townhouse", "Penthouse", "Villa Compound", "Hotel Apartment", "Land", "Floor", "Building", "Office", "Shop", "Warehouse", "Labour Camp", "Bulk Unit", "Factory", "Industrial Land", "Mixed Use Land", "Showroom", "Other Commercial", "Plot", "Other"]
 		rent_type: DF.Literal["", "Daily", "Weekly", "Monthly", "Yearly"]
 		state: DF.Data | None
 		status: DF.Literal["Draft", "Under Verification", "Active", "Inactive"]

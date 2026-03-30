@@ -104,12 +104,7 @@
             </div>
             <div class="flex flex-col gap-1.5">
               <label class="text-p-sm font-medium text-ink-gray-7">{{ __('Billing Currency') }}</label>
-              <Link
-                class="form-control"
-                :value="form.billing_currency"
-                doctype="Currency"
-                @change="(value) => (form.billing_currency = value)"
-              />
+              <input v-model.trim="form.billing_currency" :class="inputClass" placeholder="AED" />
             </div>
             <div class="flex flex-col gap-1.5">
               <label class="text-p-sm font-medium text-ink-gray-7">{{ __('Billing Start Date') }}</label>
@@ -188,7 +183,6 @@
                   v-if="management.data.stripe_enabled"
                   variant="solid"
                   :label="__('Set Up Billing Method')"
-                  :loading="setupLoading"
                   @click="startSetup"
                 />
                 <Button
@@ -196,7 +190,26 @@
                   :label="__('Refresh Status')"
                   @click="management.reload()"
                 />
+                <Button
+                  v-if="management.data.stripe_enabled"
+                  variant="subtle"
+                  :label="__('Sync from Stripe')"
+                  :loading="billingSyncing"
+                  @click="runBillingReturnSync"
+                />
               </div>
+              <p
+                v-if="billingSyncing"
+                class="mt-3 text-p-sm text-ink-gray-5"
+              >
+                {{ __('Finalizing payment method with Stripe…') }}
+              </p>
+              <p
+                v-else-if="completeBlockedByPayment"
+                class="mt-3 text-p-sm text-ink-gray-5"
+              >
+                {{ __('Add a card using “Set Up Billing Method”, or tap “Sync from Stripe” after returning from Stripe.') }}
+              </p>
             </div>
           </div>
 
@@ -219,12 +232,21 @@
                 v-else
                 variant="solid"
                 :label="completeLoading ? __('Completing…') : __('Complete Onboarding')"
-                :loading="completeLoading"
+                :loading="completeLoading || billingSyncing"
+                :disabled="completeBlockedByPayment || billingSyncing"
                 @click="completeOnboarding"
               />
             </div>
           </div>
         </template>
+
+        <StripeSetupPaymentModal
+          v-model="showStripeModal"
+          :agency-id="management.data?.agency?.name"
+          intent="billing_setup"
+          return-path="/crm/agency-onboarding"
+          @success="onStripeCardSaved"
+        />
 
         <ErrorMessage :message="errorMessage" />
       </div>
@@ -233,8 +255,9 @@
 </template>
 
 <script setup>
+import StripeSetupPaymentModal from '@/components/Billing/StripeSetupPaymentModal.vue'
+import { finalizeStripeSetupReturn } from '@/composables/stripeSetupReturn'
 import PhoneInput from '@/components/PhoneInput.vue'
-import Link from '@/components/Controls/Link.vue'
 import { agencyStore } from '@/stores/agency'
 import {
   Badge,
@@ -246,8 +269,10 @@ import {
   createResource,
   toast,
 } from 'frappe-ui'
-import { reactive, ref } from 'vue'
+import { reactive, ref, computed, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+
+const showStripeModal = ref(false)
 
 const route = useRoute()
 const router = useRouter()
@@ -264,8 +289,8 @@ const inputClass =
 
 const activeStep = ref(0)
 const saveLoading = ref(false)
-const setupLoading = ref(false)
 const completeLoading = ref(false)
+const billingSyncing = ref(false)
 const errorMessage = ref('')
 
 const form = reactive({
@@ -321,6 +346,15 @@ const management = createResource({
   },
 })
 
+const completeBlockedByPayment = computed(() => {
+  const d = management.data
+  if (!d?.stripe_enabled) return false
+  if (d.agency?.stripe_default_payment_method_id) return false
+  const needsPm =
+    Boolean(d.trial_config?.trial_requires_payment_method) || (d.payment_mode || '') === 'before_verification'
+  return Boolean(needsPm)
+})
+
 async function persistProfile() {
   await call('crm.api.redtra.billing.update_current_agency_profile', {
     agency_id: management.data?.agency?.name,
@@ -343,30 +377,70 @@ async function saveAndContinue() {
   }
 }
 
+async function onStripeCardSaved() {
+  toast.success(__('Card saved successfully'))
+  await management.reload()
+  contextResource.reload()
+}
+
 async function startSetup() {
   if (!management.data?.billing_enabled) {
     errorMessage.value = __('Billing is disabled in Agency Billing Settings')
     return
   }
-  setupLoading.value = true
+  if (!management.data?.stripe_enabled) {
+    errorMessage.value = __('Stripe is not configured for billing.')
+    return
+  }
   errorMessage.value = ''
   try {
     await persistProfile()
-    const successUrl = `${window.location.origin}/crm/agency-onboarding?billing=success`
-    const cancelUrl = `${window.location.origin}/crm/agency-onboarding?billing=cancel`
-    const response = await call('crm.api.redtra.billing.create_billing_setup_session', {
-      agency_id: management.data?.agency?.name,
-      success_url: successUrl,
-      cancel_url: cancelUrl,
+    showStripeModal.value = true
+  } catch (error) {
+    errorMessage.value = error?.messages?.[0] || error?.message
+  }
+}
+
+watch(
+  () => [route.fullPath, management.data?.agency?.name],
+  async () => {
+    if (!management.data?.agency?.name) return
+    await finalizeStripeSetupReturn({
+      route,
+      router,
+      agencyId: management.data.agency.name,
+      onSuccess: onStripeCardSaved,
     })
-    if (response?.url) {
-      window.location.href = response.url
-      return
+  },
+  { immediate: true },
+)
+
+async function runBillingReturnSync() {
+  if (!management.data?.agency?.name) return
+  billingSyncing.value = true
+  errorMessage.value = ''
+  try {
+    await call('crm.api.redtra.billing.sync_stripe_payment_methods_from_customer', {
+      agency_id: management.data.agency.name,
+    })
+    await management.reload()
+    let attempts = 0
+    const needsPmWait = () => {
+      const d = management.data
+      if (!d?.stripe_enabled || d?.agency?.stripe_default_payment_method_id) return false
+      return (
+        Boolean(d.trial_config?.trial_requires_payment_method) || (d.payment_mode || '') === 'before_verification'
+      )
+    }
+    while (attempts < 15 && needsPmWait()) {
+      await new Promise((r) => setTimeout(r, 800))
+      await management.reload()
+      attempts += 1
     }
   } catch (error) {
     errorMessage.value = error?.messages?.[0] || error?.message
   } finally {
-    setupLoading.value = false
+    billingSyncing.value = false
   }
 }
 
@@ -375,6 +449,15 @@ async function completeOnboarding() {
   errorMessage.value = ''
   try {
     await persistProfile()
+    if (completeBlockedByPayment.value) {
+      await runBillingReturnSync()
+    }
+    if (completeBlockedByPayment.value) {
+      errorMessage.value = __(
+        'A payment method is still being confirmed. Use “Sync from Stripe” or wait a moment and try again.',
+      )
+      return
+    }
     await call('crm.api.redtra.billing.complete_agency_onboarding', {
       agency_id: management.data?.agency?.name,
     })
@@ -387,6 +470,19 @@ async function completeOnboarding() {
     completeLoading.value = false
   }
 }
+
+watch(
+  [() => route.query.billing, () => management.data?.agency?.name],
+  ([billing]) => {
+    if (billing === 'success' && management.data?.agency?.name) {
+      runBillingReturnSync().then(() => {
+        const q = { ...route.query }
+        delete q.billing
+        router.replace({ query: q })
+      })
+    }
+  },
+)
 
 function billingTheme(status) {
   return {

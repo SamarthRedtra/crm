@@ -187,14 +187,32 @@
               <div>
                 <p class="text-p-base font-medium text-ink-gray-8">{{ addon.addon_name }}</p>
                 <p class="mt-1 text-p-sm text-ink-gray-5">
-                  {{ addon.pricing_model }} · {{ addon.catalog_rate }} {{ addon.currency }}
+                  <template v-if="addonHasCatalogRate(addon)">
+                    {{ addon.pricing_model }} · {{ addon.effective_rate }} {{ addon.currency }}
+                  </template>
+                  <template v-else>
+                    {{ addon.pricing_model }} ·
+                    {{
+                      __(
+                        'Set a positive catalog rate on Billing Addon — accruals are skipped while the rate is zero.',
+                      )
+                    }}
+                  </template>
                 </p>
                 <p v-if="addon.unit_label" class="text-p-xs text-ink-gray-4">
                   {{ __('Unit: {0}', [addon.unit_label]) }}
                 </p>
               </div>
-              <label class="flex items-center gap-2 text-p-sm text-ink-gray-6">
-                <input v-model="addon.enabled" type="checkbox" class="h-4 w-4 rounded accent-blue-600" />
+              <label
+                class="flex items-center gap-2 text-p-sm text-ink-gray-6"
+                :class="{ 'opacity-60': !addonHasCatalogRate(addon) && !addon.enabled }"
+              >
+                <input
+                  v-model="addon.enabled"
+                  type="checkbox"
+                  class="h-4 w-4 rounded accent-blue-600"
+                  :disabled="!addonHasCatalogRate(addon) && !addon.enabled"
+                />
                 {{ __('Enabled') }}
               </label>
             </div>
@@ -204,10 +222,13 @@
                 <label class="text-p-xs font-medium uppercase tracking-wide text-ink-gray-5">{{ __('Quantity') }}</label>
                 <input v-model.number="addon.quantity" type="number" min="0" step="1" :class="inputClass" />
               </div>
-              <div class="flex flex-col gap-1.5">
+              <div v-if="canEditAddonCustomRate" class="flex flex-col gap-1.5">
                 <label class="text-p-xs font-medium uppercase tracking-wide text-ink-gray-5">{{ __('Custom Rate') }}</label>
                 <input v-model="addon.custom_rate" type="number" min="0" step="0.01" :class="inputClass" />
               </div>
+              <p v-else class="md:col-span-2 text-p-xs text-ink-gray-5">
+                {{ __('Rates use the billing catalog. Contact CRM support to change negotiated rates.') }}
+              </p>
             </div>
           </div>
         </div>
@@ -244,29 +265,38 @@
 
               <div
                 v-if="management.data.context?.can_manage_team"
-                class="grid grid-cols-1 gap-3 md:grid-cols-4 xl:min-w-[720px]"
+                class="flex w-full min-w-0 flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-stretch"
               >
-                <select v-model="member.agency_role" :class="inputClass">
-                  <option value="Agent">{{ __('Agent') }}</option>
-                  <option value="Manager">{{ __('Manager') }}</option>
-                  <option value="Admin">{{ __('Admin') }}</option>
-                </select>
-                <select v-model="member.agent_level" :class="inputClass">
-                  <option value="">{{ __('No level') }}</option>
-                  <option v-for="level in availableLevels" :key="level.name" :value="level.name">
-                    {{ level.level_name }}
-                  </option>
-                </select>
-                <label class="flex items-center gap-2 rounded border border-outline-gray-2 px-3 py-2 text-p-sm text-ink-gray-6">
-                  <input v-model="member.billable" type="checkbox" class="h-4 w-4 rounded accent-blue-600" />
+                <div class="min-w-0 flex-1 basis-[11rem]">
+                  <select v-model="member.agency_role" :class="inputClass">
+                    <option value="Agent">{{ __('Agent') }}</option>
+                    <option value="Manager">{{ __('Manager') }}</option>
+                    <option value="Admin">{{ __('Admin') }}</option>
+                  </select>
+                </div>
+                <div class="min-w-0 flex-1 basis-[11rem]">
+                  <select v-model="member.agent_level" :class="inputClass">
+                    <option value="">{{ __('No level') }}</option>
+                    <option v-for="level in availableLevels" :key="level.name" :value="level.name">
+                      {{ level.level_name }}
+                    </option>
+                  </select>
+                </div>
+                <label
+                  class="flex min-h-[2.5rem] min-w-0 flex-1 basis-[9rem] items-center gap-2 rounded border border-outline-gray-2 px-3 py-2 text-p-sm text-ink-gray-6 sm:max-w-[12rem]"
+                >
+                  <input v-model="member.billable" type="checkbox" class="h-4 w-4 shrink-0 rounded accent-blue-600" />
                   {{ __('Billable') }}
                 </label>
-                <Button
-                  variant="subtle"
-                  :label="member.saving ? __('Saving…') : __('Save Member')"
-                  :disabled="member.saving"
-                  @click="saveTeamMember(member)"
-                />
+                <div class="flex w-full shrink-0 sm:w-auto sm:justify-end">
+                  <Button
+                    class="w-full sm:w-auto"
+                    variant="subtle"
+                    :label="member.saving ? __('Saving…') : __('Save Member')"
+                    :disabled="member.saving"
+                    @click="saveTeamMember(member)"
+                  />
+                </div>
               </div>
 
               <div v-else class="flex flex-wrap gap-2">
@@ -291,6 +321,7 @@
 <script setup>
 import Link from '@/components/Controls/Link.vue'
 import { agencyStore } from '@/stores/agency'
+import { usersStore } from '@/stores/users'
 import {
   Button,
   Badge,
@@ -303,6 +334,9 @@ import {
 import { computed, reactive, ref } from 'vue'
 
 const { contextResource } = agencyStore()
+const { isManager } = usersStore()
+
+const canEditAddonCustomRate = computed(() => isManager())
 
 const inputClass =
   'w-full rounded border border-outline-gray-2 bg-surface-white px-3 py-2 text-p-sm text-ink-gray-8 outline-none transition focus:border-blue-400 focus:ring-1 focus:ring-blue-100'
@@ -336,15 +370,28 @@ const availableLevels = ref([])
 const initialSnapshot = ref('')
 const errorMessage = ref('')
 
+function addonRowBillable(row) {
+  if (!row.enabled) return false
+  if (canEditAddonCustomRate.value) {
+    const cr = row.custom_rate
+    if (cr !== '' && cr != null && Number(cr) > 0) return true
+  }
+  return addonHasCatalogRate(row)
+}
+
 function buildPayload() {
   return {
     ...form,
     billing_addons: addonRows.value
-      .filter((row) => row.enabled)
+      .filter((row) => addonRowBillable(row))
       .map((row) => ({
         addon: row.addon,
         quantity: Number(row.quantity || 1),
-        custom_rate: row.custom_rate === '' || row.custom_rate === null ? null : Number(row.custom_rate),
+        custom_rate: canEditAddonCustomRate.value
+          ? row.custom_rate === '' || row.custom_rate === null
+            ? null
+            : Number(row.custom_rate)
+          : null,
         enabled: 1,
       })),
   }
@@ -385,11 +432,18 @@ function applyManagementData(data) {
   )
   addonRows.value = (data?.available_addons || []).map((addon) => {
     const selected = selectedAddons.get(addon.name)
+    const effective =
+      addon.effective_rate != null && Number(addon.effective_rate) > 0
+        ? Number(addon.effective_rate)
+        : Number(addon.rate) > 0
+          ? Number(addon.rate)
+          : null
     return {
       addon: addon.name,
       addon_name: addon.addon_name,
       pricing_model: addon.pricing_model,
       catalog_rate: addon.rate,
+      effective_rate: effective,
       currency: addon.currency,
       unit_label: addon.unit_label,
       enabled: Boolean(selected?.enabled),
@@ -492,5 +546,9 @@ function trialStatusTheme(status) {
     Converted: 'green',
     'Not Started': 'gray',
   }[status || 'Not Started']
+}
+
+function addonHasCatalogRate(addon) {
+  return addon.effective_rate != null && Number(addon.effective_rate) > 0
 }
 </script>

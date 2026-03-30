@@ -18,10 +18,18 @@
       </div>
 
       <div class="mt-5 flex flex-wrap gap-2">
-        <Button variant="solid" :label="__('Set Up Billing Method')" :loading="setupLoading" @click="startSetup" />
+        <Button variant="solid" :label="__('Set Up Billing Method')" @click="startSetup" />
         <Button variant="subtle" :label="__('Refresh')" :loading="refreshLoading" @click="refreshContext" />
         <Button v-if="isBillingActive" variant="ghost" :label="__('Go to Dashboard')" @click="router.push({ name: 'Home' })" />
       </div>
+
+      <StripeSetupPaymentModal
+        v-model="showStripeModal"
+        :agency-id="context?.agency"
+        intent="billing_setup"
+        return-path="/crm/billing-activation"
+        @success="onStripeCardSaved"
+      />
 
       <ErrorMessage class="mt-4" :message="errorMessage" />
     </div>
@@ -29,20 +37,26 @@
 </template>
 
 <script setup>
+import StripeSetupPaymentModal from '@/components/Billing/StripeSetupPaymentModal.vue'
+import { finalizeStripeSetupReturn } from '@/composables/stripeSetupReturn'
 import { agencyStore } from '@/stores/agency'
-import { Badge, Button, ErrorMessage, call } from 'frappe-ui'
-import { computed, ref } from 'vue'
-import { useRouter } from 'vue-router'
+import { Badge, Button, ErrorMessage, toast } from 'frappe-ui'
+import { storeToRefs } from 'pinia'
+import { computed, ref, watch } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 
+const route = useRoute()
 const router = useRouter()
-const { context, contextResource } = agencyStore()
+const agency = agencyStore()
+const { context } = storeToRefs(agency)
+const { contextResource } = agency
 
 const errorMessage = ref('')
-const setupLoading = ref(false)
+const showStripeModal = ref(false)
 const refreshLoading = ref(false)
 
-const billingStatus = computed(() => context.value.billing_status || 'Not Configured')
-const trialStatus = computed(() => context.value.trial_status || 'Not Started')
+const billingStatus = computed(() => context.value?.billing_status || 'Not Configured')
+const trialStatus = computed(() => context.value?.trial_status || 'Not Started')
 const isBillingActive = computed(() => billingStatus.value === 'Active')
 
 const billingStatusLabel = computed(() => billingStatus.value)
@@ -61,26 +75,32 @@ const trialTheme = computed(() => {
   return 'gray'
 })
 
-async function startSetup() {
-  errorMessage.value = ''
-  setupLoading.value = true
-  try {
-    const successUrl = `${window.location.origin}/crm/billing-activation?billing=success`
-    const cancelUrl = `${window.location.origin}/crm/billing-activation?billing=cancel`
-    const response = await call('crm.api.redtra.billing.create_billing_setup_session', {
-      success_url: successUrl,
-      cancel_url: cancelUrl,
-    })
-    if (response?.url) {
-      window.location.href = response.url
-      return
-    }
-  } catch (error) {
-    errorMessage.value = error?.messages?.[0] || error?.message
-  } finally {
-    setupLoading.value = false
+async function onStripeCardSaved() {
+  toast.success(__('Card saved successfully'))
+  await contextResource.reload()
+  if (isBillingActive.value) {
+    router.push({ name: 'Home' })
   }
 }
+
+async function startSetup() {
+  errorMessage.value = ''
+  showStripeModal.value = true
+}
+
+watch(
+  () => [route.fullPath, context.value?.agency],
+  async () => {
+    if (!context.value?.agency) return
+    await finalizeStripeSetupReturn({
+      route,
+      router,
+      agencyId: context.value.agency,
+      onSuccess: onStripeCardSaved,
+    })
+  },
+  { immediate: true },
+)
 
 async function refreshContext() {
   errorMessage.value = ''

@@ -172,6 +172,7 @@ import {
 import { usersStore } from '@/stores/users'
 import { sessionStore } from '@/stores/session'
 import { agentStore } from '@/stores/agent'
+import { userCanAccessDashboard } from '@/utils/dashboardAccess'
 import { showSettings, activeSettingsPage } from '@/composables/settings'
 import { showChangePasswordModal } from '@/composables/modals'
 import { FeatherIcon, call } from 'frappe-ui'
@@ -195,8 +196,15 @@ const { toggle: toggleNotificationPanel } = notificationsStore()
 
 const isSidebarCollapsed = useStorage('isSidebarCollapsed', false)
 
-// Agent verification gate — hide all CRM nav until agent is verified
+const session = sessionStore()
+const { users, isManager } = usersStore()
 const { agentResource } = agentStore()
+
+const canSeeDashboard = computed(() =>
+  userCanAccessDashboard(session.user, users.getUser(session.user), agentResource.data),
+)
+
+// Agent verification gate — hide all CRM nav until agent is verified
 const isAgentVerified = computed(() => {
   // If no agent record exists for this user, show everything (non-agent user)
   if (!agentResource.data?.name) return true
@@ -211,6 +219,7 @@ const links = [
     label: 'Dashboard',
     icon: LucideLayoutDashboard,
     to: 'Dashboard',
+    condition: () => canSeeDashboard.value,
   },
   {
     label: 'Leads',
@@ -333,7 +342,6 @@ function getIcon(routeName, icon) {
 
 // onboarding
 const { user } = sessionStore()
-const { users, isManager } = usersStore()
 const { isOnboardingStepsCompleted, setUp } = useOnboarding('frappecrm')
 
 async function getFirstLead() {

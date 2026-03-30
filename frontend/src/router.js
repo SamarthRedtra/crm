@@ -185,6 +185,8 @@ let router = createRouter({
 
 import { agentStore } from '@/stores/agent'
 import { agencyStore } from '@/stores/agency'
+import { usersStore } from '@/stores/users'
+import { userCanAccessDashboard } from '@/utils/dashboardAccess'
 
 router.beforeEach(async (to, from, next) => {
   const { isLoggedIn } = sessionStore()
@@ -228,9 +230,29 @@ router.beforeEach(async (to, from, next) => {
     }
 
     const routingName = String(to.name || '')
-    const bypassRoutes = new Set(['Agency Verification', 'Billing Activation', 'Logout'])
+    /** Gates that must remain reachable while agency/agent onboarding is in progress. */
+    const onboardingGateRoutes = new Set([
+      'Agency Onboarding',
+      'Agency Verification',
+      'Agent Onboarding',
+      'Billing Activation',
+      'Logout',
+    ])
+    const agentOnboardingBypass = new Set(['Billing Activation', 'Logout'])
 
-    if (needsAgencyVerification() && routingName !== 'Agency Verification') {
+    if (!agentResource.data) {
+      await agentResource.reload()
+    }
+    const isUnverifiedAgent = agentResource.data && agentResource.data.name && agentResource.data.status !== 'Verified'
+
+    // 1) Company profile + billing (Agency Onboarding) — including while ops verification is pending — before agent KYC.
+    if (needsAgencyOnboarding() && !onboardingGateRoutes.has(routingName)) {
+      next({ name: 'Agency Onboarding' })
+      return
+    }
+
+    // 2) Agency verification status page
+    if (needsAgencyVerification() && !onboardingGateRoutes.has(routingName)) {
       next({ name: 'Agency Verification' })
       return
     }
@@ -240,34 +262,34 @@ router.beforeEach(async (to, from, next) => {
       return
     }
 
-    if (!agentResource.data) {
-      await agentResource.reload()
-    }
-    const isUnverifiedAgent = agentResource.data && agentResource.data.name && agentResource.data.status !== 'Verified'
-
-    if (isUnverifiedAgent && to.name !== 'Agent Onboarding' && !bypassRoutes.has(routingName)) {
+    // 3) Agent KYC (only after agency gates above)
+    if (
+      isUnverifiedAgent &&
+      to.name !== 'Agent Onboarding' &&
+      to.name !== 'Agency Onboarding' &&
+      !agentOnboardingBypass.has(routingName)
+    ) {
       next({ name: 'Agent Onboarding' })
       return
     }
 
-    if (!isUnverifiedAgent && to.name === 'Agent Onboarding') {
-      next({ name: 'Home' })
-      return
-    }
-
-    if (!needsAgencyVerification() && needsAgencyOnboarding() && routingName !== 'Agency Onboarding') {
-      next({ name: 'Agency Onboarding' })
-      return
-    }
-
-    if (!needsAgencyVerification() && !needsAgencyOnboarding() && routingName === 'Agency Onboarding') {
+    if (!isUnverifiedAgent && to.name === 'Agent Onboarding' && !needsAgencyVerification()) {
       next({ name: 'Home' })
       return
     }
 
     if (
-      !needsAgencyVerification() &&
       !needsAgencyOnboarding() &&
+      routingName === 'Agency Onboarding' &&
+      to.query.resume !== 'agency'
+    ) {
+      next({ name: 'Home' })
+      return
+    }
+
+    if (
+      !needsAgencyOnboarding() &&
+      !needsAgencyVerification() &&
       needsBillingActivation() &&
       routingName !== 'Billing Activation'
     ) {
@@ -279,6 +301,21 @@ router.beforeEach(async (to, from, next) => {
       next({ name: 'Home' })
       return
     }
+
+    // Manager dashboard: agency Admin/Manager must match API (`dashboard_user_only`), not plain Sales User.
+    if (to.name === 'Dashboard') {
+      const { users } = usersStore()
+      await users.promise
+      if (!agentResource.data) {
+        await agentResource.reload()
+      }
+      const session = sessionStore()
+      const udoc = users.getUser(session.user)
+      if (!userCanAccessDashboard(session.user, udoc, agentResource.data)) {
+        next({ name: 'Leads' })
+        return
+      }
+    }
   }
 
   if (to.name === 'Home' && isLoggedIn) {
@@ -287,7 +324,19 @@ router.beforeEach(async (to, from, next) => {
 
     let defaultView = getDefaultView()
     if (!defaultView) {
-      next({ name: 'Dashboard' })
+      const { agentResource } = agentStore()
+      const { users } = usersStore()
+      await users.promise
+      if (!agentResource.data) {
+        await agentResource.reload()
+      }
+      const session = sessionStore()
+      const udoc = users.getUser(session.user)
+      if (userCanAccessDashboard(session.user, udoc, agentResource.data)) {
+        next({ name: 'Dashboard' })
+      } else {
+        next({ name: 'Leads' })
+      }
       return
     }
 

@@ -11,6 +11,14 @@
         <p class="text-p-sm text-ink-gray-5 text-center">
           {{ __('Complete all sections to submit your profile for verification.') }}
         </p>
+        <Button
+          v-if="showAgencyOnboardingLink"
+          variant="subtle"
+          class="mt-1"
+          :label="__('Agency profile & billing')"
+          iconLeft="building"
+          @click="goAgencyOnboarding"
+        />
       </div>
 
       <div class="px-8 py-6 flex flex-col gap-6">
@@ -377,7 +385,14 @@
 
       <!-- Logout -->
       <div class="px-8 pb-6 pt-2">
-        <Button variant="outline" :label="__('Logout')" iconLeft="log-out" class="w-full text-red-600 border-outline-red-1 hover:bg-surface-red-1" @click="logout" />
+        <Button
+          variant="outline"
+          :label="__('Logout')"
+          iconLeft="log-out"
+          class="w-full text-red-600 border-outline-red-1 hover:bg-surface-red-1"
+          :loading="logout.loading"
+          @click="logout.submit()"
+        />
       </div>
     </div>
   </div>
@@ -385,15 +400,27 @@
 
 <script setup>
 import { ref, computed, watch, onMounted } from 'vue'
+import { storeToRefs } from 'pinia'
 import { agentStore } from '@/stores/agent'
+import { agencyStore } from '@/stores/agency'
 import { sessionStore } from '@/stores/session'
 import PhoneInput from '@/components/PhoneInput.vue'
 import { FeatherIcon, Button, TextInput, FileUploader, Badge, createResource, toast } from 'frappe-ui'
 import { useRouter } from 'vue-router'
 
 const { agentResource } = agentStore()
+const agency = agencyStore()
+const { context: agencyContext } = storeToRefs(agency)
 const { logout } = sessionStore()
 const router = useRouter()
+
+const showAgencyOnboardingLink = computed(
+  () => Boolean(agencyContext.value?.agency && agencyContext.value?.can_manage_billing),
+)
+
+function goAgencyOnboarding() {
+  router.push({ name: 'Agency Onboarding', query: { resume: 'agency' } })
+}
 
 const activeSection = ref(0)
 const submitting = ref(false)

@@ -13,6 +13,8 @@
   "trial_days",
   "trial_grace_days",
   "trial_requires_payment_method",
+  "trial_max_agents",
+  "default_agent_level",
   "stripe_tab",
   "stripe_collection_method",
   "stripe_publishable_key",
@@ -73,6 +75,19 @@
    "fieldname": "trial_requires_payment_method",
    "fieldtype": "Check",
    "label": "Trial Requires Payment Method"
+  },
+  {
+   "default": "0",
+   "description": "Maximum billable agents while trial is Active or Grace. 0 = unlimited.",
+   "fieldname": "trial_max_agents",
+   "fieldtype": "Int",
+   "label": "Max Agents During Trial"
+  },
+  {
+   "fieldname": "default_agent_level",
+   "fieldtype": "Link",
+   "label": "Default Agent Level",
+   "options": "Agent Level"
   },
   {
    "fieldname": "stripe_tab",

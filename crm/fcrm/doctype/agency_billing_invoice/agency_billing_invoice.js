@@ -1,3 +1,5 @@
+frappe.breadcrumbs.add("Property Management");
+
 frappe.ui.form.on("Agency Billing Invoice", {
 	refresh(frm) {
 		if (frm.is_new()) return;

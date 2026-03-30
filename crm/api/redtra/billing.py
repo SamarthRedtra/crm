@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from collections import defaultdict
+import hashlib
 from typing import Any
 from urllib.parse import urlparse
 
@@ -217,15 +218,66 @@ def _get_trial_config() -> dict[str, Any]:
 			"trial_days": 30,
 			"trial_grace_days": 0,
 			"requires_payment_method": False,
+			"trial_max_agents": 0,
+			"default_agent_level": None,
 		}
 	trial_days = max(cint(getattr(settings, "trial_days", 30) or 30), 1)
 	trial_grace_days = max(cint(getattr(settings, "trial_grace_days", 0) or 0), 0)
+	trial_max_agents = max(cint(getattr(settings, "trial_max_agents", 0) or 0), 0) if settings else 0
+	default_agent_level = getattr(settings, "default_agent_level", None) if settings else None
 	return {
 		"enabled": bool(cint(getattr(settings, "trial_enabled", 0))),
 		"trial_days": trial_days,
 		"trial_grace_days": trial_grace_days,
 		"requires_payment_method": bool(cint(getattr(settings, "trial_requires_payment_method", 0))),
+		"trial_max_agents": trial_max_agents,
+		"default_agent_level": default_agent_level,
 	}
+
+
+def validate_trial_agent_quota(agency_name: str) -> None:
+	"""Block new Agent rows when agency is on trial and trial_max_agents is reached."""
+	if not agency_name or not frappe.db.exists("Agency", agency_name):
+		return
+	agency_doc = frappe.get_doc("Agency", agency_name)
+	trial_cfg = _get_trial_config()
+	if not trial_cfg["enabled"]:
+		return
+	if (agency_doc.trial_status or "") not in {"Active", "Grace"}:
+		return
+	max_agents = cint(trial_cfg.get("trial_max_agents") or 0)
+	if max_agents <= 0:
+		return
+	current = frappe.db.count("Agent", {"agency": agency_name})
+	if current >= max_agents:
+		frappe.throw(
+			_("This agency has reached the maximum of {0} agents allowed during the trial. Contact CRM support.").format(
+				max_agents
+			),
+			frappe.ValidationError,
+		)
+
+
+def get_default_agent_level_for_new_agent() -> str | None:
+	settings = _get_billing_settings()
+	if settings and getattr(settings, "default_agent_level", None):
+		dl = settings.default_agent_level
+		if dl and frappe.db.exists("Agent Level", dl):
+			return dl
+	rows = frappe.get_all(
+		"Agent Level",
+		filters={"active": 1},
+		order_by="sort_order asc, level_name asc",
+		limit=1,
+		pluck="name",
+	)
+	return rows[0] if rows else None
+
+
+def _agency_waives_daily_billing_during_trial(agency_doc) -> bool:
+	if (getattr(agency_doc, "trial_status", None) or "") not in {"Active", "Grace"}:
+		return False
+	return bool(cint(getattr(agency_doc, "is_on_trial", 0)))
 
 
 def _require_billing_enabled():
@@ -248,6 +300,14 @@ def _stripe_enabled() -> bool:
 	if not settings:
 		return False
 	return bool(settings.get_password("stripe_secret_key", raise_exception=False))
+
+
+def _get_stripe_publishable_key() -> str | None:
+	settings = _get_billing_settings()
+	if not settings or not _stripe_enabled():
+		return None
+	key = (getattr(settings, "stripe_publishable_key", None) or "").strip()
+	return key or None
 
 
 def _get_period_bounds(target_date: str | None = None) -> tuple[str, str]:
@@ -276,11 +336,13 @@ def _serialize_agent_level(level: dict[str, Any]) -> dict[str, Any]:
 
 
 def _serialize_billing_addon(addon: dict[str, Any]) -> dict[str, Any]:
+	r = flt(addon.get("rate"))
 	return {
 		"name": addon.get("name"),
 		"addon_name": addon.get("addon_name"),
 		"pricing_model": addon.get("pricing_model"),
-		"rate": flt(addon.get("rate")),
+		"rate": r,
+		"effective_rate": r if r > 0 else None,
 		"currency": addon.get("currency"),
 		"unit_label": addon.get("unit_label"),
 		"active": cint(addon.get("active")),
@@ -369,6 +431,51 @@ def _serialize_invoice(invoice_doc, include_items: bool = True) -> dict[str, Any
 			for row in items
 		]
 	return data
+
+
+def _serialize_saved_payment_method(row: dict[str, Any]) -> dict[str, Any]:
+	return {
+		"name": row.get("name"),
+		"agency": row.get("agency"),
+		"stripe_customer_id": row.get("stripe_customer_id"),
+		"stripe_payment_method_id": row.get("stripe_payment_method_id"),
+		"type": row.get("type"),
+		"brand": row.get("brand"),
+		"last4": row.get("last4"),
+		"exp_month": cint(row.get("exp_month") or 0),
+		"exp_year": cint(row.get("exp_year") or 0),
+		"is_default": cint(row.get("is_default") or 0),
+		"status": row.get("status") or "Active",
+		"added_on": row.get("added_on"),
+		"detached_on": row.get("detached_on"),
+	}
+
+
+def _list_saved_payment_methods_internal(agency_name: str, include_detached: bool = False) -> list[dict[str, Any]]:
+	filters: dict[str, Any] = {"agency": agency_name}
+	if not include_detached:
+		filters["status"] = "Active"
+	rows = frappe.get_all(
+		"Agency Payment Method",
+		filters=filters,
+		fields=[
+			"name",
+			"agency",
+			"stripe_customer_id",
+			"stripe_payment_method_id",
+			"type",
+			"brand",
+			"last4",
+			"exp_month",
+			"exp_year",
+			"is_default",
+			"status",
+			"added_on",
+			"detached_on",
+		],
+		order_by="is_default desc, modified desc",
+	)
+	return [_serialize_saved_payment_method(row) for row in rows]
 
 
 def _summarize_accruals(accruals: list[dict[str, Any]]) -> list[dict[str, Any]]:
@@ -513,6 +620,44 @@ def get_session_agency_context(agency_id: str | None = None) -> dict[str, Any]:
 	return get_agency_access_context(agency_id=agency_id)
 
 
+@frappe.whitelist(allow_guest=True)
+def public_billing_preview() -> dict[str, Any]:
+	"""Non-secret billing defaults for public registration pages (no Stripe keys).
+
+	Includes active Agent Level and Billing Addon catalog rows so signup can show list prices.
+	"""
+	settings = _get_billing_settings()
+	trial = _get_trial_config()
+	currency = "USD"
+	if settings and getattr(settings, "default_currency", None):
+		currency = settings.default_currency
+	# Catalog is public marketing data; same lists as agency management (active only).
+	try:
+		agent_levels = _list_agent_levels(active_only=1)
+	except Exception:
+		agent_levels = []
+	# Canonical base rate: first active row (legacy sites may still have multiple rows until migrate).
+	agent_level = agent_levels[0] if agent_levels else None
+	agent_levels = [agent_level] if agent_level else []
+	try:
+		billing_addons = _list_billing_addons(active_only=1)
+	except Exception:
+		billing_addons = []
+	return {
+		"billing_enabled": _is_billing_enabled(),
+		"payment_mode": _get_payment_mode(),
+		"trial_enabled": trial["enabled"],
+		"trial_days": trial["trial_days"],
+		"trial_grace_days": trial["trial_grace_days"],
+		"trial_requires_payment_method": trial["requires_payment_method"],
+		"trial_max_agents": trial.get("trial_max_agents", 0),
+		"default_currency": currency,
+		"agent_level": agent_level,
+		"agent_levels": agent_levels,
+		"billing_addons": billing_addons,
+	}
+
+
 @frappe.whitelist()
 def get_agency_management_data(agency_id: str | None = None) -> dict[str, Any]:
 	context, agency_doc = _require_agency_access(agency_id=agency_id)
@@ -526,9 +671,11 @@ def get_agency_management_data(agency_id: str | None = None) -> dict[str, Any]:
 		"available_addons": _list_billing_addons(active_only=1),
 		"available_levels": _list_agent_levels(active_only=1),
 		"stripe_enabled": _stripe_enabled(),
+		"stripe_publishable_key": _get_stripe_publishable_key(),
 		"billing_enabled": _is_billing_enabled(),
 		"payment_mode": _get_payment_mode(),
 		"trial_config": trial_config,
+		"saved_payment_methods": _list_saved_payment_methods_internal(agency_doc.name),
 	}
 
 
@@ -550,6 +697,7 @@ def update_current_agency_profile(agency_id: str | None = None, data: str | None
 
 	if "billing_addons" in payload and context["can_manage_billing"]:
 		_require_billing_enabled()
+		existing_addon_rows = {r.addon: r for r in (agency_doc.billing_addons or [])}
 		agency_doc.set("billing_addons", [])
 		for row in payload.get("billing_addons") or []:
 			if not row.get("addon"):
@@ -561,10 +709,14 @@ def update_current_agency_profile(agency_id: str | None = None, data: str | None
 			if quantity <= 0:
 				frappe.throw(_("Billing addon quantity must be greater than zero."))
 			custom_rate = None
-			if row.get("custom_rate") not in (None, ""):
-				custom_rate = flt(row.get("custom_rate"))
-				if custom_rate < 0:
-					frappe.throw(_("Custom addon rate cannot be negative."))
+			if _is_internal_manager():
+				if row.get("custom_rate") not in (None, ""):
+					custom_rate = flt(row.get("custom_rate"))
+					if custom_rate < 0:
+						frappe.throw(_("Custom addon rate cannot be negative."))
+			else:
+				prev = existing_addon_rows.get(addon_name)
+				custom_rate = prev.custom_rate if prev and prev.custom_rate not in (None, 0) else None
 			agency_doc.append(
 				"billing_addons",
 				{
@@ -752,6 +904,8 @@ def update_agency_team_member(agent_name: str, data: str | None = None) -> dict[
 	member.flags.ignore_permissions = True
 	member.save()
 
+	utils.ensure_agency_member_crm_roles(member.user, member.agency_role)
+
 	del context
 	return _serialize_team_member(member.as_dict())
 
@@ -903,6 +1057,8 @@ def run_daily_agency_billing(run_date: str | None = None) -> dict[str, Any]:
 		agency_doc = frappe.get_doc("Agency", row["agency"])
 		if agency_doc.status != "Active":
 			continue
+		if _agency_waives_daily_billing_during_trial(agency_doc):
+			continue
 
 		level_doc = frappe.get_doc("Agent Level", row["agent_level"])
 		if not cint(level_doc.active):
@@ -930,6 +1086,8 @@ def run_daily_agency_billing(run_date: str | None = None) -> dict[str, Any]:
 
 	for agency in frappe.get_all("Agency", filters={"status": "Active"}, fields=["name"]):
 		agency_doc = frappe.get_doc("Agency", agency.name)
+		if _agency_waives_daily_billing_during_trial(agency_doc):
+			continue
 		for addon_row in agency_doc.billing_addons or []:
 			if not addon_row.addon or not cint(addon_row.enabled):
 				continue
@@ -940,6 +1098,10 @@ def run_daily_agency_billing(run_date: str | None = None) -> dict[str, Any]:
 				continue
 
 			custom_rate = flt(addon_row.custom_rate) if addon_row.custom_rate else flt(addon_doc.rate)
+			if custom_rate <= 0:
+				custom_rate = flt(addon_doc.rate)
+			if custom_rate <= 0:
+				continue
 			accrual_key = None
 			posting_date = str(target_date)
 			quantity = flt(addon_row.quantity or 1)
@@ -1137,7 +1299,161 @@ def _ensure_stripe_customer(agency_doc):
 
 
 def _has_billing_setup(agency_doc) -> bool:
-	return bool(getattr(agency_doc, "stripe_customer_id", None))
+	return bool(getattr(agency_doc, "stripe_default_payment_method_id", None))
+
+
+def _get_or_create_agency_payment_method(agency_name: str, stripe_payment_method_id: str):
+	existing_name = frappe.db.get_value(
+		"Agency Payment Method",
+		{"stripe_payment_method_id": stripe_payment_method_id},
+		"name",
+	)
+	if existing_name:
+		return frappe.get_doc("Agency Payment Method", existing_name), False
+
+	doc = frappe.get_doc(
+		{
+			"doctype": "Agency Payment Method",
+			"agency": agency_name,
+			"stripe_payment_method_id": stripe_payment_method_id,
+			"status": "Active",
+		}
+	)
+	return doc, True
+
+
+def _set_local_default_payment_method(agency_name: str, stripe_payment_method_id: str | None):
+	frappe.db.sql(
+		"""
+		update `tabAgency Payment Method`
+		set is_default = 0
+		where agency = %s
+		""",
+		(agency_name,),
+	)
+	if stripe_payment_method_id:
+		pm_name = frappe.db.get_value(
+			"Agency Payment Method",
+			{"agency": agency_name, "stripe_payment_method_id": stripe_payment_method_id},
+			"name",
+		)
+		if pm_name:
+			frappe.db.set_value("Agency Payment Method", pm_name, "is_default", 1, update_modified=False)
+			frappe.db.set_value("Agency Payment Method", pm_name, "status", "Active", update_modified=False)
+
+
+def _sync_agency_default_payment_method(agency_doc, stripe_payment_method_id: str | None):
+	agency_doc.stripe_default_payment_method_id = stripe_payment_method_id
+	agency_doc.flags.ignore_permissions = True
+	agency_doc.save()
+	_set_local_default_payment_method(agency_doc.name, stripe_payment_method_id)
+
+
+def _upsert_agency_payment_method_from_stripe(
+	*,
+	agency_doc,
+	stripe_customer_id: str | None,
+	stripe_payment_method,
+	mark_default: bool = False,
+):
+	if not stripe_payment_method:
+		return None
+
+	pm_id = stripe_payment_method.get("id") if isinstance(stripe_payment_method, dict) else getattr(stripe_payment_method, "id", None)
+	if not pm_id:
+		return None
+
+	doc, is_new = _get_or_create_agency_payment_method(agency_doc.name, pm_id)
+	card = (
+		(stripe_payment_method.get("card") if isinstance(stripe_payment_method, dict) else getattr(stripe_payment_method, "card", None))
+		or {}
+	)
+	pm_type = stripe_payment_method.get("type") if isinstance(stripe_payment_method, dict) else getattr(stripe_payment_method, "type", None)
+	card_brand = card.get("brand") if isinstance(card, dict) else getattr(card, "brand", None)
+	card_last4 = card.get("last4") if isinstance(card, dict) else getattr(card, "last4", None)
+	card_exp_month = card.get("exp_month") if isinstance(card, dict) else getattr(card, "exp_month", None)
+	card_exp_year = card.get("exp_year") if isinstance(card, dict) else getattr(card, "exp_year", None)
+	doc.agency = agency_doc.name
+	doc.stripe_customer_id = stripe_customer_id or agency_doc.stripe_customer_id
+	doc.stripe_payment_method_id = pm_id
+	doc.type = pm_type or "card"
+	doc.brand = card_brand
+	doc.last4 = card_last4
+	doc.exp_month = cint(card_exp_month or 0)
+	doc.exp_year = cint(card_exp_year or 0)
+	doc.status = "Active"
+	doc.detached_on = None
+	doc.flags.ignore_permissions = True
+	if is_new:
+		doc.insert()
+	else:
+		doc.save()
+
+	if mark_default:
+		_sync_agency_default_payment_method(agency_doc, pm_id)
+
+	return doc
+
+
+def _set_stripe_customer_default_payment_method(customer_id: str, stripe_payment_method_id: str | None):
+	if not customer_id:
+		return
+	stripe, _settings = _get_stripe_sdk()
+	stripe.Customer.modify(
+		customer_id,
+		invoice_settings={"default_payment_method": stripe_payment_method_id or ""},
+	)
+
+
+def _attach_and_sync_payment_method(
+	*,
+	agency_doc,
+	customer_id: str | None,
+	stripe_payment_method_id: str,
+	make_default: bool = True,
+):
+	stripe, _settings = _get_stripe_sdk()
+	effective_customer = customer_id or agency_doc.stripe_customer_id or _ensure_stripe_customer(agency_doc)
+
+	try:
+		stripe.PaymentMethod.attach(stripe_payment_method_id, customer=effective_customer)
+	except Exception:
+		# Ignore "already attached" style errors; retrieval below still synchronizes local state.
+		pass
+
+	payment_method = stripe.PaymentMethod.retrieve(stripe_payment_method_id)
+	_upsert_agency_payment_method_from_stripe(
+		agency_doc=agency_doc,
+		stripe_customer_id=effective_customer,
+		stripe_payment_method=payment_method,
+		mark_default=make_default,
+	)
+
+	if make_default:
+		_set_stripe_customer_default_payment_method(effective_customer, stripe_payment_method_id)
+		_sync_agency_default_payment_method(agency_doc, stripe_payment_method_id)
+
+
+def _find_agency_by_customer(customer_id: str | None) -> str | None:
+	if not customer_id:
+		return None
+	return frappe.db.get_value("Agency", {"stripe_customer_id": customer_id}, "name")
+
+
+def _mark_payment_method_detached(agency_name: str, stripe_payment_method_id: str):
+	pm_name = frappe.db.get_value(
+		"Agency Payment Method",
+		{"agency": agency_name, "stripe_payment_method_id": stripe_payment_method_id},
+		"name",
+	)
+	if not pm_name:
+		return
+	pm_doc = frappe.get_doc("Agency Payment Method", pm_name)
+	pm_doc.status = "Detached"
+	pm_doc.is_default = 0
+	pm_doc.detached_on = now_datetime()
+	pm_doc.flags.ignore_permissions = True
+	pm_doc.save()
 
 
 def _start_agency_trial(agency_doc):
@@ -1231,6 +1547,8 @@ def _sync_invoice_to_stripe(invoice_doc):
 		"auto_advance": True,
 		"metadata": {"crm_invoice": invoice_doc.name, "agency": agency_doc.name},
 	}
+	if invoice_kwargs["collection_method"] == "charge_automatically" and agency_doc.stripe_default_payment_method_id:
+		invoice_kwargs["default_payment_method"] = agency_doc.stripe_default_payment_method_id
 	if invoice_kwargs["collection_method"] == "send_invoice":
 		invoice_kwargs["days_until_due"] = cint(settings.invoice_due_days or 0)
 
@@ -1405,13 +1723,15 @@ def create_billing_setup_session(
 	default_cancel = f"{get_url('/crm/agency-onboarding')}?billing=cancel"
 	success_url = _validate_redirect_url(success_url, default_success)
 	cancel_url = _validate_redirect_url(cancel_url, default_cancel)
+	currency = (agency_doc.billing_currency or _get_default_currency(agency_doc) or "USD").lower()
 
 	session = stripe.checkout.Session.create(
 		mode="setup",
 		customer=customer_id,
+		currency=currency,
 		success_url=success_url,
 		cancel_url=cancel_url,
-		metadata={"agency": agency_doc.name},
+		metadata={"agency": agency_doc.name, "intent": "billing_setup"},
 	)
 
 	agency_doc.onboarding_status = "In Progress"
@@ -1423,6 +1743,310 @@ def create_billing_setup_session(
 		"customer_id": customer_id,
 		"payment_mode": _get_payment_mode(),
 		"trial_config": _get_trial_config(),
+	}
+
+
+@frappe.whitelist(methods=["POST"])
+def create_add_card_setup_session(
+	agency_id: str | None = None,
+	success_url: str | None = None,
+	cancel_url: str | None = None,
+) -> dict[str, Any]:
+	_require_billing_enabled()
+	_context, agency_doc = _require_agency_access(agency_id=agency_id, require_billing=True)
+	stripe, _settings = _get_stripe_sdk()
+	customer_id = _ensure_stripe_customer(agency_doc)
+
+	default_success = f"{get_url('/crm/settings?section=billing')}?billing=card_added"
+	default_cancel = f"{get_url('/crm/settings?section=billing')}?billing=card_cancel"
+	success_url = _validate_redirect_url(success_url, default_success)
+	cancel_url = _validate_redirect_url(cancel_url, default_cancel)
+	currency = (agency_doc.billing_currency or _get_default_currency(agency_doc) or "USD").lower()
+
+	session = stripe.checkout.Session.create(
+		mode="setup",
+		customer=customer_id,
+		currency=currency,
+		success_url=success_url,
+		cancel_url=cancel_url,
+		metadata={"agency": agency_doc.name, "intent": "add_card"},
+	)
+	return {"url": session.url, "customer_id": customer_id}
+
+
+@frappe.whitelist(methods=["POST"])
+def create_stripe_setup_intent(
+	agency_id: str | None = None,
+	intent: str | None = None,
+) -> dict[str, Any]:
+	"""Create a SetupIntent for Stripe Elements (in-app card capture). Replaces hosted Checkout for add/setup card."""
+	_require_billing_enabled()
+	_context, agency_doc = _require_agency_access(agency_id=agency_id, require_billing=True)
+	if not _stripe_enabled():
+		frappe.throw(_("Stripe is not configured for billing."))
+	publishable = _get_stripe_publishable_key()
+	if not publishable:
+		frappe.throw(_("Stripe publishable key is not configured in Agency Billing Settings."))
+	stripe, _settings = _get_stripe_sdk()
+	customer_id = _ensure_stripe_customer(agency_doc)
+	intent_kind = (intent or "billing_setup").strip()
+	if intent_kind not in {"billing_setup", "add_card"}:
+		frappe.throw(_("Invalid intent."))
+
+	si = stripe.SetupIntent.create(
+		customer=customer_id,
+		payment_method_types=["card"],
+		usage="off_session",
+		metadata={"agency": agency_doc.name, "intent": intent_kind},
+	)
+
+	if intent_kind == "billing_setup":
+		agency_doc.onboarding_status = "In Progress"
+		agency_doc.flags.ignore_permissions = True
+		agency_doc.save()
+
+	return {
+		"client_secret": si.client_secret,
+		"setup_intent_id": si.id,
+		"publishable_key": publishable,
+	}
+
+
+@frappe.whitelist(methods=["POST"])
+def complete_stripe_setup_intent(
+	setup_intent_id: str | None = None,
+	agency_id: str | None = None,
+) -> dict[str, Any]:
+	"""After Elements confirms the SetupIntent, attach the payment method and sync Agency Payment Method."""
+	_require_billing_enabled()
+	if not setup_intent_id:
+		frappe.throw(_("Setup intent ID is required."))
+	_context, agency_doc = _require_agency_access(agency_id=agency_id, require_billing=True)
+	if not _stripe_enabled():
+		frappe.throw(_("Stripe is not configured for billing."))
+	stripe, _settings = _get_stripe_sdk()
+	si = stripe.SetupIntent.retrieve(setup_intent_id, expand=["payment_method"])
+	meta = getattr(si, "metadata", None) or {}
+	if not isinstance(meta, dict):
+		meta = dict(meta) if meta else {}
+	if meta.get("agency") != agency_doc.name:
+		frappe.throw(_("Invalid or expired setup session."), frappe.PermissionError)
+	if getattr(si, "status", None) != "succeeded":
+		frappe.throw(_("Card verification did not complete. Please try again."))
+	pm_ref = getattr(si, "payment_method", None)
+	pm_id = pm_ref.get("id") if isinstance(pm_ref, dict) else pm_ref
+	if not pm_id:
+		frappe.throw(_("No payment method was returned from Stripe."))
+	intent_kind = (meta.get("intent") or "billing_setup").strip()
+	make_default = intent_kind != "add_card" or not agency_doc.stripe_default_payment_method_id
+	agency_doc = frappe.get_doc("Agency", agency_doc.name)
+	_attach_and_sync_payment_method(
+		agency_doc=agency_doc,
+		customer_id=agency_doc.stripe_customer_id,
+		stripe_payment_method_id=pm_id,
+		make_default=make_default,
+	)
+	agency_doc = frappe.get_doc("Agency", agency_doc.name)
+	agency_doc.billing_status = "Active"
+	agency_doc.flags.ignore_permissions = True
+	agency_doc.save()
+	return {
+		"ok": True,
+		"saved_payment_methods": _list_saved_payment_methods_internal(agency_doc.name),
+		"default_payment_method_id": agency_doc.stripe_default_payment_method_id,
+		"agency": _serialize_agency(agency_doc),
+	}
+
+
+@frappe.whitelist()
+def list_all_agency_billing_invoices(
+	status: str | None = None,
+	agency: str | None = None,
+	limit: int = 50,
+	start: int = 0,
+) -> list[dict[str, Any]]:
+	"""All agencies' invoices — CRM managers only (Settings overview)."""
+	_require_internal_manager()
+	if not _is_billing_enabled():
+		return []
+	filters: dict[str, Any] = {}
+	if status:
+		filters["status"] = status
+	if agency:
+		filters["agency"] = agency
+	lim = max(1, min(cint(limit or 50), 200))
+	off = max(0, cint(start or 0))
+	rows = frappe.get_all(
+		"Agency Billing Invoice",
+		filters=filters or None,
+		fields=[
+			"name",
+			"agency",
+			"status",
+			"currency",
+			"invoice_date",
+			"due_date",
+			"billing_period_start",
+			"billing_period_end",
+			"subtotal",
+			"total",
+			"stripe_invoice_id",
+			"stripe_status",
+			"stripe_hosted_invoice_url",
+			"paid_on",
+			"error_message",
+		],
+		order_by="invoice_date desc, creation desc",
+		limit_start=off,
+		limit_page_length=lim,
+	)
+	agency_ids = {r["agency"] for r in rows if r.get("agency")}
+	agency_labels: dict[str, str] = {}
+	for aid in agency_ids:
+		if aid:
+			agency_labels[aid] = frappe.db.get_value("Agency", aid, "agency_name") or aid
+	out: list[dict[str, Any]] = []
+	for row in rows:
+		inv = _serialize_invoice(row, include_items=False)
+		inv["agency_display_name"] = agency_labels.get(row.get("agency"), row.get("agency"))
+		out.append(inv)
+	return out
+
+
+@frappe.whitelist()
+def list_saved_payment_methods(agency_id: str | None = None) -> dict[str, Any]:
+	_context, agency_doc = _require_agency_access(agency_id=agency_id, require_billing=True)
+	return {
+		"agency": agency_doc.name,
+		"default_payment_method_id": agency_doc.stripe_default_payment_method_id,
+		"saved_payment_methods": _list_saved_payment_methods_internal(agency_doc.name),
+	}
+
+
+@frappe.whitelist(methods=["POST"])
+def set_default_payment_method(agency_id: str | None = None, stripe_payment_method_id: str | None = None) -> dict[str, Any]:
+	_require_billing_enabled()
+	if not stripe_payment_method_id:
+		frappe.throw(_("Stripe payment method ID is required."))
+	_context, agency_doc = _require_agency_access(agency_id=agency_id, require_billing=True)
+	customer_id = _ensure_stripe_customer(agency_doc)
+
+	pm_name = frappe.db.get_value(
+		"Agency Payment Method",
+		{"agency": agency_doc.name, "stripe_payment_method_id": stripe_payment_method_id},
+		"name",
+	)
+	if not pm_name:
+		frappe.throw(_("Payment method not found for this agency."), frappe.DoesNotExistError)
+
+	pm_doc = frappe.get_doc("Agency Payment Method", pm_name)
+	if pm_doc.status == "Detached":
+		frappe.throw(_("Detached payment methods cannot be set as default."))
+
+	_set_stripe_customer_default_payment_method(customer_id, stripe_payment_method_id)
+	_sync_agency_default_payment_method(agency_doc, stripe_payment_method_id)
+
+	return {
+		"default_payment_method_id": agency_doc.stripe_default_payment_method_id,
+		"saved_payment_methods": _list_saved_payment_methods_internal(agency_doc.name),
+	}
+
+
+@frappe.whitelist(methods=["POST"])
+def detach_payment_method(agency_id: str | None = None, stripe_payment_method_id: str | None = None) -> dict[str, Any]:
+	_require_billing_enabled()
+	if not stripe_payment_method_id:
+		frappe.throw(_("Stripe payment method ID is required."))
+	_context, agency_doc = _require_agency_access(agency_id=agency_id, require_billing=True)
+	customer_id = _ensure_stripe_customer(agency_doc)
+
+	pm_name = frappe.db.get_value(
+		"Agency Payment Method",
+		{"agency": agency_doc.name, "stripe_payment_method_id": stripe_payment_method_id},
+		"name",
+	)
+	if not pm_name:
+		frappe.throw(_("Payment method not found for this agency."), frappe.DoesNotExistError)
+
+	stripe, _settings = _get_stripe_sdk()
+	stripe.PaymentMethod.detach(stripe_payment_method_id)
+	_mark_payment_method_detached(agency_doc.name, stripe_payment_method_id)
+
+	if agency_doc.stripe_default_payment_method_id == stripe_payment_method_id:
+		remaining_pm = frappe.get_all(
+			"Agency Payment Method",
+			filters={"agency": agency_doc.name, "status": "Active"},
+			fields=["stripe_payment_method_id"],
+			order_by="modified desc",
+			limit=1,
+		)
+		next_default = remaining_pm[0]["stripe_payment_method_id"] if remaining_pm else None
+		_set_stripe_customer_default_payment_method(customer_id, next_default)
+		_sync_agency_default_payment_method(agency_doc, next_default)
+
+	return {
+		"default_payment_method_id": agency_doc.stripe_default_payment_method_id,
+		"saved_payment_methods": _list_saved_payment_methods_internal(agency_doc.name),
+	}
+
+
+@frappe.whitelist(methods=["POST"])
+def sync_stripe_payment_methods_from_customer(agency_id: str | None = None) -> dict[str, Any]:
+	"""Pull card payment methods and default PM from Stripe into CRM (avoids waiting on webhooks)."""
+	_require_billing_enabled()
+	_context, agency_doc = _require_agency_access(agency_id=agency_id, require_billing=True)
+	if not _stripe_enabled():
+		agency_doc.reload()
+		return {
+			"ok": True,
+			"skipped": "stripe_disabled",
+			"has_default": bool(agency_doc.stripe_default_payment_method_id),
+			"default_payment_method_id": agency_doc.stripe_default_payment_method_id,
+		}
+
+	customer_id = _ensure_stripe_customer(agency_doc)
+	stripe, _settings = _get_stripe_sdk()
+	customer = stripe.Customer.retrieve(customer_id, expand=["invoice_settings.default_payment_method"])
+
+	pms = stripe.PaymentMethod.list(customer=customer_id, type="card", limit=100)
+	for pm in getattr(pms, "data", []) or []:
+		_upsert_agency_payment_method_from_stripe(
+			agency_doc=frappe.get_doc("Agency", agency_doc.name),
+			stripe_customer_id=customer_id,
+			stripe_payment_method=pm,
+			mark_default=False,
+		)
+
+	agency_doc = frappe.get_doc("Agency", agency_doc.name)
+	inv_settings = getattr(customer, "invoice_settings", None)
+	default_pm_obj = getattr(inv_settings, "default_payment_method", None) if inv_settings else None
+	if isinstance(default_pm_obj, str) and default_pm_obj:
+		default_pm_obj = stripe.PaymentMethod.retrieve(default_pm_obj)
+
+	if default_pm_obj:
+		pm_id = (
+			default_pm_obj.get("id")
+			if isinstance(default_pm_obj, dict)
+			else getattr(default_pm_obj, "id", None)
+		)
+		if pm_id:
+			pm_full = (
+				default_pm_obj
+				if not isinstance(default_pm_obj, str)
+				else stripe.PaymentMethod.retrieve(pm_id)
+			)
+			_upsert_agency_payment_method_from_stripe(
+				agency_doc=agency_doc,
+				stripe_customer_id=customer_id,
+				stripe_payment_method=pm_full,
+				mark_default=True,
+			)
+
+	agency_doc.reload()
+	return {
+		"ok": True,
+		"has_default": bool(agency_doc.stripe_default_payment_method_id),
+		"default_payment_method_id": agency_doc.stripe_default_payment_method_id,
 	}
 
 
@@ -1514,8 +2138,241 @@ def _mark_invoice_failed(invoice_name: str, stripe_status: str | None = None):
 		agency_doc.save()
 
 
+def _truncate_json(value: Any, max_len: int = 1200) -> str:
+	text = frappe.as_json(value) if value is not None else ""
+	return text if len(text) <= max_len else f"{text[:max_len]}..."
+
+
+def _extract_webhook_links(event: dict[str, Any]) -> tuple[dict[str, Any], str | None, str | None, str | None]:
+	data_object = event.get("data", {}).get("object", {}) or {}
+	metadata = data_object.get("metadata") or {}
+	customer_id = data_object.get("customer")
+	if isinstance(customer_id, dict):
+		customer_id = customer_id.get("id")
+	return data_object, metadata.get("crm_invoice"), metadata.get("agency"), customer_id
+
+
+def _upsert_stripe_webhook_event(event: dict[str, Any], payload_text: str, signature: str | None):
+	event_id = (event.get("id") or "").strip()
+	if not event_id:
+		event_id = f"raw-{hashlib.sha256(payload_text.encode('utf-8')).hexdigest()}"
+
+	event_type = event.get("type")
+	data_object, invoice_name, agency_name, customer_id = _extract_webhook_links(event)
+	resolved_agency = agency_name or _find_agency_by_customer(customer_id)
+	if not resolved_agency and invoice_name and frappe.db.exists("Agency Billing Invoice", invoice_name):
+		resolved_agency = frappe.db.get_value("Agency Billing Invoice", invoice_name, "agency")
+
+	existing_name = frappe.db.get_value("Stripe Webhook Event", {"event_id": event_id}, "name")
+	if existing_name:
+		doc = frappe.get_doc("Stripe Webhook Event", existing_name)
+		if doc.status not in {"Processed", "Processing"}:
+			doc.received_on = now_datetime()
+			doc.signature_header = signature
+			doc.event_type = event_type
+			doc.crm_invoice = invoice_name
+			doc.agency = resolved_agency
+			doc.stripe_status = data_object.get("status")
+			doc.payment_intent_id = data_object.get("payment_intent")
+			doc.metadata_json = _truncate_json(data_object.get("metadata") or {})
+			doc.payload_json = payload_text
+			doc.flags.ignore_permissions = True
+			doc.save()
+		return doc, False
+
+	doc = frappe.get_doc(
+		{
+			"doctype": "Stripe Webhook Event",
+			"event_id": event_id,
+			"event_type": event_type,
+			"status": "Received",
+			"received_on": now_datetime(),
+			"signature_header": signature,
+			"agency": resolved_agency,
+			"crm_invoice": invoice_name,
+			"stripe_status": data_object.get("status"),
+			"payment_intent_id": data_object.get("payment_intent"),
+			"metadata_json": _truncate_json(data_object.get("metadata") or {}),
+			"payload_json": payload_text,
+		}
+	)
+	doc.flags.ignore_permissions = True
+	doc.insert()
+	return doc, True
+
+
+def _record_stripe_webhook_event(event: dict[str, Any], invoice_name: str | None, agency_name: str | None, data_object: dict[str, Any]):
+	"""Persist Stripe webhook traces as comments for audit/debug."""
+	event_id = event.get("id")
+	event_type = event.get("type")
+	stripe_status = data_object.get("status")
+	payment_intent = data_object.get("payment_intent")
+	metadata_text = _truncate_json(data_object.get("metadata") or {})
+
+	# If agency is not directly present in metadata, infer from CRM invoice.
+	customer_id = data_object.get("customer")
+	if isinstance(customer_id, dict):
+		customer_id = customer_id.get("id")
+	resolved_agency = agency_name or _find_agency_by_customer(customer_id)
+	if not resolved_agency and invoice_name and frappe.db.exists("Agency Billing Invoice", invoice_name):
+		resolved_agency = frappe.db.get_value("Agency Billing Invoice", invoice_name, "agency")
+
+	comment_text = _(
+		"Stripe webhook received. Event: {0} ({1}), Invoice: {2}, Agency: {3}, Stripe status: {4}, Payment Intent: {5}, Metadata: {6}"
+	).format(
+		event_type or "unknown",
+		event_id or "n/a",
+		invoice_name or "n/a",
+		resolved_agency or agency_name or "n/a",
+		stripe_status or "n/a",
+		payment_intent or "n/a",
+		metadata_text or "{}",
+	)
+
+	try:
+		if resolved_agency and frappe.db.exists("Agency", resolved_agency):
+			_create_agency_audit_comment(resolved_agency, comment_text)
+		if invoice_name and frappe.db.exists("Agency Billing Invoice", invoice_name):
+			invoice_comment = frappe.get_doc(
+				{
+					"doctype": "Comment",
+					"comment_type": "Info",
+					"reference_doctype": "Agency Billing Invoice",
+					"reference_name": invoice_name,
+					"content": comment_text,
+				}
+			)
+			invoice_comment.flags.ignore_permissions = True
+			invoice_comment.insert()
+	except Exception:
+		frappe.log_error(frappe.get_traceback(), "Stripe webhook event log write failed")
+
+
+def process_stripe_webhook_event(webhook_event_name: str):
+	"""Queued processor for Stripe webhook events saved in Stripe Webhook Event doctype."""
+	if not frappe.db.exists("Stripe Webhook Event", webhook_event_name):
+		return {"ok": False, "error": "event_not_found"}
+
+	event_log = frappe.get_doc("Stripe Webhook Event", webhook_event_name)
+	if event_log.status == "Processed":
+		return {"ok": True, "status": "already_processed"}
+
+	try:
+		event_log.status = "Processing"
+		event_log.attempt_count = cint(event_log.attempt_count or 0) + 1
+		event_log.last_error = None
+		event_log.flags.ignore_permissions = True
+		event_log.save()
+
+		event = frappe.parse_json(event_log.payload_json or "{}") or {}
+		data_object, invoice_name, agency_name, customer_id = _extract_webhook_links(event)
+		agency_name = agency_name or _find_agency_by_customer(customer_id)
+		event_type = event.get("type")
+
+		_record_stripe_webhook_event(event, invoice_name=invoice_name, agency_name=agency_name, data_object=data_object)
+
+		if event_type in {"invoice.paid", "invoice.payment_succeeded"} and invoice_name:
+			_mark_invoice_paid(
+				invoice_name,
+				stripe_status=data_object.get("status"),
+				payment_intent_id=data_object.get("payment_intent"),
+			)
+			event_log.status = "Processed"
+		elif event_type == "invoice.payment_failed" and invoice_name:
+			_mark_invoice_failed(invoice_name, stripe_status=data_object.get("status"))
+			event_log.status = "Processed"
+		elif event_type == "checkout.session.completed" and agency_name and frappe.db.exists("Agency", agency_name):
+			agency_doc = frappe.get_doc("Agency", agency_name)
+			agency_doc.stripe_customer_id = customer_id or agency_doc.stripe_customer_id
+			stripe, _settings = _get_stripe_sdk()
+			setup_intent_id = data_object.get("setup_intent")
+			intent = (data_object.get("metadata") or {}).get("intent")
+			if setup_intent_id:
+				setup_intent = stripe.SetupIntent.retrieve(setup_intent_id, expand=["payment_method"])
+				payment_method = setup_intent.get("payment_method")
+				if isinstance(payment_method, str):
+					payment_method = stripe.PaymentMethod.retrieve(payment_method)
+				make_default = intent != "add_card" or not agency_doc.stripe_default_payment_method_id
+				_upsert_agency_payment_method_from_stripe(
+					agency_doc=agency_doc,
+					stripe_customer_id=customer_id or agency_doc.stripe_customer_id,
+					stripe_payment_method=payment_method,
+					mark_default=make_default,
+				)
+				if make_default and payment_method:
+					pm_id = payment_method.get("id") if isinstance(payment_method, dict) else getattr(payment_method, "id", None)
+					if pm_id:
+						_set_stripe_customer_default_payment_method(agency_doc.stripe_customer_id, pm_id)
+			agency_doc.billing_status = "Active"
+			agency_doc.flags.ignore_permissions = True
+			agency_doc.save()
+			event_log.status = "Processed"
+		elif event_type == "setup_intent.succeeded" and agency_name and frappe.db.exists("Agency", agency_name):
+			agency_doc = frappe.get_doc("Agency", agency_name)
+			pm_id = data_object.get("payment_method")
+			if pm_id:
+				_attach_and_sync_payment_method(
+					agency_doc=agency_doc,
+					customer_id=customer_id,
+					stripe_payment_method_id=pm_id,
+					make_default=not bool(agency_doc.stripe_default_payment_method_id),
+				)
+			event_log.status = "Processed"
+		elif event_type == "payment_method.attached" and agency_name and frappe.db.exists("Agency", agency_name):
+			agency_doc = frappe.get_doc("Agency", agency_name)
+			_upsert_agency_payment_method_from_stripe(
+				agency_doc=agency_doc,
+				stripe_customer_id=customer_id or agency_doc.stripe_customer_id,
+				stripe_payment_method=data_object,
+				mark_default=False,
+			)
+			event_log.status = "Processed"
+		elif event_type == "payment_method.detached" and agency_name and frappe.db.exists("Agency", agency_name):
+			agency_doc = frappe.get_doc("Agency", agency_name)
+			pm_id = data_object.get("id")
+			if pm_id:
+				_mark_payment_method_detached(agency_doc.name, pm_id)
+				if agency_doc.stripe_default_payment_method_id == pm_id:
+					_sync_agency_default_payment_method(agency_doc, None)
+			event_log.status = "Processed"
+		elif event_type == "customer.updated" and agency_name and frappe.db.exists("Agency", agency_name):
+			agency_doc = frappe.get_doc("Agency", agency_name)
+			default_pm_id = ((data_object.get("invoice_settings") or {}).get("default_payment_method")) or None
+			if default_pm_id:
+				stripe, _settings = _get_stripe_sdk()
+				payment_method = stripe.PaymentMethod.retrieve(default_pm_id)
+				_upsert_agency_payment_method_from_stripe(
+					agency_doc=agency_doc,
+					stripe_customer_id=customer_id or agency_doc.stripe_customer_id,
+					stripe_payment_method=payment_method,
+					mark_default=True,
+				)
+			else:
+				_sync_agency_default_payment_method(agency_doc, None)
+			event_log.status = "Processed"
+		else:
+			event_log.status = "Ignored"
+
+		event_log.processed_on = now_datetime()
+		event_log.stripe_status = data_object.get("status") or event_log.stripe_status
+		event_log.payment_intent_id = data_object.get("payment_intent") or event_log.payment_intent_id
+		event_log.flags.ignore_permissions = True
+		event_log.save()
+		return {"ok": True, "status": event_log.status}
+	except Exception:
+		frappe.db.rollback()
+		event_log.reload()
+		event_log.status = "Failed"
+		event_log.last_error = _truncate_json(frappe.get_traceback(), max_len=2000)
+		event_log.flags.ignore_permissions = True
+		event_log.save()
+		frappe.log_error(frappe.get_traceback(), f"Stripe webhook queue processing failed: {webhook_event_name}")
+		return {"ok": False, "status": "Failed"}
+
+
 @frappe.whitelist(allow_guest=True, methods=["POST"])
 def stripe_webhook():
+	frappe.set_user("Administrator")
 	stripe, settings = _get_stripe_sdk()
 	payload = frappe.request.get_data()
 	signature = frappe.get_request_header("Stripe-Signature")
@@ -1531,21 +2388,18 @@ def stripe_webhook():
 		frappe.response.http_status_code = 400
 		return {"ok": False, "error": "invalid_signature_or_payload"}
 
-	event_type = event.get("type")
-	data_object = event.get("data", {}).get("object", {})
-	metadata = data_object.get("metadata") or {}
-	invoice_name = metadata.get("crm_invoice")
-	agency_name = metadata.get("agency")
+	payload_text = payload.decode("utf-8")
+	webhook_event, created = _upsert_stripe_webhook_event(event, payload_text=payload_text, signature=signature)
 
-	if event_type in {"invoice.paid", "invoice.payment_succeeded"} and invoice_name:
-		_mark_invoice_paid(invoice_name, stripe_status=data_object.get("status"), payment_intent_id=data_object.get("payment_intent"))
-	elif event_type == "invoice.payment_failed" and invoice_name:
-		_mark_invoice_failed(invoice_name, stripe_status=data_object.get("status"))
-	elif event_type == "checkout.session.completed" and agency_name and frappe.db.exists("Agency", agency_name):
-		agency_doc = frappe.get_doc("Agency", agency_name)
-		agency_doc.stripe_customer_id = data_object.get("customer") or agency_doc.stripe_customer_id
-		agency_doc.billing_status = "Active"
-		agency_doc.flags.ignore_permissions = True
-		agency_doc.save()
+	if not created and webhook_event.status == "Processed":
+		return {"ok": True, "queued": False, "duplicate": True, "event_id": webhook_event.event_id}
+	if not created and webhook_event.status == "Processing":
+		return {"ok": True, "queued": False, "processing": True, "event_id": webhook_event.event_id}
 
-	return {"ok": True}
+	frappe.enqueue(
+		"crm.api.redtra.billing.process_stripe_webhook_event",
+		queue="long",
+		enqueue_after_commit=True,
+		webhook_event_name=webhook_event.name,
+	)
+	return {"ok": True, "queued": True, "event_id": webhook_event.event_id, "event_log": webhook_event.name}

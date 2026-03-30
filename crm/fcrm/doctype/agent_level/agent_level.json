@@ -17,6 +17,7 @@
  ],
  "fields": [
   {
+   "description": "Single catalog row for the default per-agent daily rate. Create multiple optional charges as Billing Addons instead.",
    "fieldname": "level_name",
    "fieldtype": "Data",
    "in_list_view": 1,

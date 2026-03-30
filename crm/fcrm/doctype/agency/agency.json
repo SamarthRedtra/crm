@@ -8,6 +8,7 @@
  "doctype": "DocType",
  "engine": "InnoDB",
  "field_order": [
+  "basic_details_tab",
   "agency_name",
   "status",
   "column_break_primary",
@@ -23,9 +24,11 @@
   "state",
   "country",
   "pincode",
+  "profile_details_tab",
   "section_break_profile",
   "logo",
   "description",
+  "billing_details_tab",
   "section_break_billing",
   "billing_contact_name",
   "billing_email",
@@ -43,9 +46,11 @@
   "trial_end_date",
   "trial_grace_end_date",
   "billing_status",
+  "stripe_tab",
   "section_break_stripe",
   "stripe_customer_id",
   "stripe_default_payment_method_id",
+  "addons_tab",
   "billing_addons"
  ],
  "fields": [
@@ -273,11 +278,36 @@
    "fieldtype": "Table",
    "label": "Billing Addons",
    "options": "Agency Billing Addon"
+  },
+  {
+   "fieldname": "basic_details_tab",
+   "fieldtype": "Tab Break",
+   "label": "Basic Details"
+  },
+  {
+   "fieldname": "profile_details_tab",
+   "fieldtype": "Tab Break",
+   "label": "Profile Details"
+  },
+  {
+   "fieldname": "billing_details_tab",
+   "fieldtype": "Tab Break",
+   "label": "Billing Details"
+  },
+  {
+   "fieldname": "stripe_tab",
+   "fieldtype": "Tab Break",
+   "label": "Stripe"
+  },
+  {
+   "fieldname": "addons_tab",
+   "fieldtype": "Tab Break",
+   "label": "Addons"
   }
  ],
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2026-03-07 13:27:32.996600",
+ "modified": "2026-03-30 17:04:46.984988",
  "modified_by": "Administrator",
  "module": "FCRM",
  "name": "Agency",

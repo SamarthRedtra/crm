@@ -36,14 +36,24 @@
 
         <div class="flex flex-col gap-1.5">
           <label class="text-p-sm font-medium text-ink-gray-7">{{ __('Password') }}</label>
-          <input
-            v-model="form.password"
-            type="password"
-            autocomplete="current-password"
-            required
-            class="w-full rounded border border-outline-gray-2 bg-surface-white px-3 py-2 text-p-sm text-ink-gray-8 outline-none transition focus:border-blue-400 focus:ring-1 focus:ring-blue-100"
-            placeholder="********"
-          />
+          <div class="relative w-full">
+            <input
+              v-model="form.password"
+              :type="showPassword ? 'text' : 'password'"
+              autocomplete="current-password"
+              required
+              class="w-full rounded border border-outline-gray-2 bg-surface-white px-3 py-2 pr-10 text-p-sm text-ink-gray-8 outline-none transition focus:border-blue-400 focus:ring-1 focus:ring-blue-100"
+              placeholder="********"
+            />
+            <button
+              type="button"
+              class="absolute inset-y-0 right-0 flex items-center pr-3 text-ink-gray-5 hover:text-ink-gray-7 focus:outline-none"
+              @click="showPassword = !showPassword"
+              tabindex="-1"
+            >
+              <FeatherIcon :name="showPassword ? 'eye-off' : 'eye'" class="h-4 w-4" />
+            </button>
+          </div>
         </div>
 
         <Button
@@ -100,6 +110,7 @@ const form = reactive({
 
 const isSubmitting = ref(false)
 const errorMessage = ref('')
+const showPassword = ref(false)
 
 const brandResource = createResource({
   url: 'crm.api.auth.public_brand',

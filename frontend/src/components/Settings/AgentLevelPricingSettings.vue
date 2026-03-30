@@ -3,13 +3,18 @@
     <div class="flex items-start justify-between gap-4">
       <div>
         <h2 class="text-xl font-semibold text-ink-gray-9">
-          {{ __('Agent Level Pricing') }}
+          {{ __('Base agent rate') }}
         </h2>
         <p class="mt-1 text-p-sm text-ink-gray-5">
-          {{ __('Define the daily subscription value for each agent level.') }}
+          {{ __('One global per-day rate for billable agents. Use Billing Addons for optional extras.') }}
         </p>
       </div>
-      <Button variant="solid" :label="__('Add Level')" @click="openCreateDialog" />
+      <Button
+        v-if="!levels.data?.length"
+        variant="solid"
+        :label="__('Create base rate')"
+        @click="openCreateDialog"
+      />
     </div>
 
     <div v-if="levels.loading" class="flex flex-1 items-center justify-center">
@@ -48,7 +53,7 @@
     </div>
 
     <div v-else class="rounded-lg border border-outline-gray-2 bg-surface-gray-1 p-5 text-p-sm text-ink-gray-5">
-      {{ __('No agent levels have been added yet.') }}
+      {{ __('No base rate yet. Create one record with your default daily amount.') }}
     </div>
 
     <Dialog
@@ -136,7 +141,7 @@ const form = reactive({
 })
 
 const dialogTitle = computed(() =>
-  editingName.value ? __('Edit Agent Level') : __('Add Agent Level'),
+  editingName.value ? __('Edit base rate') : __('Create base rate'),
 )
 
 const levels = createResource({
@@ -191,7 +196,7 @@ async function saveLevel() {
         description: form.description,
       }),
     })
-    toast.success(__('Agent level saved successfully'))
+    toast.success(__('Base rate saved'))
     showDialog.value = false
     await levels.reload()
   } catch (error) {

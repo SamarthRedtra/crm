@@ -8,6 +8,7 @@ from frappe import _
 from frappe.rate_limiter import rate_limit
 
 from . import utils
+from .auth import _ensure_agency_user_permission
 
 CHALLENGE_CACHE_KEY = "agency_signup_challenge::{challenge_id}"
 IDEMPOTENCY_CACHE_KEY = "agency_signup_idempotency::{key}"
@@ -165,7 +166,7 @@ def register_agency_admin(data: str | dict[str, Any] | None = None) -> dict[str,
 	user_doc.new_password = password
 	user_doc.insert()
 
-	utils.ensure_agent_role(user_doc.name)
+	utils.ensure_agency_member_crm_roles(user_doc.name, "Admin")
 
 	agency_doc = frappe.get_doc(
 		{
@@ -188,6 +189,7 @@ def register_agency_admin(data: str | dict[str, Any] | None = None) -> dict[str,
 	_set_if_has_field(agency_doc, "is_on_trial", 0)
 	agency_doc.flags.ignore_permissions = True
 	agency_doc.insert()
+	_try_create_stripe_customer_for_agency(agency_doc)
 
 	agent_doc = frappe.get_doc(
 		{
@@ -204,6 +206,8 @@ def register_agency_admin(data: str | dict[str, Any] | None = None) -> dict[str,
 	)
 	agent_doc.flags.ignore_permissions = True
 	agent_doc.insert()
+
+	_ensure_agency_user_permission(user_doc.name, agency_doc.name)
 
 	_create_verification_todo(agency_doc.name, user_doc.name)
 	_create_agency_comment(
@@ -224,3 +228,23 @@ def register_agency_admin(data: str | dict[str, Any] | None = None) -> dict[str,
 	if idempotency_key:
 		frappe.cache().set_value(_idempotency_key(idempotency_key), frappe.as_json(response), expires_in_sec=60 * 60)
 	return response
+
+
+def _try_create_stripe_customer_for_agency(agency_doc):
+	"""Best-effort Stripe customer provisioning during agency signup.
+
+	Signup must not fail if Stripe is unavailable or not configured.
+	"""
+	try:
+		from . import billing
+
+		if not billing._is_billing_enabled():
+			return
+		if not billing._stripe_enabled():
+			return
+		billing._ensure_stripe_customer(agency_doc)
+	except Exception:
+		frappe.log_error(
+			frappe.get_traceback(),
+			f"Stripe customer provisioning failed for agency {agency_doc.name}",
+		)

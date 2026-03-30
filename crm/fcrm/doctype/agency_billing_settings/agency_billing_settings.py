@@ -26,6 +26,8 @@ class AgencyBillingSettings(Document):
 		trial_enabled: DF.Check
 		trial_grace_days: DF.Int
 		trial_requires_payment_method: DF.Check
+		trial_max_agents: DF.Int
+		default_agent_level: DF.Link | None
 	# end: auto-generated types
 
 	def validate(self):
@@ -35,3 +37,5 @@ class AgencyBillingSettings(Document):
 			frappe.throw(_("Trial days cannot be negative."))
 		if self.trial_grace_days is not None and self.trial_grace_days < 0:
 			frappe.throw(_("Trial grace days cannot be negative."))
+		if self.trial_max_agents is not None and self.trial_max_agents < 0:
+			frappe.throw(_("Max agents during trial cannot be negative."))

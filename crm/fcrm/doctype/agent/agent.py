@@ -47,6 +47,12 @@ class Agent(Document):
 
 	def validate(self):
 		self._sync_user_details()
+		if self.is_new() and self.agency:
+			from crm.api.redtra.billing import get_default_agent_level_for_new_agent, validate_trial_agent_quota
+
+			validate_trial_agent_quota(self.agency)
+			if not self.agent_level:
+				self.agent_level = get_default_agent_level_for_new_agent()
 		self._validate_status_transition()
 		self._validate_daily_limit()
 

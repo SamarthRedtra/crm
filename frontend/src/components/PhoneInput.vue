@@ -17,6 +17,7 @@
       type="tel"
       inputmode="numeric"
       autocomplete="tel-national"
+      :required="required"
       :disabled="disabled"
       :placeholder="nationalPlaceholder"
       :class="inputClassResolved"
@@ -37,6 +38,7 @@ import {
 const props = defineProps({
   modelValue: { type: String, default: '' },
   id: { type: String, default: undefined },
+  required: { type: Boolean, default: false },
   disabled: { type: Boolean, default: false },
   /** Extra classes for the number input (select has fixed width). */
   inputClass: { type: String, default: '' },

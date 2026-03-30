@@ -347,6 +347,22 @@ def ensure_agent_role(user: str):
 		doc.add_roles("Agent")
 
 
+def ensure_agency_member_crm_roles(user: str, agency_role: str | None = None) -> None:
+	"""CRM roles for agency team: Agent + Sales User; Managers/Admins also get Sales Manager (scoped by Agency User Permission)."""
+	ensure_agent_role(user)
+	roles = frappe.get_roles(user)
+	need: list[str] = []
+	if frappe.db.exists("Role", "Sales User") and "Sales User" not in roles:
+		need.append("Sales User")
+	role = (agency_role or "Agent").strip()
+	if role in {"Manager", "Admin"} and frappe.db.exists("Role", "Sales Manager") and "Sales Manager" not in roles:
+		need.append("Sales Manager")
+	if need:
+		doc = frappe.get_doc("User", user)
+		doc.flags.ignore_permissions = True
+		doc.add_roles(*need)
+
+
 def get_mandate_agent_verification() -> bool:
 	"""Get the mandate_agent_verification setting from Property Setting"""
 	try:

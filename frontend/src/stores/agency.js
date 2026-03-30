@@ -28,13 +28,10 @@ export const agencyStore = defineStore('crm-agency', () => {
   }
 
   function needsAgencyOnboarding() {
-    return Boolean(
-      hasAgency() &&
-        isAgencyAdmin() &&
-        (context.value.verification_status || 'Verified') === 'Verified' &&
-        context.value.onboarding_status &&
-        context.value.onboarding_status !== 'Completed',
-    )
+    if (!hasAgency() || !isAgencyAdmin()) return false
+    if (context.value.onboarding_status === 'Completed') return false
+    const v = context.value.verification_status || 'Verified'
+    return ['Verified', 'Pending Verification', 'Rejected'].includes(v)
   }
 
   function needsAgencyVerification() {

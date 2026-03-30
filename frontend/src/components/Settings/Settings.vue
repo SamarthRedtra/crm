@@ -69,7 +69,12 @@ import EmailTemplatePage from '@/components/Settings/EmailTemplate/EmailTemplate
 import TelephonySettings from '@/components/Settings/TelephonySettings.vue'
 import EmailConfig from '@/components/Settings/EmailConfig.vue'
 import AgentSettings from '@/components/Settings/AgentSettings.vue'
+import AgencyBilling from '@/components/Settings/AgencyBilling.vue'
+import AgencyProfileSettings from '@/components/Settings/AgencyProfileSettings.vue'
+import AgencyTeamInvite from '@/components/Settings/AgencyTeamInvite.vue'
+import AgencyBillingInvoicesAdmin from '@/components/Settings/AgencyBillingInvoicesAdmin.vue'
 import SidebarLink from '@/components/SidebarLink.vue'
+import { agencyStore } from '@/stores/agency'
 import { usersStore } from '@/stores/users'
 import {
   isWhatsappInstalled,
@@ -78,12 +83,18 @@ import {
   disableSettingModalOutsideClick,
 } from '@/composables/settings'
 import { Dialog, Avatar } from 'frappe-ui'
+import { storeToRefs } from 'pinia'
 import { ref, markRaw, computed, watch, h } from 'vue'
 import AssignmentRulePage from './AssignmentRules/AssignmentRulePage.vue'
 
 const { isManager, isTelephonyAgent, getUser } = usersStore()
+const agency = agencyStore()
+const { context: agencyContext } = storeToRefs(agency)
 
 const user = computed(() => getUser() || {})
+const hasLinkedAgency = computed(() => Boolean(agencyContext.value?.agency))
+const canOpenAgencyBilling = computed(() => Boolean(agencyContext.value?.can_manage_billing))
+const canInviteAgencyTeam = computed(() => Boolean(agencyContext.value?.can_manage_team))
 
 const tabs = computed(() => {
   let _tabs = [
@@ -104,6 +115,30 @@ const tabs = computed(() => {
       ],
     },
     {
+      label: __('Agency'),
+      items: [
+        {
+          label: __('Agency Profile'),
+          icon: 'briefcase',
+          component: markRaw(AgencyProfileSettings),
+          condition: () => hasLinkedAgency.value,
+        },
+        {
+          label: __('Agency Billing'),
+          icon: CircleDollarSignIcon,
+          component: markRaw(AgencyBilling),
+          condition: () => canOpenAgencyBilling.value,
+        },
+        {
+          label: __('Invite team'),
+          icon: 'user-plus',
+          component: markRaw(AgencyTeamInvite),
+          condition: () => canInviteAgencyTeam.value,
+        },
+      ],
+      condition: () => hasLinkedAgency.value || canOpenAgencyBilling.value || canInviteAgencyTeam.value,
+    },
+    {
       label: __('System Configuration'),
       items: [
         {
@@ -115,6 +150,12 @@ const tabs = computed(() => {
           label: __('Currency & Exchange Rate'),
           icon: CircleDollarSignIcon,
           component: markRaw(CurrencySettings),
+        },
+        {
+          label: __('Billing invoices'),
+          icon: 'file-text',
+          component: markRaw(AgencyBillingInvoicesAdmin),
+          condition: () => isManager(),
         },
         {
           label: __('Brand Settings'),

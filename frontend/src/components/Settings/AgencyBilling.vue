@@ -14,7 +14,6 @@
           v-if="data?.context?.can_manage_billing"
           variant="subtle"
           :label="__('Set Up Billing Method')"
-          :loading="setupLoading"
           @click="startSetup"
         />
         <Button
@@ -78,6 +77,89 @@
           </p>
         </div>
       </div>
+
+      <section class="rounded-lg border border-outline-gray-2 bg-surface-white p-5">
+        <div class="mb-4 flex items-center justify-between gap-3">
+          <div>
+            <h3 class="text-p-base font-semibold text-ink-gray-8">
+              {{ __('Saved Cards') }}
+            </h3>
+            <p class="mt-1 text-p-sm text-ink-gray-5">
+              {{ __('Save multiple cards securely with Stripe and choose the default card for automatic charges.') }}
+            </p>
+          </div>
+          <Button
+            v-if="data?.context?.can_manage_billing"
+            variant="subtle"
+            :label="__('Add Card')"
+            @click="addCard"
+          />
+        </div>
+
+        <div v-if="savedCards.length" class="overflow-x-auto rounded-lg border border-outline-gray-2">
+          <table class="min-w-full text-left text-p-sm">
+            <thead class="border-b border-outline-gray-2 bg-surface-gray-1 text-ink-gray-6">
+              <tr>
+                <th class="px-4 py-3 font-medium">{{ __('Card') }}</th>
+                <th class="px-4 py-3 font-medium">{{ __('Expiry') }}</th>
+                <th class="px-4 py-3 font-medium">{{ __('Added') }}</th>
+                <th class="px-4 py-3 font-medium"></th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr
+                v-for="card in savedCards"
+                :key="card.stripe_payment_method_id"
+                class="border-b border-outline-gray-2 last:border-0"
+              >
+                <td class="px-4 py-3">
+                  <div class="flex flex-wrap items-center gap-2">
+                    <span class="font-medium text-ink-gray-8">{{ formatCardLabel(card) }}</span>
+                    <Badge
+                      v-if="card.is_default"
+                      :label="__('Default')"
+                      variant="subtle"
+                      theme="green"
+                    />
+                    <Badge
+                      :label="card.status || __('Active')"
+                      variant="subtle"
+                      :theme="card.status === 'Detached' ? 'gray' : 'blue'"
+                    />
+                  </div>
+                </td>
+                <td class="px-4 py-3 text-ink-gray-7">{{ formatCardExpiry(card) }}</td>
+                <td class="px-4 py-3 text-ink-gray-6">{{ formatCardAdded(card) }}</td>
+                <td class="px-4 py-3 text-right">
+                  <div
+                    v-if="data?.context?.can_manage_billing && card.status !== 'Detached'"
+                    class="flex flex-wrap justify-end gap-2"
+                  >
+                    <Button
+                      v-if="!card.is_default"
+                      variant="subtle"
+                      :label="__('Set Default')"
+                      :loading="settingDefaultId === card.stripe_payment_method_id"
+                      @click="setDefault(card)"
+                    />
+                    <Button
+                      variant="subtle"
+                      theme="red"
+                      :label="__('Remove')"
+                      :loading="detachingId === card.stripe_payment_method_id"
+                      @click="detachCard(card)"
+                    />
+                  </div>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div v-else class="rounded-md bg-surface-gray-1 px-4 py-3 text-p-sm text-ink-gray-5">
+          {{ __('No cards saved yet. Add a card to enable easy default-card switching and future billing.') }}
+        </div>
+      </section>
 
       <section class="rounded-lg border border-outline-gray-2 bg-surface-white p-5">
         <div class="mb-4">
@@ -172,11 +254,21 @@
       </section>
     </template>
 
+    <StripeSetupPaymentModal
+      v-model="showStripeModal"
+      :agency-id="data?.agency?.name"
+      :intent="stripeModalIntent"
+      return-path="/crm/settings?section=billing"
+      @success="onStripeCardSaved"
+    />
+
     <ErrorMessage :message="errorMessage" />
   </div>
 </template>
 
 <script setup>
+import StripeSetupPaymentModal from '@/components/Billing/StripeSetupPaymentModal.vue'
+import { finalizeStripeSetupReturn } from '@/composables/stripeSetupReturn'
 import { agencyStore } from '@/stores/agency'
 import {
   Badge,
@@ -187,14 +279,20 @@ import {
   createResource,
   toast,
 } from 'frappe-ui'
-import { computed, ref } from 'vue'
+import { computed, ref, watch } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 
+const route = useRoute()
+const router = useRouter()
 const { contextResource } = agencyStore()
 
 const errorMessage = ref('')
-const setupLoading = ref(false)
+const showStripeModal = ref(false)
+const stripeModalIntent = ref('billing_setup')
 const closeMonthLoading = ref(false)
 const openingInvoice = ref('')
+const settingDefaultId = ref('')
+const detachingId = ref('')
 
 const management = createResource({
   url: 'crm.api.redtra.billing.get_agency_management_data',
@@ -205,6 +303,7 @@ const management = createResource({
 })
 
 const data = computed(() => management.data || {})
+const savedCards = computed(() => data.value.saved_payment_methods || [])
 
 function formatMoney(amount, currency) {
   const numeric = Number(amount || 0)
@@ -237,29 +336,107 @@ function canOpenInvoice(invoice) {
   )
 }
 
+function formatCardLabel(card) {
+  const brand = (card.brand || __('Card')).toUpperCase()
+  const last4 = card.last4 || '----'
+  return `${brand} **** ${last4}`
+}
+
+function formatCardExpiry(card) {
+  const month = Number(card.exp_month || 0)
+  const year = Number(card.exp_year || 0)
+  if (!month || !year) return '--/--'
+  return `${String(month).padStart(2, '0')}/${year}`
+}
+
+function formatCardAdded(card) {
+  if (!card.added_on) return '—'
+  try {
+    return new Date(card.added_on).toLocaleString()
+  } catch {
+    return card.added_on
+  }
+}
+
+async function onStripeCardSaved() {
+  toast.success(__('Card saved successfully'))
+  await management.reload()
+  contextResource.reload()
+}
+
 async function startSetup() {
   if (!data.value.billing_enabled) {
     errorMessage.value = __('Billing is disabled in Agency Billing Settings')
     return
   }
-  setupLoading.value = true
+  if (!data.value.stripe_enabled) {
+    errorMessage.value = __('Stripe is not configured for billing.')
+    return
+  }
+  errorMessage.value = ''
+  stripeModalIntent.value = 'billing_setup'
+  showStripeModal.value = true
+}
+
+async function addCard() {
+  if (!data.value.billing_enabled) {
+    errorMessage.value = __('Billing is disabled in Agency Billing Settings')
+    return
+  }
+  if (!data.value.stripe_enabled) {
+    errorMessage.value = __('Stripe is not configured for billing.')
+    return
+  }
+  errorMessage.value = ''
+  stripeModalIntent.value = 'add_card'
+  showStripeModal.value = true
+}
+
+watch(
+  () => [route.fullPath, management.data?.agency?.name],
+  async () => {
+    if (!management.data?.agency?.name) return
+    await finalizeStripeSetupReturn({
+      route,
+      router,
+      agencyId: management.data.agency.name,
+      onSuccess: onStripeCardSaved,
+    })
+  },
+  { immediate: true },
+)
+
+async function setDefault(card) {
+  settingDefaultId.value = card.stripe_payment_method_id
   errorMessage.value = ''
   try {
-    const successUrl = `${window.location.origin}/crm/agency-onboarding?billing=success`
-    const cancelUrl = `${window.location.origin}/crm/agency-onboarding?billing=cancel`
-    const response = await call('crm.api.redtra.billing.create_billing_setup_session', {
+    await call('crm.api.redtra.billing.set_default_payment_method', {
       agency_id: data.value.agency.name,
-      success_url: successUrl,
-      cancel_url: cancelUrl,
+      stripe_payment_method_id: card.stripe_payment_method_id,
     })
-    if (response?.url) {
-      window.location.href = response.url
-      return
-    }
+    toast.success(__('Default card updated'))
+    await management.reload()
   } catch (error) {
     errorMessage.value = error?.messages?.[0] || error?.message
   } finally {
-    setupLoading.value = false
+    settingDefaultId.value = ''
+  }
+}
+
+async function detachCard(card) {
+  detachingId.value = card.stripe_payment_method_id
+  errorMessage.value = ''
+  try {
+    await call('crm.api.redtra.billing.detach_payment_method', {
+      agency_id: data.value.agency.name,
+      stripe_payment_method_id: card.stripe_payment_method_id,
+    })
+    toast.success(__('Card removed'))
+    await management.reload()
+  } catch (error) {
+    errorMessage.value = error?.messages?.[0] || error?.message
+  } finally {
+    detachingId.value = ''
   }
 }
 

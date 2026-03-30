@@ -22,6 +22,16 @@ class AgentLevel(Document):
 		sort_order: DF.Int
 	# end: auto-generated types
 
+	def before_insert(self):
+		# Product policy: one global base rate for all billable agents (tiers are addons / roles, not multiple levels).
+		if frappe.db.count("Agent Level"):
+			frappe.throw(
+				_(
+					"Only one Agent Level record is allowed. Edit the existing base daily rate instead of creating another level.",
+				),
+				title=_("Single base rate"),
+			)
+
 	def validate(self):
 		self.level_name = (self.level_name or "").strip()
 		if not self.level_name:

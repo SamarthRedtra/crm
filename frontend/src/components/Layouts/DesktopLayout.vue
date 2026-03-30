@@ -5,6 +5,7 @@
     </div>
     <div class="flex-1 flex flex-col h-full overflow-auto bg-surface-white">
       <AppHeader />
+      <SaaSStatusBanner />
       <slot />
     </div>
     <GlobalModals />
@@ -13,5 +14,6 @@
 <script setup>
 import AppSidebar from '@/components/Layouts/AppSidebar.vue'
 import AppHeader from '@/components/Layouts/AppHeader.vue'
+import SaaSStatusBanner from '@/components/Layouts/SaaSStatusBanner.vue'
 import GlobalModals from '@/components/Modals/GlobalModals.vue'
 </script>

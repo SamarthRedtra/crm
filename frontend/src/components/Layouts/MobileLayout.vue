@@ -3,6 +3,7 @@
     <MobileSidebar />
     <div class="flex h-full flex-1 flex-col overflow-auto bg-surface-white">
       <MobileAppHeader />
+      <SaaSStatusBanner />
       <slot />
     </div>
     <GlobalModals />
@@ -11,5 +12,6 @@
 <script setup>
 import MobileSidebar from '@/components/Mobile/MobileSidebar.vue'
 import MobileAppHeader from '@/components/Mobile/MobileAppHeader.vue'
+import SaaSStatusBanner from '@/components/Layouts/SaaSStatusBanner.vue'
 import GlobalModals from '@/components/Modals/GlobalModals.vue'
 </script>

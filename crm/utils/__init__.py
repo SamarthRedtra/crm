@@ -252,6 +252,47 @@ def is_sales_user(user: str | None = None) -> bool:
 	return is_admin() or "Sales Manager" in frappe.get_roles(user) or "Sales User" in frappe.get_roles(user)
 
 
+def is_agency_leadership(user: str | None = None) -> bool:
+	"""Same as `crm.api.redtra.permissions.has_agency_leadership_role` (dashboard / Property leadership)."""
+	from crm.api.redtra.permissions import has_agency_leadership_role
+
+	return has_agency_leadership_role(user)
+
+
+def can_access_crm_dashboard(user: str | None = None) -> bool:
+	"""
+	CRM Manager dashboard API + UI: System / Sales Manager, or agency Admin/Manager on Agent.
+	Aligned with Property: agency-wide listings use the same Admin/Manager + agency rules via
+	`has_agency_wide_property_access`; dashboard access also allows Admin/Manager without agency.
+	"""
+	user = user or frappe.session.user
+	if user == "Administrator":
+		return True
+	roles = set(frappe.get_roles(user))
+	if "System Manager" in roles or "Sales Manager" in roles:
+		return True
+	from crm.api.redtra.permissions import has_agency_leadership_role
+
+	return has_agency_leadership_role(user)
+
+
+def dashboard_user_only(fn):
+	"""Allow only users who may open the manager dashboard (see `can_access_crm_dashboard`)."""
+
+	@functools.wraps(fn)
+	def wrapper(*args, **kwargs):
+		if not can_access_crm_dashboard():
+			frappe.throw(
+				msg=_("You are not permitted to access this resource."),
+				title=_("Not Allowed"),
+				exc=frappe.PermissionError,
+			)
+
+		return fn(*args, **kwargs)
+
+	return wrapper
+
+
 def sales_user_only(fn):
 	"""Decorator to validate if user is an agent."""
 
