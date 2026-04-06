@@ -10,8 +10,16 @@
   "user",
   "status",
   "dfd_registration_id",
+  "trakheesi_permit_number",
   "brn_id",
+  "trakheesi_qr_code",
   "agency",
+  "zone_name",
+  "agency_role",
+  "agent_level",
+  "billable",
+  "billing_start_date",
+  "billing_end_date",
   "column_break_primary",
   "full_name",
   "email",
@@ -140,11 +148,61 @@
    "fieldtype": "Table",
    "label": "KYC Documents",
    "options": "Agent KYC Document"
+  },
+  {
+   "fieldname": "trakheesi_permit_number",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Trakheesi Permit Number",
+   "reqd": 1
+  },
+  {
+   "fieldname": "trakheesi_qr_code",
+   "fieldtype": "Attach Image",
+   "label": "Trakheesi QR Code",
+   "reqd": 1
+  },
+  {
+   "fieldname": "zone_name",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Zone Name"
+  },
+  {
+   "default": "Agent",
+   "fieldname": "agency_role",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "label": "Agency Role",
+   "options": "Admin\nManager\nAgent"
+  },
+  {
+   "fieldname": "agent_level",
+   "fieldtype": "Link",
+   "label": "Agent Level",
+   "options": "Agent Level"
+  },
+  {
+   "default": "1",
+   "fieldname": "billable",
+   "fieldtype": "Check",
+   "in_list_view": 1,
+   "label": "Billable"
+  },
+  {
+   "fieldname": "billing_start_date",
+   "fieldtype": "Date",
+   "label": "Billing Start Date"
+  },
+  {
+   "fieldname": "billing_end_date",
+   "fieldtype": "Date",
+   "label": "Billing End Date"
   }
  ],
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2026-03-09 16:59:03.358729",
+ "modified": "2026-04-07 01:24:10.234147",
  "modified_by": "Administrator",
  "module": "FCRM",
  "name": "Agent",

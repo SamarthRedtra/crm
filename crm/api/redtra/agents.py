@@ -18,6 +18,9 @@ SUMMARY_FIELDS = [
 	"bio",
 	"profile_image",
 	"agency",
+	"trakheesi_permit_number",
+	"trakheesi_qr_code",
+	"zone_name",
 ]
 
 
@@ -267,6 +270,9 @@ def _serialize_agent_summary(row: dict[str, Any]) -> dict[str, Any]:
 		"whatsapp_link": whatsapp_link,
 		"profile_image": row.get("profile_image"),
 		"agency": agency_details,
+		"trakheesi_permit_number": row.get("trakheesi_permit_number"),
+		"trakheesi_qr_code": row.get("trakheesi_qr_code"),
+		"zone_name": row.get("zone_name"),
 		# Optional fields that might be added by batch processing
 		"property_count": row.get("property_count", 0),
 		"leads": row.get("leads", 0),
@@ -336,6 +342,9 @@ def _serialize_agent_detail(doc) -> dict[str, Any]:
 		"whatsapp_link": whatsapp_link,
 		"profile_image": doc.profile_image,
 		"brn_id": doc.dfd_registration_id,
+		"trakheesi_permit_number": getattr(doc, "trakheesi_permit_number", None),
+		"trakheesi_qr_code": getattr(doc, "trakheesi_qr_code", None),
+		"zone_name": getattr(doc, "zone_name", None),
 		"active_properties": active_property_count,
 		"property_ids": property_ids,
 		"sales": activity_stats.get("sales", 0),

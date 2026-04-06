@@ -143,6 +143,10 @@ def list_properties() -> dict[str, Any]:
 		if developer_ids:
 			conditions.append(property_dt.developer.isin(developer_ids))
 
+		property_ids = _get_list_param("id") or _get_list_param("property_id") or _get_list_param("property_ids")
+		if property_ids:
+			conditions.append(property_dt.name.isin(property_ids))
+
 		agent = (frappe.form_dict.get("agent") or "").strip()
 		if agent:
 			conditions.append(property_dt.agent == agent)
@@ -471,6 +475,9 @@ def serialize_property_summary(row: dict[str, Any]) -> dict[str, Any]:
 					"profile_image",
 					"status",
 					"agency",
+					"trakheesi_permit_number",
+					"trakheesi_qr_code",
+					"zone_name",
 				],
 				as_dict=True,
 			)
@@ -493,6 +500,9 @@ def serialize_property_summary(row: dict[str, Any]) -> dict[str, Any]:
 					"whatsapp_link": whatsapp_link,
 					"profile_image": agent_data.get("profile_image"),
 					"status": agent_data.get("status"),
+					"trakheesi_permit_number": agent_data.get("trakheesi_permit_number"),
+					"trakheesi_qr_code": agent_data.get("trakheesi_qr_code"),
+					"zone_name": agent_data.get("zone_name"),
 				}
 				try:
 					agent["ratings"] = reviews.get_agent_rating_stats(
@@ -563,6 +573,37 @@ def serialize_property_summary(row: dict[str, Any]) -> dict[str, Any]:
 	if completion_status_key in {"off-plan", "offplan"}:
 		agent = None
 
+	payment_plan = []
+	project_units = []
+	if property_id and completion_status_key in {"off-plan", "offplan"}:
+		payment_plan_rows = frappe.get_all(
+			"Off Plan Payment Installment",
+			filters={"parent": property_id},
+			fields=["milestone", "percentage", "idx"],
+			order_by="idx asc",
+		)
+		payment_plan = [
+			{"milestone": r.milestone, "percentage": r.percentage, "idx": r.idx}
+			for r in payment_plan_rows
+		]
+
+		project_units_rows = frappe.get_all(
+			"Project Unit",
+			filters={"parent": property_id},
+			fields=["layout_type", "size", "bathrooms", "floor_plan", "idx"],
+			order_by="idx asc",
+		)
+		project_units = [
+			{
+				"layout_type": r.layout_type,
+				"size": r.size,
+				"bathrooms": r.bathrooms,
+				"floor_plan": r.floor_plan,
+				"idx": r.idx,
+			}
+			for r in project_units_rows
+		]
+
 	return {
 		"id": property_id,
 		"title": row.get("title"),
@@ -594,6 +635,8 @@ def serialize_property_summary(row: dict[str, Any]) -> dict[str, Any]:
 		"furnishing_status": row.get("furnishing_status"),
 		"amenities": amenities,
 		"gallery": gallery,
+		"payment_plan_table": payment_plan,
+		"project_units_table": project_units,
 		"description": row.get("description"),
 		"description_not_formatted": strip_html(row.get("description")) if row.get("description") else None,
 	}
@@ -629,6 +672,9 @@ def serialize_property_detail(doc) -> dict[str, Any]:
 		"phone": agent_doc.phone,
 		"whatsapp_number": agent_doc.whatsapp_number,
 		"whatsapp_link": _build_whatsapp_link(agent_doc.whatsapp_number or agent_doc.phone),
+		"trakheesi_permit_number": getattr(agent_doc, "trakheesi_permit_number", None),
+		"trakheesi_qr_code": getattr(agent_doc, "trakheesi_qr_code", None),
+		"zone_name": getattr(agent_doc, "zone_name", None),
 	}
 	if completion_status_key in {"off-plan", "offplan"}:
 		agent_payload = None
@@ -680,6 +726,20 @@ def serialize_property_detail(doc) -> dict[str, Any]:
 		"gallery": [
 			{"image": row.image, "caption": row.caption, "sort_order": row.sort_order}
 			for row in doc.gallery
+		],
+		"payment_plan_table": [
+			{"milestone": r.milestone, "percentage": r.percentage, "idx": r.idx}
+			for r in getattr(doc, "payment_plan_table", [])
+		],
+		"project_units_table": [
+			{
+				"layout_type": r.layout_type,
+				"size": r.size,
+				"bathrooms": r.bathrooms,
+				"floor_plan": r.floor_plan,
+				"idx": r.idx,
+			}
+			for r in getattr(doc, "project_units_table", [])
 		],
 		"off_plan_agencies": _get_off_plan_agencies(doc.name),
 		"agent": agent_payload,

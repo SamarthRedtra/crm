@@ -16,6 +16,8 @@ class Property(Document):
 	from typing import TYPE_CHECKING
 
 	if TYPE_CHECKING:
+		from crm.fcrm.doctype.off_plan_payment_installment.off_plan_payment_installment import OffPlanPaymentInstallment
+		from crm.fcrm.doctype.project_unit.project_unit import ProjectUnit
 		from crm.fcrm.doctype.property_agency.property_agency import PropertyAgency
 		from crm.fcrm.doctype.property_amenity.property_amenity import PropertyAmenity
 		from crm.fcrm.doctype.property_image.property_image import PropertyImage
@@ -45,17 +47,22 @@ class Property(Document):
 		listing_type: DF.Literal["Buy", "Rent"]
 		longitude: DF.Float
 		off_plan_agencies: DF.TableMultiSelect[PropertyAgency]
+		payment_plan_table: DF.Table[OffPlanPaymentInstallment]
 		pincode: DF.Data | None
 		price: DF.Currency
 		primary_image: DF.AttachImage | None
+		project_units_table: DF.Table[ProjectUnit]
 		property_category: DF.Literal["Residential", "Commercial"]
 		property_code: DF.Data | None
-		property_type: DF.Literal["Apartment", "Villa", "Townhouse", "Penthouse", "Villa Compound", "Hotel Apartment", "Land", "Floor", "Building"]
+		property_type: DF.Literal["Apartment", "Villa", "Townhouse", "Penthouse", "Villa Compound", "Hotel Apartment", "Land", "Floor", "Building", "Office", "Shop", "Warehouse", "Labour Camp", "Bulk Unit", "Factory", "Industrial Land", "Mixed Use Land", "Showroom", "Other Commercial", "Plot", "Other"]
 		rent_type: DF.Literal["", "Daily", "Weekly", "Monthly", "Yearly"]
 		state: DF.Data | None
 		status: DF.Literal["Draft", "Under Verification", "Active", "Inactive"]
 		title: DF.Data
+		trakheesi_permit_number: DF.Data | None
+		trakheesi_qr_code: DF.AttachImage | None
 		views_count: DF.Int
+		zone_name: DF.Data | None
 	# end: auto-generated types
 
 	STATUS_FLOW = {

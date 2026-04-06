@@ -17,7 +17,12 @@ class Agent(Document):
 		from frappe.types import DF
 
 		agency: DF.Link | None
+		agency_role: DF.Literal["Admin", "Manager", "Agent"]
+		agent_level: DF.Link | None
 		availability_slots: DF.Table[AgentAvailabilitySlot]
+		billable: DF.Check
+		billing_end_date: DF.Date | None
+		billing_start_date: DF.Date | None
 		bio: DF.SmallText | None
 		brn_id: DF.Data | None
 		dfd_registration_id: DF.Data
@@ -29,8 +34,11 @@ class Agent(Document):
 		phone: DF.Data | None
 		profile_image: DF.AttachImage | None
 		status: DF.Literal["Draft", "Pending Verification", "Verified", "Rejected"]
+		trakheesi_permit_number: DF.Data
+		trakheesi_qr_code: DF.AttachImage
 		user: DF.Link
 		whatsapp_number: DF.Data | None
+		zone_name: DF.Data | None
 	# end: auto-generated types
 
 	STATUS_FLOW = {

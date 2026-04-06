@@ -1,3 +1,5 @@
+import { sessionStore } from '@/stores/session'
+
 const PROPERTY_FIELD_GROUPS = {
   sidebar: [
     {
@@ -70,6 +72,14 @@ const PROPERTY_FIELD_GROUPS = {
           name: 'content_section',
           label: 'Content',
           columns: [['description']],
+        },
+        {
+          name: 'off_plan_section',
+          label: 'Off-Plan Details',
+          columns: [
+            ['trakheesi_permit_number', 'trakheesi_qr_code', 'zone_name'],
+            ['payment_plan_table', 'project_units_table'],
+          ],
         },
       ],
     },
@@ -347,6 +357,7 @@ export function buildPropertySidebarSections(metaFields, options = {}) {
 
 export function buildPropertyDataTabs(metaFields, doc = {}) {
   const fieldMap = createFieldMap(metaFields)
+  const session = sessionStore()
 
   return PROPERTY_FIELD_GROUPS.data.map((tab) => ({
     name: tab.name,
@@ -356,7 +367,12 @@ export function buildPropertyDataTabs(metaFields, doc = {}) {
       tab.sections.map((section) => ({
         ...section,
         columns: section.columns.map((column) =>
-          column.map((fieldname) => {
+          column.filter((fieldname) => {
+            if (fieldname === 'project_units_table' && session.user !== 'Administrator') {
+              return false
+            }
+            return true
+          }).map((fieldname) => {
             if (fieldname !== 'property_type') {
               return fieldname
             }
