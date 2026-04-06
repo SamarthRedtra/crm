@@ -1,6 +1,6 @@
 import frappe
 from frappe.tests import IntegrationTestCase
-from frappe.utils import cint
+from frappe.utils import cint, today
 from unittest.mock import patch
 
 from crm.api.redtra import billing, permissions
@@ -16,6 +16,7 @@ class TestAgencyBilling(IntegrationTestCase):
 		settings.default_currency = "AED"
 		settings.invoice_due_days = 7
 		settings.billing_enabled = 1
+		settings.addon_charge_timing = "daily_accrual"
 		settings.flags.ignore_permissions = True
 		settings.save()
 
@@ -206,6 +207,177 @@ class TestAgencyBilling(IntegrationTestCase):
 				addon=self.addon.name,
 				quantity=0,
 			)
+
+	def test_upfront_addon_charge_creates_immediate_stripe_invoice(self):
+		settings = frappe.get_single("Agency Billing Settings")
+		settings.addon_charge_timing = "upfront_immediate"
+		settings.flags.ignore_permissions = True
+		settings.save()
+		self.agency.stripe_customer_id = "cus_upfront_ok"
+		self.agency.flags.ignore_permissions = True
+		self.agency.save()
+
+		class _StripeStub:
+			class Invoice:
+				@staticmethod
+				def list(customer=None, limit=20):
+					return frappe._dict(data=[])
+
+				@staticmethod
+				def create(**kwargs):
+					return frappe._dict(id="in_upfront_ok", status="draft", hosted_invoice_url="https://stripe.test/in_upfront_ok")
+
+				@staticmethod
+				def finalize_invoice(invoice_id):
+					return frappe._dict(id=invoice_id, status="open", hosted_invoice_url="https://stripe.test/in_upfront_ok")
+
+			class InvoiceItem:
+				@staticmethod
+				def create(**kwargs):
+					return frappe._dict(id="ii_upfront_ok")
+
+			class Customer:
+				@staticmethod
+				def create(**kwargs):
+					return frappe._dict(id="cus_upfront_ok")
+
+		with patch("crm.api.redtra.billing._stripe_enabled", return_value=True), patch(
+			"crm.api.redtra.billing._get_stripe_sdk", return_value=(_StripeStub(), settings)
+		):
+			out = billing.update_current_agency_profile(
+				agency_id=self.agency.name,
+				data=frappe.as_json(
+					{
+						"billing_addons": [
+							{
+								"addon": self.addon.name,
+								"quantity": 2,
+								"enabled": 1,
+							}
+						]
+					}
+				),
+			)
+
+		upfront = out.get("upfront_addon_charges") or {}
+		self.assertEqual(upfront.get("attempted"), 1)
+		self.assertEqual(upfront.get("charged"), 1)
+		self.assertEqual(upfront.get("failed"), 0)
+		invoices = frappe.get_all(
+			"Agency Billing Invoice",
+			filters={"agency": self.agency.name, "billing_period_start": today(), "billing_period_end": today()},
+			fields=["name", "status", "stripe_invoice_id"],
+		)
+		self.assertEqual(len(invoices), 1)
+		self.assertEqual(invoices[0]["status"], "Open")
+		self.assertEqual(invoices[0]["stripe_invoice_id"], "in_upfront_ok")
+
+	def test_upfront_addon_charge_is_idempotent_for_same_state(self):
+		settings = frappe.get_single("Agency Billing Settings")
+		settings.addon_charge_timing = "upfront_immediate"
+		settings.flags.ignore_permissions = True
+		settings.save()
+		self.agency.stripe_customer_id = "cus_upfront_idempotent"
+		self.agency.flags.ignore_permissions = True
+		self.agency.save()
+
+		class _StripeStub:
+			class Invoice:
+				@staticmethod
+				def list(customer=None, limit=20):
+					return frappe._dict(data=[])
+
+				@staticmethod
+				def create(**kwargs):
+					return frappe._dict(id="in_upfront_idempotent", status="draft", hosted_invoice_url="https://stripe.test/in_upfront_idempotent")
+
+				@staticmethod
+				def finalize_invoice(invoice_id):
+					return frappe._dict(id=invoice_id, status="open", hosted_invoice_url="https://stripe.test/in_upfront_idempotent")
+
+			class InvoiceItem:
+				@staticmethod
+				def create(**kwargs):
+					return frappe._dict(id="ii_upfront_idempotent")
+
+			class Customer:
+				@staticmethod
+				def create(**kwargs):
+					return frappe._dict(id="cus_upfront_idempotent")
+
+		payload = frappe.as_json({"billing_addons": [{"addon": self.addon.name, "quantity": 2, "enabled": 1}]})
+		with patch("crm.api.redtra.billing._stripe_enabled", return_value=True), patch(
+			"crm.api.redtra.billing._get_stripe_sdk", return_value=(_StripeStub(), settings)
+		):
+			first = billing.update_current_agency_profile(agency_id=self.agency.name, data=payload)
+			second = billing.update_current_agency_profile(agency_id=self.agency.name, data=payload)
+
+		self.assertEqual((first.get("upfront_addon_charges") or {}).get("charged"), 1)
+		self.assertEqual((second.get("upfront_addon_charges") or {}).get("charged"), 0)
+		self.assertEqual(
+			frappe.db.count("Agency Billing Invoice", {"agency": self.agency.name, "billing_period_start": today()}),
+			1,
+		)
+
+	def test_upfront_addon_charge_failure_marks_invoice_failed(self):
+		settings = frappe.get_single("Agency Billing Settings")
+		settings.addon_charge_timing = "upfront_immediate"
+		settings.flags.ignore_permissions = True
+		settings.save()
+		self.agency.stripe_customer_id = "cus_upfront_failed"
+		self.agency.flags.ignore_permissions = True
+		self.agency.save()
+
+		class _StripeStub:
+			class Invoice:
+				@staticmethod
+				def list(customer=None, limit=20):
+					return frappe._dict(data=[])
+
+				@staticmethod
+				def create(**kwargs):
+					raise RuntimeError("stripe unavailable")
+
+			class InvoiceItem:
+				@staticmethod
+				def create(**kwargs):
+					return frappe._dict(id="ii_failed")
+
+			class Customer:
+				@staticmethod
+				def create(**kwargs):
+					return frappe._dict(id="cus_upfront_failed")
+
+		with patch("crm.api.redtra.billing._stripe_enabled", return_value=True), patch(
+			"crm.api.redtra.billing._get_stripe_sdk", return_value=(_StripeStub(), settings)
+		):
+			out = billing.update_current_agency_profile(
+				agency_id=self.agency.name,
+				data=frappe.as_json({"billing_addons": [{"addon": self.addon.name, "quantity": 3, "enabled": 1}]}),
+			)
+
+		upfront = out.get("upfront_addon_charges") or {}
+		self.assertEqual(upfront.get("attempted"), 1)
+		self.assertEqual(upfront.get("failed"), 1)
+		invoice_name = (upfront.get("invoices") or [])[0]["name"]
+		invoice = frappe.get_doc("Agency Billing Invoice", invoice_name)
+		self.assertEqual(invoice.status, "Failed")
+		self.assertTrue(invoice.error_message)
+
+	def test_daily_billing_skips_fixed_addons_in_upfront_mode(self):
+		settings = frappe.get_single("Agency Billing Settings")
+		settings.addon_charge_timing = "upfront_immediate"
+		settings.flags.ignore_permissions = True
+		settings.save()
+
+		billing.run_daily_agency_billing("2026-02-28")
+		accruals = frappe.get_all(
+			"Agency Billing Accrual",
+			filters={"agency": self.agency.name, "posting_date": "2026-02-28"},
+			fields=["entry_type", "addon", "amount"],
+		)
+		addon_rows = [row for row in accruals if row["entry_type"] == "Addon"]
+		self.assertFalse(addon_rows)
 
 	def test_redirect_url_validation_rejects_external_hosts(self):
 		with self.assertRaises(frappe.ValidationError):

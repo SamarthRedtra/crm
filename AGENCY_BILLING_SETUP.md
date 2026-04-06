@@ -5,7 +5,10 @@
 1. Open CRM Settings and go to `Billing Settings`.
 2. Set the default currency and invoice due days.
 3. Add the Stripe publishable key, secret key, and webhook secret.
-4. Choose the Stripe collection method:
+4. Set `Addon Charge Timing`:
+   - `daily_accrual` (default): fixed add-ons are accrued by scheduler and invoiced in period close.
+   - `upfront_immediate`: fixed add-ons are charged immediately when enabled or increased in agency settings.
+5. Choose the Stripe collection method:
    - `send_invoice` for manual monthly payment through Stripe-hosted invoices.
    - `charge_automatically` if agencies will store a default payment method.
 
@@ -29,6 +32,7 @@ The billing flow depends on the bench scheduler and Redis services:
 
 These jobs are wired in `crm/hooks.py` (`daily_long` and `monthly_long`).
 Make sure Redis and the scheduler are running before expecting accruals or monthly invoice generation.
+When `Addon Charge Timing` is `upfront_immediate`, daily scheduler still handles agent-level accruals, but fixed add-ons are not re-accrued in the daily job to avoid duplicate billing.
 
 ## Data Setup
 
@@ -46,6 +50,13 @@ Make sure Redis and the scheduler are running before expecting accruals or month
 2. Admin completes agency profile and billing details.
 3. Admin optionally connects Stripe billing setup.
 4. Admin completes onboarding and can then use `Agency Profile` and `Agency Billing` inside CRM Settings.
+
+## Cutover to Upfront Addon Charging
+
+1. Confirm Stripe keys are configured and webhook is active.
+2. Set `Addon Charge Timing = upfront_immediate` in `Agency Billing Settings`.
+3. Announce cutover date; only addon enable/increase events after cutover are charged upfront.
+4. Keep monthly close enabled for non-addon accruals and historical open accruals.
 
 ## Workspace Shortcuts
 

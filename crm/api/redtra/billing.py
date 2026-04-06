@@ -210,6 +210,16 @@ def _get_payment_mode() -> str:
 	return mode
 
 
+def _get_addon_charge_timing() -> str:
+	settings = _get_billing_settings()
+	if not settings:
+		return "daily_accrual"
+	timing = (getattr(settings, "addon_charge_timing", None) or "daily_accrual").strip() or "daily_accrual"
+	if timing not in {"daily_accrual", "upfront_immediate"}:
+		return "daily_accrual"
+	return timing
+
+
 def _get_trial_config() -> dict[str, Any]:
 	settings = _get_billing_settings()
 	if not settings:
@@ -402,6 +412,7 @@ def _serialize_invoice(invoice_doc, include_items: bool = True) -> dict[str, Any
 		"name": doc.get("name"),
 		"agency": doc.get("agency"),
 		"status": doc.get("status"),
+		"trial_waived": cint(doc.get("trial_waived") or 0),
 		"currency": doc.get("currency"),
 		"invoice_date": doc.get("invoice_date"),
 		"due_date": doc.get("due_date"),
@@ -615,6 +626,205 @@ def _serialize_agency(agency_doc) -> dict[str, Any]:
 	}
 
 
+def _normalize_addon_input_rows(rows: list[Any] | None) -> dict[str, dict[str, Any]]:
+	output: dict[str, dict[str, Any]] = {}
+	for row in rows or []:
+		addon = (row.get("addon") if isinstance(row, dict) else getattr(row, "addon", None)) or ""
+		if not addon:
+			continue
+		quantity_raw = row.get("quantity") if isinstance(row, dict) else getattr(row, "quantity", None)
+		custom_rate_raw = row.get("custom_rate") if isinstance(row, dict) else getattr(row, "custom_rate", None)
+		enabled_raw = row.get("enabled") if isinstance(row, dict) else getattr(row, "enabled", 1)
+		output[addon] = {
+			"addon": addon,
+			"quantity": flt(quantity_raw or 0),
+			"custom_rate": flt(custom_rate_raw) if custom_rate_raw not in (None, "") else None,
+			"enabled": cint(enabled_raw),
+		}
+	return output
+
+
+def _effective_addon_rate(addon_doc, row: dict[str, Any]) -> float:
+	custom_rate = row.get("custom_rate")
+	if custom_rate not in (None, ""):
+		custom_rate = flt(custom_rate)
+		if custom_rate > 0:
+			return custom_rate
+	return flt(addon_doc.rate or 0)
+
+
+def _collect_upfront_addon_deltas(
+	*,
+	agency_name: str,
+	existing_rows: dict[str, dict[str, Any]],
+	new_rows: dict[str, dict[str, Any]],
+	effective_date: str,
+) -> list[dict[str, Any]]:
+	deltas: list[dict[str, Any]] = []
+	for addon_name, new_row in new_rows.items():
+		if not cint(new_row.get("enabled")):
+			continue
+		if not frappe.db.exists("Billing Addon", addon_name):
+			continue
+		addon_doc = frappe.get_doc("Billing Addon", addon_name)
+		if not cint(addon_doc.active):
+			continue
+		if addon_doc.pricing_model not in {"Daily Fixed", "Monthly Fixed"}:
+			continue
+
+		prev = existing_rows.get(addon_name) or {}
+		old_enabled = cint(prev.get("enabled"))
+		old_qty = flt(prev.get("quantity") or 0) if old_enabled else 0
+		new_qty = flt(new_row.get("quantity") or 0)
+		if new_qty <= 0:
+			continue
+
+		old_rate = _effective_addon_rate(addon_doc, prev) if old_enabled else 0
+		new_rate = _effective_addon_rate(addon_doc, new_row)
+		if new_rate <= 0:
+			continue
+
+		old_total = old_qty * old_rate
+		new_total = new_qty * new_rate
+		amount_delta = flt(new_total - old_total)
+		if amount_delta <= 0:
+			continue
+
+		charge_key = (
+			f"addon_upfront::{agency_name}::{addon_doc.name}::{effective_date}"
+			f"::old={old_qty:.6f}@{old_rate:.6f}::new={new_qty:.6f}@{new_rate:.6f}"
+		)
+		deltas.append(
+			{
+				"addon": addon_doc.name,
+				"addon_name": addon_doc.addon_name,
+				"currency": addon_doc.currency,
+				"amount_delta": amount_delta,
+				"old_quantity": old_qty,
+				"new_quantity": new_qty,
+				"old_rate": old_rate,
+				"new_rate": new_rate,
+				"charge_key": charge_key,
+				"description": f"Upfront charge for {addon_doc.addon_name} ({addon_doc.pricing_model})",
+			}
+		)
+	return deltas
+
+
+def _create_upfront_addon_invoice(
+	*,
+	agency_doc,
+	effective_date: str,
+	delta: dict[str, Any],
+	accrual_doc,
+):
+	settings = _get_billing_settings() or frappe._dict(invoice_due_days=7)
+	invoice_doc = frappe.get_doc(
+		{
+			"doctype": "Agency Billing Invoice",
+			"agency": agency_doc.name,
+			"status": "Draft",
+			"currency": delta.get("currency") or agency_doc.billing_currency or _get_default_currency(agency_doc),
+			"invoice_date": effective_date,
+			"due_date": add_days(effective_date, cint(settings.invoice_due_days or 7)),
+			"billing_period_start": effective_date,
+			"billing_period_end": effective_date,
+			"items": [
+				{
+					"entry_type": "Addon",
+					"description": delta["description"],
+					"addon": delta["addon"],
+					"quantity": 1,
+					"rate": flt(delta["amount_delta"]),
+					"amount": flt(delta["amount_delta"]),
+					"source_accrual": accrual_doc.name,
+				}
+			],
+		}
+	)
+	invoice_doc.flags.ignore_permissions = True
+	invoice_doc.insert()
+	frappe.db.set_value(
+		"Agency Billing Accrual",
+		accrual_doc.name,
+		{"invoice": invoice_doc.name, "status": "Invoiced"},
+		update_modified=False,
+	)
+	return invoice_doc
+
+
+def _charge_addons_upfront(agency_doc, addon_deltas: list[dict[str, Any]], effective_date: str) -> dict[str, Any]:
+	result: dict[str, Any] = {"attempted": 0, "charged": 0, "failed": 0, "invoices": [], "errors": []}
+	if not addon_deltas:
+		return result
+	if _agency_waives_daily_billing_during_trial(agency_doc):
+		result["skipped"] = "trial_waived"
+		return result
+
+	for delta in addon_deltas:
+		result["attempted"] += 1
+		accrual_name = frappe.db.get_value("Agency Billing Accrual", {"accrual_key": delta["charge_key"]}, "name")
+		invoice_doc = None
+		if accrual_name:
+			accrual_doc = frappe.get_doc("Agency Billing Accrual", accrual_name)
+			if accrual_doc.invoice and frappe.db.exists("Agency Billing Invoice", accrual_doc.invoice):
+				invoice_doc = frappe.get_doc("Agency Billing Invoice", accrual_doc.invoice)
+		else:
+			accrual_doc = _ensure_accrual(
+				{
+					"agency": agency_doc.name,
+					"posting_date": effective_date,
+					"billing_period_start": effective_date,
+					"billing_period_end": effective_date,
+					"entry_type": "Addon",
+					"addon": delta["addon"],
+					"quantity": 1,
+					"rate": flt(delta["amount_delta"]),
+					"currency": delta.get("currency") or agency_doc.billing_currency or _get_default_currency(agency_doc),
+					"description": delta["description"],
+					"status": "Open",
+					"accrual_key": delta["charge_key"],
+					"external_reference": delta["charge_key"],
+				}
+			)
+			if accrual_doc:
+				invoice_doc = _create_upfront_addon_invoice(
+					agency_doc=agency_doc,
+					effective_date=effective_date,
+					delta=delta,
+					accrual_doc=accrual_doc,
+				)
+			else:
+				continue
+
+		if not invoice_doc:
+			continue
+		if not _stripe_enabled():
+			invoice_doc.status = "Failed"
+			invoice_doc.error_message = "Stripe is not configured for immediate upfront addon charging."
+			invoice_doc.flags.ignore_permissions = True
+			invoice_doc.save()
+			result["failed"] += 1
+			result["errors"].append({"addon": delta["addon"], "invoice": invoice_doc.name, "error": invoice_doc.error_message})
+			result["invoices"].append(_serialize_invoice(invoice_doc))
+			continue
+
+		try:
+			invoice_doc = _sync_invoice_to_stripe(invoice_doc)
+			result["charged"] += 1
+		except Exception:
+			frappe.log_error(frappe.get_traceback(), "Upfront addon Stripe charge failed")
+			invoice_doc.reload()
+			invoice_doc.status = "Failed"
+			invoice_doc.error_message = "Immediate Stripe charge failed for upfront addon billing."
+			invoice_doc.flags.ignore_permissions = True
+			invoice_doc.save()
+			result["failed"] += 1
+			result["errors"].append({"addon": delta["addon"], "invoice": invoice_doc.name, "error": invoice_doc.error_message})
+		result["invoices"].append(_serialize_invoice(invoice_doc))
+	return result
+
+
 @frappe.whitelist()
 def get_session_agency_context(agency_id: str | None = None) -> dict[str, Any]:
 	return get_agency_access_context(agency_id=agency_id)
@@ -690,6 +900,9 @@ def list_agency_invoices(agency_id: str | None = None, limit: int = 20) -> list[
 def update_current_agency_profile(agency_id: str | None = None, data: str | None = None) -> dict[str, Any]:
 	context, agency_doc = _require_agency_access(agency_id=agency_id, require_profile=True)
 	payload = _parse_payload(data)
+	upfront_charge_result = None
+	existing_addons_snapshot = _normalize_addon_input_rows(agency_doc.billing_addons or [])
+	updated_addon_rows: list[dict[str, Any]] = []
 
 	for fieldname in AGENCY_EDITABLE_FIELDS:
 		if fieldname in payload:
@@ -726,6 +939,14 @@ def update_current_agency_profile(agency_id: str | None = None, data: str | None
 					"enabled": cint(row.get("enabled", 1)),
 				},
 			)
+			updated_addon_rows.append(
+				{
+					"addon": addon_name,
+					"quantity": quantity,
+					"custom_rate": custom_rate,
+					"enabled": cint(row.get("enabled", 1)),
+				}
+			)
 
 	if agency_doc.onboarding_status == "Not Started":
 		agency_doc.onboarding_status = "In Progress"
@@ -733,10 +954,34 @@ def update_current_agency_profile(agency_id: str | None = None, data: str | None
 	agency_doc.flags.ignore_permissions = True
 	agency_doc.save()
 
-	return {
+	if (
+		"billing_addons" in payload
+		and context["can_manage_billing"]
+		and _get_addon_charge_timing() == "upfront_immediate"
+	):
+		effective_date = str(getdate(today()))
+		addon_deltas = _collect_upfront_addon_deltas(
+			agency_name=agency_doc.name,
+			existing_rows=existing_addons_snapshot,
+			new_rows=_normalize_addon_input_rows(updated_addon_rows),
+			effective_date=effective_date,
+		)
+		upfront_charge_result = _charge_addons_upfront(agency_doc, addon_deltas, effective_date=effective_date)
+		if upfront_charge_result.get("failed"):
+			_create_agency_audit_comment(
+				agency_doc.name,
+				_("Upfront addon charge failures detected: {0}").format(
+					", ".join(err.get("invoice") or err.get("addon") or "unknown" for err in upfront_charge_result.get("errors") or [])
+				),
+			)
+
+	response = {
 		"context": get_agency_access_context(agency_id=agency_doc.name),
 		"agency": _serialize_agency(agency_doc),
 	}
+	if upfront_charge_result is not None:
+		response["upfront_addon_charges"] = upfront_charge_result
+	return response
 
 
 @frappe.whitelist(methods=["POST"])
@@ -1057,12 +1302,24 @@ def run_daily_agency_billing(run_date: str | None = None) -> dict[str, Any]:
 		agency_doc = frappe.get_doc("Agency", row["agency"])
 		if agency_doc.status != "Active":
 			continue
-		if _agency_waives_daily_billing_during_trial(agency_doc):
-			continue
+		is_trial_waived = _agency_waives_daily_billing_during_trial(agency_doc)
 
+		if not row.get("agent_level") or not frappe.db.exists("Agent Level", row["agent_level"]):
+			# Skip misconfigured agents referencing deleted levels; don't break the daily job.
+			continue
 		level_doc = frappe.get_doc("Agent Level", row["agent_level"])
 		if not cint(level_doc.active):
 			continue
+		original_rate = flt(level_doc.daily_rate or 0)
+		if original_rate <= 0:
+			# Misconfigured level should not produce accrual rows (even waived).
+			continue
+
+		description = f"{level_doc.level_name} daily charge for {row['name']}"
+		rate_to_apply = original_rate
+		if is_trial_waived:
+			description = f"(Trial Waived) {description} — original rate {original_rate}"
+			rate_to_apply = 0
 
 		accrual = _ensure_accrual(
 			{
@@ -1074,9 +1331,9 @@ def run_daily_agency_billing(run_date: str | None = None) -> dict[str, Any]:
 				"entry_type": "Agent Level",
 				"agent_level": level_doc.name,
 				"quantity": 1,
-				"rate": level_doc.daily_rate,
+				"rate": rate_to_apply,
 				"currency": level_doc.currency or _get_default_currency(agency_doc),
-				"description": f"{level_doc.level_name} daily charge for {row['name']}",
+				"description": description,
 				"status": "Open",
 				"accrual_key": f"agent_level::{agency_doc.name}::{row['name']}::{target_date}::{level_doc.name}",
 			}
@@ -1086,21 +1343,25 @@ def run_daily_agency_billing(run_date: str | None = None) -> dict[str, Any]:
 
 	for agency in frappe.get_all("Agency", filters={"status": "Active"}, fields=["name"]):
 		agency_doc = frappe.get_doc("Agency", agency.name)
-		if _agency_waives_daily_billing_during_trial(agency_doc):
-			continue
+		is_trial_waived = _agency_waives_daily_billing_during_trial(agency_doc)
 		for addon_row in agency_doc.billing_addons or []:
 			if not addon_row.addon or not cint(addon_row.enabled):
+				continue
+			if not frappe.db.exists("Billing Addon", addon_row.addon):
+				# Skip stale addon links; don't break the daily job.
 				continue
 			addon_doc = frappe.get_doc("Billing Addon", addon_row.addon)
 			if not cint(addon_doc.active):
 				continue
 			if addon_doc.pricing_model == "Usage Based":
 				continue
+			if _get_addon_charge_timing() == "upfront_immediate":
+				continue
 
-			custom_rate = flt(addon_row.custom_rate) if addon_row.custom_rate else flt(addon_doc.rate)
-			if custom_rate <= 0:
-				custom_rate = flt(addon_doc.rate)
-			if custom_rate <= 0:
+			original_rate = flt(addon_row.custom_rate) if addon_row.custom_rate else flt(addon_doc.rate)
+			if original_rate <= 0:
+				original_rate = flt(addon_doc.rate)
+			if original_rate <= 0:
 				continue
 			accrual_key = None
 			posting_date = str(target_date)
@@ -1112,6 +1373,12 @@ def run_daily_agency_billing(run_date: str | None = None) -> dict[str, Any]:
 				accrual_key = f"addon_monthly::{agency_doc.name}::{addon_doc.name}::{period_start}"
 				posting_date = period_start
 
+			description = f"{addon_doc.addon_name} ({addon_doc.pricing_model})"
+			rate_to_apply = original_rate
+			if is_trial_waived:
+				description = f"(Trial Waived) {description} — original rate {original_rate}"
+				rate_to_apply = 0
+
 			accrual = _ensure_accrual(
 				{
 					"agency": agency_doc.name,
@@ -1121,9 +1388,9 @@ def run_daily_agency_billing(run_date: str | None = None) -> dict[str, Any]:
 					"entry_type": "Addon",
 					"addon": addon_doc.name,
 					"quantity": quantity,
-					"rate": custom_rate,
+					"rate": rate_to_apply,
 					"currency": addon_doc.currency or agency_doc.billing_currency or _get_default_currency(agency_doc),
-					"description": f"{addon_doc.addon_name} ({addon_doc.pricing_model})",
+					"description": description,
 					"status": "Open",
 					"accrual_key": accrual_key,
 				}
@@ -1227,7 +1494,17 @@ def _build_invoice_items(accruals: list[dict[str, Any]]) -> list[dict[str, Any]]
 		entry["amount"] += flt(row.get("amount") or 0)
 		if entry["source_accrual"] != row.get("name"):
 			entry["source_accrual"] = None
-	return list(grouped.values())
+	items = list(grouped.values())
+	# Be resilient to stale links: invoice creation should not fail if an accrual
+	# references a deleted Agent/Agent Level/Add-on.
+	for item in items:
+		if item.get("agent") and not frappe.db.exists("Agent", item.get("agent")):
+			item["agent"] = None
+		if item.get("agent_level") and not frappe.db.exists("Agent Level", item.get("agent_level")):
+			item["agent_level"] = None
+		if item.get("addon") and not frappe.db.exists("Billing Addon", item.get("addon")):
+			item["addon"] = None
+	return items
 
 
 def _to_minor_units(amount: float) -> int:
@@ -1608,7 +1885,23 @@ def _close_billing_period(
 			limit=1,
 		)
 		if existing:
-			created_invoices.append(_serialize_invoice(frappe.get_doc("Agency Billing Invoice", existing[0]["name"])))
+			existing_doc = frappe.get_doc("Agency Billing Invoice", existing[0]["name"])
+			# Backfill trial flag for invoices created before the `trial_waived` field existed.
+			try:
+				if not cint(getattr(existing_doc, "trial_waived", 0)) and any(
+					(str(r.description or "")).startswith("(Trial Waived)") for r in (existing_doc.items or [])
+				):
+					frappe.db.set_value(
+						"Agency Billing Invoice",
+						existing_doc.name,
+						"trial_waived",
+						1,
+						update_modified=False,
+					)
+					existing_doc.trial_waived = 1
+			except Exception:
+				pass
+			created_invoices.append(_serialize_invoice(existing_doc))
 			continue
 
 		accruals = frappe.get_all(
@@ -1632,11 +1925,15 @@ def _close_billing_period(
 			continue
 
 		agency_doc = frappe.get_doc("Agency", agency_name)
+		is_trial_waived_invoice = _agency_waives_daily_billing_during_trial(agency_doc) and any(
+			(str(r.get("description") or "")).startswith("(Trial Waived)") for r in accruals
+		)
 		invoice_doc = frappe.get_doc(
 			{
 				"doctype": "Agency Billing Invoice",
 				"agency": agency_name,
 				"status": "Draft",
+				"trial_waived": 1 if is_trial_waived_invoice else 0,
 				"currency": accruals[0]["currency"] or _get_default_currency(agency_doc),
 				"invoice_date": end_date,
 				"due_date": add_days(end_date, cint((_get_billing_settings() or frappe._dict(invoice_due_days=7)).invoice_due_days or 7)),
@@ -1673,7 +1970,8 @@ def _close_billing_period(
 
 
 def close_previous_month_agency_billing():
-	return _close_billing_period()
+	# Monthly job: create invoices from accruals but do not sync/charge via Stripe.
+	return _close_billing_period(sync_to_stripe=False)
 
 
 @frappe.whitelist(methods=["POST"])

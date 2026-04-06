@@ -9,6 +9,7 @@
  "field_order": [
   "agency",
   "status",
+  "trial_waived",
   "currency",
   "invoice_date",
   "due_date",
@@ -46,6 +47,14 @@
    "label": "Status",
    "options": "Draft\nOpen\nPaid\nFailed\nCancelled",
    "reqd": 1
+  },
+  {
+   "default": "0",
+   "fieldname": "trial_waived",
+   "fieldtype": "Check",
+   "in_list_view": 1,
+   "label": "Trial Waived",
+   "read_only": 1
   },
   {
    "fieldname": "currency",
@@ -130,7 +139,7 @@
   },
   {
    "fieldname": "stripe_hosted_invoice_url",
-   "fieldtype": "Data",
+   "fieldtype": "Small Text",
    "label": "Stripe Hosted Invoice URL",
    "read_only": 1
   },
@@ -149,10 +158,11 @@
  ],
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2026-03-20 00:00:00",
+ "modified": "2026-04-01 13:12:02.849265",
  "modified_by": "Administrator",
  "module": "FCRM",
  "name": "Agency Billing Invoice",
+ "naming_rule": "Expression (old style)",
  "owner": "Administrator",
  "permissions": [
   {
@@ -187,6 +197,7 @@
    "share": 1
   }
  ],
+ "row_format": "Dynamic",
  "sort_field": "invoice_date",
  "sort_order": "DESC",
  "states": [],
