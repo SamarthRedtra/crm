@@ -347,12 +347,14 @@
   {
    "fieldname": "trakheesi_permit_number",
    "fieldtype": "Data",
-   "label": "Trakheesi Permit Number"
+   "label": "Trakheesi Permit Number",
+   "reqd": 1
   },
   {
    "fieldname": "trakheesi_qr_code",
    "fieldtype": "Attach Image",
-   "label": "Trakheesi QR Code"
+   "label": "Trakheesi QR Code",
+   "reqd": 1
   },
   {
    "fieldname": "zone_name",
@@ -401,7 +403,7 @@
   }
  ],
  "make_attachments_public": 1,
- "modified": "2026-04-07 11:51:36.083393",
+ "modified": "2026-04-07 14:35:45.939247",
  "modified_by": "Administrator",
  "module": "FCRM",
  "name": "Property",

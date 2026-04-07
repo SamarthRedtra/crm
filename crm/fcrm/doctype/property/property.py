@@ -59,8 +59,8 @@ class Property(Document):
 		state: DF.Data | None
 		status: DF.Literal["Draft", "Under Verification", "Active", "Inactive"]
 		title: DF.Data
-		trakheesi_permit_number: DF.Data | None
-		trakheesi_qr_code: DF.AttachImage | None
+		trakheesi_permit_number: DF.Data
+		trakheesi_qr_code: DF.AttachImage
 		views_count: DF.Int
 		zone_name: DF.Data | None
 	# end: auto-generated types
