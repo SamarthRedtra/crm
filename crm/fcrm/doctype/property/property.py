@@ -79,6 +79,9 @@ class Property(Document):
 		self._set_property_code()
 		if self.listing_type == "Buy":
 			self.rent_type = ""
+			self.is_rented = 0
+		elif self.listing_type == "Rent":
+			self.is_sold = 0
 
 	RESIDENTIAL_TYPES = frozenset(
 		{

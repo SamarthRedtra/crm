@@ -12,12 +12,17 @@ frappe.ui.form.on("Property", {
 			frm._original_is_sold = frm.doc.is_sold;
 			frm._original_is_rented = frm.doc.is_rented;
 		}
+		_toggle_transaction_flags_visibility(frm);
 		_set_completion_status_options(frm);
 		_set_property_type_options(frm);
 	},
 
 	property_category(frm) {
 		_set_property_type_options(frm);
+	},
+
+	listing_type(frm) {
+		_toggle_transaction_flags_visibility(frm);
 	},
 
 	is_sold(frm) {
@@ -117,15 +122,27 @@ function _show_transaction_dialog(frm, transaction_type) {
 function _set_completion_status_options(frm) {
 	if (!frm.fields_dict.completion_status) return;
 
-	const is_sold = frm.doc.is_sold;
-	const options = is_sold ? "All\nReady\nOff-Plan" : "All\nReady\nOff-Plan";
+	const options = "All\nReady\nOff-Plan";
 	frm.set_df_property("completion_status", "options", options);
-
-	// If current value is Off-Plan but we're hiding it, reset to All
-	if (!is_sold && frm.doc.completion_status === "Off-Plan") {
-		frm.set_value("completion_status", "All");
-	}
 	frm.refresh_field("completion_status");
+}
+
+function _toggle_transaction_flags_visibility(frm) {
+	const should_show_is_sold = frm.doc.listing_type === "Buy";
+	const should_show_is_rented = frm.doc.listing_type === "Rent";
+
+	frm.set_df_property("is_sold", "hidden", !should_show_is_sold);
+	frm.set_df_property("is_rented", "hidden", !should_show_is_rented);
+
+	if (!should_show_is_sold && frm.doc.is_sold) {
+		frm.set_value("is_sold", 0);
+	}
+
+	if (!should_show_is_rented && frm.doc.is_rented) {
+		frm.set_value("is_rented", 0);
+	}
+	frm.refresh_field("is_sold");
+	frm.refresh_field("is_rented");
 }
 
 function _set_property_type_options(frm) {
