@@ -18,7 +18,6 @@ class Agent(Document):
 
 		agency: DF.Link | None
 		agency_role: DF.Literal["Admin", "Manager", "Agent"]
-		agent_level: DF.Link | None
 		availability_slots: DF.Table[AgentAvailabilitySlot]
 		billable: DF.Check
 		billing_end_date: DF.Date | None
@@ -26,18 +25,18 @@ class Agent(Document):
 		bio: DF.SmallText | None
 		brn_id: DF.Data | None
 		dfd_registration_id: DF.Data
-		email: DF.Data | None
+		email: DF.Data
 		full_name: DF.Data | None
 		kyc_documents: DF.Table[AgentKYCDocument]
 		max_appointment_minutes: DF.Int
 		max_daily_appointments: DF.Int
-		phone: DF.Data | None
+		phone: DF.Data
 		profile_image: DF.AttachImage | None
 		status: DF.Literal["Draft", "Pending Verification", "Verified", "Rejected"]
-		trakheesi_permit_number: DF.Data
-		trakheesi_qr_code: DF.AttachImage
+		trakheesi_permit_number: DF.Data | None
+		trakheesi_qr_code: DF.AttachImage | None
 		user: DF.Link
-		whatsapp_number: DF.Data | None
+		whatsapp_number: DF.Data
 		zone_name: DF.Data | None
 	# end: auto-generated types
 

@@ -16,7 +16,6 @@
   "agency",
   "zone_name",
   "agency_role",
-  "agent_level",
   "billable",
   "billing_start_date",
   "billing_end_date",
@@ -178,12 +177,6 @@
    "options": "Admin\nManager\nAgent"
   },
   {
-   "fieldname": "agent_level",
-   "fieldtype": "Link",
-   "label": "Agent Level",
-   "options": "Agent Level"
-  },
-  {
    "default": "1",
    "fieldname": "billable",
    "fieldtype": "Check",
@@ -201,9 +194,10 @@
    "label": "Billing End Date"
   }
  ],
+ "icon": "red",
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2026-04-07 01:24:10.234147",
+ "modified": "2026-04-14 20:38:27.550363",
  "modified_by": "Administrator",
  "module": "FCRM",
  "name": "Agent",
@@ -245,6 +239,9 @@
  ],
  "quick_entry": 1,
  "row_format": "Dynamic",
+ "search_fields": "full_name, email , brn_id, phone",
+ "show_preview_popup": 1,
+ "show_title_field_in_link": 1,
  "sort_field": "modified",
  "sort_order": "DESC",
  "states": [
@@ -253,5 +250,6 @@
    "title": "Draft"
   }
  ],
+ "title_field": "email",
  "track_changes": 1
 }
