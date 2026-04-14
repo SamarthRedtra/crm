@@ -433,6 +433,14 @@ export function validatePropertyDoc(doc) {
     return 'Property Type is mandatory'
   }
 
+  if (!doc.trakheesi_permit_number) {
+    return 'Trakheesi Permit Number is mandatory'
+  }
+
+  if (!doc.trakheesi_qr_code) {
+    return 'Trakheesi QR Code is mandatory'
+  }
+
   if (doc.property_category) {
     let allowedTypes = getPropertyTypeOptions(doc.property_category)
     if (!allowedTypes.includes(doc.property_type)) {

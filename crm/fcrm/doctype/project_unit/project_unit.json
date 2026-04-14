@@ -6,12 +6,27 @@
  "editable_grid": 1,
  "engine": "InnoDB",
  "field_order": [
+  "property_type",
+  "property_subtype",
   "layout_type",
   "size",
   "bathrooms",
   "floor_plan"
  ],
  "fields": [
+  {
+   "fieldname": "property_type",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "label": "Property Type",
+   "options": "Apartment\nVilla\nTownhouse\nPenthouse\nVilla Compound\nHotel Apartment\nLand\nFloor\nBuilding\nOffice\nShop\nWarehouse\nLabour Camp\nBulk Unit\nFactory\nIndustrial Land\nMixed Use Land\nShowroom\nOther Commercial\nPlot\nOther"
+  },
+  {
+   "fieldname": "property_subtype",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Property Subtype"
+  },
   {
    "fieldname": "layout_type",
    "fieldtype": "Data",

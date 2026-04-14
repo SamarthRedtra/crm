@@ -152,6 +152,7 @@ def list_agency_agents(agency_id: str) -> dict[str, Any]:
 			"bio",
 			"profile_image",
 			"agency",
+			"email",
 		],
 		start=start,
 		limit=page_size,

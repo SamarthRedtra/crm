@@ -290,7 +290,9 @@ def get_property(property_id: str) -> dict[str, Any]:
 @frappe.whitelist()
 @utils.require_jwt(roles={"Agent", "System Manager"})
 def create_property() -> dict[str, Any]:
-	data = utils.get_request_json(["title", "listing_type", "property_type", "price", "currency"])
+	data = utils.get_request_json(
+		["title", "listing_type", "property_type", "price", "currency", "trakheesi_permit_number", "trakheesi_qr_code"]
+	)
 	current_user = utils.get_current_user()
 	agent_name = data.get("agent") or frappe.db.get_value("Agent", {"user": current_user}, "name")
 	if not agent_name:
@@ -374,6 +376,13 @@ def update_property(property_id: str) -> dict[str, Any]:
 	)
 	if data.get("featured_until") and "is_featured" not in data:
 		is_featured_value = 1
+	# Validate mandatory fields for update if they are being set to null or are missing
+	# The user specifically requested these to be mandatory in the API
+	if "trakheesi_permit_number" in data and not data.get("trakheesi_permit_number"):
+		frappe.throw(_("Trakheesi Permit Number is mandatory."), frappe.ValidationError)
+	if "trakheesi_qr_code" in data and not data.get("trakheesi_qr_code"):
+		frappe.throw(_("Trakheesi QR Code is mandatory."), frappe.ValidationError)
+
 	featured_until = _normalize_featured_until(data.get("featured_until"), is_featured_value)
 
 	doc.update(
@@ -490,6 +499,7 @@ def serialize_property_summary(row: dict[str, Any]) -> dict[str, Any]:
 					"trakheesi_permit_number",
 					"trakheesi_qr_code",
 					"zone_name",
+					"email",
 				],
 				as_dict=True,
 			)
@@ -512,6 +522,7 @@ def serialize_property_summary(row: dict[str, Any]) -> dict[str, Any]:
 					"whatsapp_link": whatsapp_link,
 					"profile_image": agent_data.get("profile_image"),
 					"status": agent_data.get("status"),
+					"email": agent_data.get("email"),
 					"trakheesi_permit_number": agent_data.get("trakheesi_permit_number"),
 					"trakheesi_qr_code": agent_data.get("trakheesi_qr_code"),
 					"zone_name": agent_data.get("zone_name"),
@@ -690,6 +701,7 @@ def serialize_property_detail(doc) -> dict[str, Any]:
 		"trakheesi_permit_number": getattr(agent_doc, "trakheesi_permit_number", None),
 		"trakheesi_qr_code": getattr(agent_doc, "trakheesi_qr_code", None),
 		"zone_name": getattr(agent_doc, "zone_name", None),
+		"email": agent_doc.email,
 	}
 	if completion_status_key in {"off-plan", "offplan"}:
 		agent_payload = None

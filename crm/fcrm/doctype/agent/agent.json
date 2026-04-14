@@ -93,17 +93,20 @@
    "fieldname": "email",
    "fieldtype": "Data",
    "label": "Email",
-   "read_only": 1
+   "read_only": 1,
+   "reqd": 1
   },
   {
    "fieldname": "phone",
    "fieldtype": "Data",
-   "label": "Phone"
+   "label": "Phone",
+   "reqd": 1
   },
   {
    "fieldname": "whatsapp_number",
    "fieldtype": "Data",
-   "label": "WhatsApp Number"
+   "label": "WhatsApp Number",
+   "reqd": 1
   },
   {
    "fieldname": "bio",
@@ -153,14 +156,12 @@
    "fieldname": "trakheesi_permit_number",
    "fieldtype": "Data",
    "in_list_view": 1,
-   "label": "Trakheesi Permit Number",
-   "reqd": 1
+   "label": "Trakheesi Permit Number"
   },
   {
    "fieldname": "trakheesi_qr_code",
    "fieldtype": "Attach Image",
-   "label": "Trakheesi QR Code",
-   "reqd": 1
+   "label": "Trakheesi QR Code"
   },
   {
    "fieldname": "zone_name",

@@ -240,8 +240,7 @@
    "in_list_view": 1,
    "in_standard_filter": 1,
    "label": "Agent",
-   "options": "Agent",
-   "reqd": 1
+   "options": "Agent"
   },
   {
    "fieldname": "section_break_media",
@@ -348,14 +347,12 @@
   {
    "fieldname": "trakheesi_permit_number",
    "fieldtype": "Data",
-   "label": "Trakheesi Permit Number",
-   "reqd": 1
+   "label": "Trakheesi Permit Number"
   },
   {
    "fieldname": "trakheesi_qr_code",
    "fieldtype": "Attach Image",
-   "label": "Trakheesi QR Code",
-   "reqd": 1
+   "label": "Trakheesi QR Code"
   },
   {
    "fieldname": "zone_name",
