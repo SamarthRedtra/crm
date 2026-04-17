@@ -172,7 +172,12 @@
                 <label class="text-p-sm font-medium text-ink-gray-7">{{ __('WhatsApp Number') }}</label>
                 <TextInput v-model="formData.whatsapp_number" :placeholder="__('+971 50 000 0000')" size="md" />
               </div>
-
+              <div class="flex flex-col gap-1.5">
+                <label class="text-p-sm font-medium text-ink-gray-7">{{ __('Zone Name') }}</label>
+                <TextInput v-model="formData.zone_name" placeholder="e.g. Downtown Dubai" size="md" />
+              </div>
+            </div>
+            
             <div class="flex flex-col gap-1.5">
               <label class="text-p-sm font-medium text-ink-gray-7">{{ __('Bio') }}</label>
               <textarea
