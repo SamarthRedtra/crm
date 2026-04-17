@@ -172,37 +172,7 @@
                 <label class="text-p-sm font-medium text-ink-gray-7">{{ __('WhatsApp Number') }}</label>
                 <TextInput v-model="formData.whatsapp_number" :placeholder="__('+971 50 000 0000')" size="md" />
               </div>
-              <div class="flex flex-col gap-1.5">
-                <label class="text-p-sm font-medium text-ink-gray-7">{{ __('Trakheesi Permit Number') }} <span class="text-red-500">*</span></label>
-                <TextInput v-model="formData.trakheesi_permit_number" :placeholder="__('e.g. 12345')" size="md" />
-              </div>
-              <div class="flex flex-col gap-1.5">
-                <label class="text-p-sm font-medium text-ink-gray-7">{{ __('Zone Name') }}</label>
-                <TextInput v-model="formData.zone_name" placeholder="e.g. Downtown Dubai" size="md" />
-              </div>
-            </div>
-            
-            <div class="flex flex-col gap-1.5 mt-2">
-              <label class="text-p-sm font-medium text-ink-gray-7">{{ __('Trakheesi QR Code') }} <span class="text-red-500">*</span></label>
-              <div v-if="formData.trakheesi_qr_code" class="flex items-center gap-4 border border-outline-gray-2 p-3 rounded-lg bg-surface-gray-1 w-fit">
-                <img :src="formData.trakheesi_qr_code" class="w-16 h-16 rounded border border-outline-gray-2 object-cover" />
-                <Button variant="ghost" size="sm" iconLeft="trash-2" :label="__('Remove')" class="text-red-600" @click="formData.trakheesi_qr_code = ''" />
-              </div>
-              <div v-else>
-                <FileUploader @success="(file) => formData.trakheesi_qr_code = file.file_url" :validateFile="validateIsImage">
-                  <template #default="{ openFileSelector, uploading, progress }">
-                    <Button
-                      variant="outline"
-                      iconLeft="upload-cloud"
-                      :label="uploading ? __('Uploading… {0}%', [progress]) : __('Upload QR Code Image')"
-                      :loading="uploading"
-                      @click="openFileSelector"
-                    />
-                  </template>
-                </FileUploader>
-                <p class="text-p-xs text-ink-gray-4 mt-2">{{ __('JPG, PNG — max 5 MB') }}</p>
-              </div>
-            </div>
+
             <div class="flex flex-col gap-1.5">
               <label class="text-p-sm font-medium text-ink-gray-7">{{ __('Bio') }}</label>
               <textarea
@@ -446,8 +416,6 @@ const formData = ref({
   phone: '',
   whatsapp_number: '',
   bio: '',
-  trakheesi_permit_number: '',
-  trakheesi_qr_code: '',
   zone_name: '',
   max_daily_appointments: 10,
   max_appointment_minutes: 30,
@@ -465,8 +433,6 @@ watch(
       phone: d.phone || '',
       whatsapp_number: d.whatsapp_number || '',
       bio: d.bio || '',
-      trakheesi_permit_number: d.trakheesi_permit_number || '',
-      trakheesi_qr_code: d.trakheesi_qr_code || '',
       zone_name: d.zone_name || '',
       max_daily_appointments: d.max_daily_appointments || 10,
       max_appointment_minutes: d.max_appointment_minutes || 30,
@@ -501,12 +467,6 @@ function validateCurrentStep() {
   if (activeSection.value === 0) {
     if (!formData.value.dfd_registration_id?.trim()) {
       return 'DLD Registration ID is required before proceeding.'
-    }
-    if (!formData.value.trakheesi_permit_number?.trim()) {
-      return 'Trakheesi Permit Number is required before proceeding.'
-    }
-    if (!formData.value.trakheesi_qr_code) {
-      return 'Trakheesi QR Code is required before proceeding.'
     }
   }
   if (activeSection.value === 1) {
@@ -623,8 +583,6 @@ const missingMandatory = computed(() => {
 
 const isFormValid = computed(() => {
   if (!formData.value.dfd_registration_id) return false
-  if (!formData.value.trakheesi_permit_number) return false
-  if (!formData.value.trakheesi_qr_code) return false
   if (formData.value.kyc_documents.length === 0) return false
   if (formData.value.kyc_documents.some(d => !d.document_type)) return false
   if (missingMandatory.value.length > 0) return false
@@ -636,11 +594,6 @@ const reviewItems = computed(() => [
     label: 'DLD Registration ID',
     ok: !!formData.value.dfd_registration_id,
     value: formData.value.dfd_registration_id || 'Missing — required',
-  },
-  {
-    label: 'Trakheesi Permit',
-    ok: !!formData.value.trakheesi_permit_number && !!formData.value.trakheesi_qr_code,
-    value: (formData.value.trakheesi_permit_number && formData.value.trakheesi_qr_code) ? 'Ready' : 'Missing — required',
   },
   {
     label: 'Documents uploaded',
@@ -688,8 +641,6 @@ const submitResource = createResource({
 
 function submitVerification() {
   if (!formData.value.dfd_registration_id) { toast.error('DLD Registration ID is required'); activeSection.value = 0; return }
-  if (!formData.value.trakheesi_permit_number) { toast.error('Trakheesi Permit Number is required'); activeSection.value = 0; return }
-  if (!formData.value.trakheesi_qr_code) { toast.error('Trakheesi QR Code is required'); activeSection.value = 0; return }
   if (formData.value.kyc_documents.length === 0) { toast.error('Please upload at least one document'); activeSection.value = 1; return }
   if (formData.value.kyc_documents.some(d => !d.document_type)) { toast.error('Select a type for each document'); activeSection.value = 1; return }
   if (missingMandatory.value.length > 0) { toast.error(`Missing mandatory docs: ${missingMandatory.value.join(', ')}`); activeSection.value = 1; return }

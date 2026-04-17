@@ -1,4 +1,5 @@
 import { sessionStore } from '@/stores/session'
+import { agentStore } from '@/stores/agent'
 
 const PROPERTY_FIELD_GROUPS = {
   sidebar: [
@@ -321,6 +322,9 @@ export function getPropertySidebarSectionOptions() {
 export function buildPropertySidebarSections(metaFields, options = {}) {
   const fieldMap = createFieldMap(metaFields)
   const visibleSections = options.visibleSections || getPropertySidebarSectionNames()
+  // C-03: Detect agent users to make status read-only
+  const { agentResource } = agentStore()
+  const isAgent = !!(agentResource.data && agentResource.data.name)
 
   return PROPERTY_FIELD_GROUPS.sidebar
     .filter((section) => visibleSections.includes(section.name))
@@ -337,6 +341,10 @@ export function buildPropertySidebarSections(metaFields, options = {}) {
 
               if (fieldname === 'status') {
                 overrides.options = Object.keys(PROPERTY_STATUS_META)
+                // C-03: Agents cannot change status
+                if (isAgent) {
+                  overrides.read_only = 1
+                }
               }
 
               if (fieldname === 'property_type') {
@@ -345,6 +353,11 @@ export function buildPropertySidebarSections(metaFields, options = {}) {
 
               if (['property_code', 'views_count'].includes(fieldname)) {
                 overrides.read_only = 1
+              }
+
+              // C-04: Per-form override — show only agent full_name in search results
+              if (fieldname === 'agent') {
+                overrides.search_fields = 'full_name'
               }
 
               return getField(fieldMap, fieldname, overrides)
@@ -421,24 +434,29 @@ export function validatePropertyDoc(doc) {
     return 'Title is mandatory'
   }
 
-  if (!doc.agent) {
-    return 'Agent is mandatory'
+  // C-13: Enforce title length between 10 and 200 characters
+  const titleLen = doc.title.trim().length
+  if (titleLen < 10) {
+    return 'Title must be at least 10 characters'
+  }
+  if (titleLen > 200) {
+    return 'Title must not exceed 200 characters'
   }
 
-  if (!doc.listing_type) {
-    return 'Listing Type is mandatory'
-  }
+  // C-07: Trakheesi fields mandatory — admin (session.user === 'Administrator') can bypass
+  const session = sessionStore()
+  const isAdmin = session.user === 'Administrator'
+  const { agentResource } = agentStore()
+  const isAgent = !!(agentResource.data && agentResource.data.name)
 
-  if (!doc.property_type) {
-    return 'Property Type is mandatory'
-  }
+  if (!isAdmin) {
+    if (!doc.trakheesi_permit_number) {
+      return 'Trakheesi Permit Number is mandatory'
+    }
 
-  if (!doc.trakheesi_permit_number) {
-    return 'Trakheesi Permit Number is mandatory'
-  }
-
-  if (!doc.trakheesi_qr_code) {
-    return 'Trakheesi QR Code is mandatory'
+    if (!doc.trakheesi_qr_code) {
+      return 'Trakheesi QR Code is mandatory'
+    }
   }
 
   if (doc.property_category) {

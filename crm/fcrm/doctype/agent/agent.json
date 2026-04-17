@@ -10,9 +10,7 @@
   "user",
   "status",
   "dfd_registration_id",
-  "trakheesi_permit_number",
   "brn_id",
-  "trakheesi_qr_code",
   "agency",
   "zone_name",
   "agency_role",
@@ -152,17 +150,6 @@
    "options": "Agent KYC Document"
   },
   {
-   "fieldname": "trakheesi_permit_number",
-   "fieldtype": "Data",
-   "in_list_view": 1,
-   "label": "Trakheesi Permit Number"
-  },
-  {
-   "fieldname": "trakheesi_qr_code",
-   "fieldtype": "Attach Image",
-   "label": "Trakheesi QR Code"
-  },
-  {
    "fieldname": "zone_name",
    "fieldtype": "Data",
    "in_list_view": 1,
@@ -250,6 +237,6 @@
    "title": "Draft"
   }
  ],
- "title_field": "email",
+ "title_field": "full_name",
  "track_changes": 1
 }

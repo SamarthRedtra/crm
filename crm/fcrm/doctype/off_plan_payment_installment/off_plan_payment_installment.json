@@ -6,10 +6,17 @@
  "editable_grid": 1,
  "engine": "InnoDB",
  "field_order": [
+  "payment_plan",
   "milestone",
   "percentage"
  ],
  "fields": [
+  {
+   "fieldname": "payment_plan",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Payment Plan"
+  },
   {
    "fieldname": "milestone",
    "fieldtype": "Data",
@@ -29,7 +36,7 @@
  "index_web_pages_for_search": 1,
  "istable": 1,
  "links": [],
- "modified": "2026-04-07 01:05:23.251809",
+ "modified": "2026-04-17 10:00:00.000000",
  "modified_by": "Administrator",
  "module": "FCRM",
  "name": "Off Plan Payment Installment",

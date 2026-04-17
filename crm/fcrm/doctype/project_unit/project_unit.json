@@ -7,7 +7,7 @@
  "engine": "InnoDB",
  "field_order": [
   "property_type",
-  "property_subtype",
+  "num_bedrooms",
   "layout_type",
   "size",
   "bathrooms",
@@ -22,17 +22,16 @@
    "options": "Apartment\nVilla\nTownhouse\nPenthouse\nVilla Compound\nHotel Apartment\nLand\nFloor\nBuilding\nOffice\nShop\nWarehouse\nLabour Camp\nBulk Unit\nFactory\nIndustrial Land\nMixed Use Land\nShowroom\nOther Commercial\nPlot\nOther"
   },
   {
-   "fieldname": "property_subtype",
-   "fieldtype": "Data",
+   "fieldname": "num_bedrooms",
+   "fieldtype": "Int",
    "in_list_view": 1,
-   "label": "Property Subtype"
+   "label": "Number of Bedrooms"
   },
   {
    "fieldname": "layout_type",
    "fieldtype": "Data",
    "in_list_view": 1,
-   "label": "Layout Type",
-   "reqd": 1
+   "label": "Layout Type"
   },
   {
    "fieldname": "size",
@@ -56,7 +55,7 @@
  "index_web_pages_for_search": 1,
  "istable": 1,
  "links": [],
- "modified": "2026-04-07 01:05:23.899037",
+ "modified": "2026-04-17 10:00:00.000000",
  "modified_by": "Administrator",
  "module": "FCRM",
  "name": "Project Unit",

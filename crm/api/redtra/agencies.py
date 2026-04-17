@@ -20,6 +20,7 @@ SUMMARY_FIELDS = [
 	"website",
 	"phone",
 	"email",
+	"whatsapp_number",
 ]
 
 
@@ -296,7 +297,7 @@ def get_agency_analytics(agency_id: str) -> dict[str, Any]:
 @utils.require_jwt(roles={"System Manager"})
 def create_agency() -> dict[str, Any]:
 	"""Create a new agency - System Manager only"""
-	data = utils.get_request_json(["agency_name"])
+	data = utils.get_request_json(["agency_name", "email", "phone", "whatsapp_number"])
 	status = (data.get("status") or "Active").strip() or "Active"
 	if status not in {"Active", "Inactive"}:
 		frappe.throw(_("Invalid status value."), frappe.ValidationError)
@@ -306,8 +307,9 @@ def create_agency() -> dict[str, Any]:
 			"doctype": "Agency",
 			"agency_name": data["agency_name"],
 			"status": status,
-			"email": data.get("email"),
-			"phone": data.get("phone"),
+			"email": data["email"],
+			"phone": data["phone"],
+			"whatsapp_number": data["whatsapp_number"],
 			"website": data.get("website"),
 			"address_line1": data.get("address_line1"),
 			"address_line2": data.get("address_line2"),
@@ -337,6 +339,7 @@ def _serialize_agency_summary(row: dict[str, Any]) -> dict[str, Any]:
 		"website": row.get("website"),
 		"phone": row.get("phone"),
 		"email": row.get("email"),
+		"whatsapp_number": row.get("whatsapp_number"),
 		"location": _build_location(row.get("city"), row.get("state"), row.get("country")),
 	}
 
@@ -348,6 +351,7 @@ def _serialize_agency_detail(doc) -> dict[str, Any]:
 		"status": doc.status,
 		"email": doc.email,
 		"phone": doc.phone,
+		"whatsapp_number": getattr(doc, "whatsapp_number", None),
 		"website": doc.website,
 		"address_line1": doc.address_line1,
 		"address_line2": doc.address_line2,

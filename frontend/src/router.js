@@ -209,7 +209,8 @@ router.beforeEach(async (to, from, next) => {
     next({ name: 'Invalid Page' })
   } else if (['Deal', 'Lead', 'Property'].includes(to.name) && !to.hash) {
     let storageKey = `last${to.name}Tab`
-    const activeTab = localStorage.getItem(storageKey) || 'activity'
+    const defaultTab = to.name === 'Property' ? 'data' : 'activity'
+    const activeTab = localStorage.getItem(storageKey) || defaultTab
     const hash = '#' + activeTab
     next({ name: to.name, params: to.params, query: to.query, hash })
   } else {

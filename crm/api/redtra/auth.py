@@ -159,8 +159,8 @@ def get_profile() -> dict[str, Any]:
 		agent_name = frappe.db.get_value("Agent", {"user": user}, "name")
 		if agent_name:
 			agent_doc = frappe.get_doc("Agent", agent_name)
-			start_of_day, end_of_day = _current_day_bounds()
-			return _build_agent_profile(user_doc, agent_doc, start_of_day, end_of_day)
+			start_of_day, end_of_day, end_of_tomorrow = _current_day_bounds()
+			return _build_agent_profile(user_doc, agent_doc, start_of_day, end_of_day, end_of_tomorrow)
 
 	if customer:
 		return {
@@ -358,16 +358,17 @@ def _update_agent_details(user: str, data: dict[str, Any]):
 		agent_doc.save(ignore_permissions=True)
 
 
-def _current_day_bounds() -> tuple[Any, Any]:
+def _current_day_bounds() -> tuple[Any, Any, Any]:
 	now = now_datetime()
 	start = now.replace(hour=0, minute=0, second=0, microsecond=0)
 	end = start + timedelta(days=1)
-	return start, end
+	end_of_tomorrow = start + timedelta(days=2)
+	return start, end, end_of_tomorrow
 
 
-def _build_agent_profile(user_doc, agent_doc, start_of_day, end_of_day) -> dict[str, Any]:
+def _build_agent_profile(user_doc, agent_doc, start_of_day, end_of_day, end_of_tomorrow=None) -> dict[str, Any]:
 	properties_listed = _get_agent_properties(agent_doc.name)
-	appointments_today = _get_agent_appointments_today(agent_doc.name, start_of_day, end_of_day)
+	appointments_today = _get_agent_appointments_today(agent_doc.name, start_of_day, end_of_tomorrow or end_of_day)
 	lead_stats = _get_agent_lead_stats(user_doc.name, start_of_day, end_of_day)
 
 	agency_details = None

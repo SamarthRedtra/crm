@@ -13,6 +13,7 @@
   "column_break_primary",
   "email",
   "phone",
+  "whatsapp_number",
   "brn_id",
   "website",
   "section_break_address",
@@ -55,12 +56,20 @@
    "fieldname": "email",
    "fieldtype": "Data",
    "label": "Email",
-   "options": "Email"
+   "options": "Email",
+   "reqd": 1
   },
   {
    "fieldname": "phone",
    "fieldtype": "Data",
-   "label": "Phone"
+   "label": "Phone",
+   "reqd": 1
+  },
+  {
+   "fieldname": "whatsapp_number",
+   "fieldtype": "Data",
+   "label": "WhatsApp Number",
+   "reqd": 1
   },
   {
    "fieldname": "brn_id",
@@ -130,7 +139,7 @@
  ],
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2026-03-07 13:27:32.996600",
+ "modified": "2026-04-17 10:00:00.000000",
  "modified_by": "Administrator",
  "module": "FCRM",
  "name": "Agency",

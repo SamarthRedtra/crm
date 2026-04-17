@@ -291,9 +291,23 @@ def get_property(property_id: str) -> dict[str, Any]:
 @utils.require_jwt(roles={"Agent", "System Manager"})
 def create_property() -> dict[str, Any]:
 	data = utils.get_request_json(
-		["title", "listing_type", "property_type", "price", "currency", "trakheesi_permit_number", "trakheesi_qr_code"]
+		["title", "listing_type", "property_type", "price", "currency"]
 	)
 	current_user = utils.get_current_user()
+	user_roles = set(frappe.get_roles(current_user))
+
+	# C-13: Title length validation
+	title = data.get("title", "").strip()
+	if len(title) < 10 or len(title) > 200:
+		frappe.throw(_("Title must be between 10 and 200 characters."), frappe.ValidationError)
+
+	# C-07: Role-aware Trakheesi validation
+	if "System Manager" not in user_roles:
+		if not data.get("trakheesi_permit_number"):
+			frappe.throw(_("Trakheesi Permit Number is mandatory."), frappe.ValidationError)
+		if not data.get("trakheesi_qr_code"):
+			frappe.throw(_("Trakheesi QR Code is mandatory."), frappe.ValidationError)
+
 	agent_name = data.get("agent") or frappe.db.get_value("Agent", {"user": current_user}, "name")
 	if not agent_name:
 		frappe.throw(_("You must be a verified agent to create properties."), frappe.PermissionError)
@@ -376,12 +390,26 @@ def update_property(property_id: str) -> dict[str, Any]:
 	)
 	if data.get("featured_until") and "is_featured" not in data:
 		is_featured_value = 1
-	# Validate mandatory fields for update if they are being set to null or are missing
-	# The user specifically requested these to be mandatory in the API
-	if "trakheesi_permit_number" in data and not data.get("trakheesi_permit_number"):
-		frappe.throw(_("Trakheesi Permit Number is mandatory."), frappe.ValidationError)
-	if "trakheesi_qr_code" in data and not data.get("trakheesi_qr_code"):
-		frappe.throw(_("Trakheesi QR Code is mandatory."), frappe.ValidationError)
+	# C-13: Title length validation (if updated)
+	if "title" in data:
+		title = data.get("title", "").strip()
+		if len(title) < 10 or len(title) > 200:
+			frappe.throw(_("Title must be between 10 and 200 characters."), frappe.ValidationError)
+
+	# C-07: Role-aware Trakheesi validation for update
+	current_user = utils.get_current_user()
+	user_roles = set(frappe.get_roles(current_user))
+	if "System Manager" not in user_roles:
+		if "trakheesi_permit_number" in data and not data.get("trakheesi_permit_number"):
+			frappe.throw(_("Trakheesi Permit Number is mandatory."), frappe.ValidationError)
+		if "trakheesi_qr_code" in data and not data.get("trakheesi_qr_code"):
+			frappe.throw(_("Trakheesi QR Code is mandatory."), frappe.ValidationError)
+		
+		# Also ensure they aren't cleared if not in data (though doc.update handles it, explicit is better if we want to enforce presence)
+		if not data.get("trakheesi_permit_number") and not doc.trakheesi_permit_number:
+			frappe.throw(_("Trakheesi Permit Number is mandatory."), frappe.ValidationError)
+		if not data.get("trakheesi_qr_code") and not doc.trakheesi_qr_code:
+			frappe.throw(_("Trakheesi QR Code is mandatory."), frappe.ValidationError)
 
 	featured_until = _normalize_featured_until(data.get("featured_until"), is_featured_value)
 
@@ -602,30 +630,21 @@ def serialize_property_summary(row: dict[str, Any]) -> dict[str, Any]:
 		payment_plan_rows = frappe.get_all(
 			"Off Plan Payment Installment",
 			filters={"parent": property_id},
-			fields=["milestone", "percentage", "idx"],
+			fields=["payment_plan", "milestone", "percentage", "idx"],
 			order_by="idx asc",
 		)
 		payment_plan = [
-			{"milestone": r.milestone, "percentage": r.percentage, "idx": r.idx}
+			{"payment_plan": r.payment_plan, "milestone": r.milestone, "percentage": r.percentage, "idx": r.idx}
 			for r in payment_plan_rows
 		]
 
 		project_units_rows = frappe.get_all(
 			"Project Unit",
 			filters={"parent": property_id},
-			fields=["layout_type", "size", "bathrooms", "floor_plan", "idx"],
+			fields=["property_type", "num_bedrooms", "layout_type", "size", "bathrooms", "floor_plan", "idx"],
 			order_by="idx asc",
 		)
-		project_units = [
-			{
-				"layout_type": r.layout_type,
-				"size": r.size,
-				"bathrooms": r.bathrooms,
-				"floor_plan": r.floor_plan,
-				"idx": r.idx,
-			}
-			for r in project_units_rows
-		]
+		project_units = _group_project_units(project_units_rows)
 
 	return {
 		"id": property_id,
@@ -669,47 +688,53 @@ def serialize_property_summary(row: dict[str, Any]) -> dict[str, Any]:
 
 
 def serialize_property_detail(doc) -> dict[str, Any]:
-	agent_doc = frappe.get_doc("Agent", doc.agent)
+	# AP-02: Guard against missing agent (e.g. off-plan properties or properties without an assigned agent)
+	if not doc.agent:
+		agent_doc = None
+		link = None
+		agency_details = None
+		agent_payload = None
+	else:
+		agent_doc = frappe.get_doc("Agent", doc.agent)
+		link = None
+		if agent_doc.whatsapp_number or agent_doc.phone:
+			number = (agent_doc.whatsapp_number or agent_doc.phone).replace("+", "").replace(" ", "")
+			message = _("Hi, I am interested in {0}").format(doc.property_code or doc.name)
+			link = f"https://wa.me/{number}?text={quote(message)}"
+
+		agency_details = None
+		agency_id = getattr(agent_doc, "agency", None)
+		if agency_id:
+			try:
+				from . import agencies
+				agency_details = agencies.get_agency_details(agency_id)
+			except Exception:
+				agency_details = None
+
 	area_name = frappe.db.get_value("Area", doc.area, "area_name") if doc.area else None
 	location = _build_location_label(area_name, doc.city, doc.state, doc.country)
 	developer = _get_developer_profile(doc.developer)
 
-	link = None
-	if agent_doc.whatsapp_number or agent_doc.phone:
-		number = (agent_doc.whatsapp_number or agent_doc.phone).replace("+", "").replace(" ", "")
-		message = _("Hi, I am interested in {0}").format(doc.property_code or doc.name)
-		link = f"https://wa.me/{number}?text={quote(message)}"
-
-	agency_details = None
-	agency_id = getattr(agent_doc, "agency", None)
-	if agency_id:
-		try:
-			from . import agencies
-			agency_details = agencies.get_agency_details(agency_id)
-		except Exception:
-			agency_details = None
-
 	featured_until_value, featured_remaining = _get_featured_timer(doc.featured_until)
 	completion_status = doc.completion_status
 	completion_status_key = (completion_status or "").strip().lower()
-	agent_payload = {
-		"id": agent_doc.name,
-		"name": agent_doc.full_name or agent_doc.user,
-		"phone": agent_doc.phone,
-		"whatsapp_number": agent_doc.whatsapp_number,
-		"whatsapp_link": _build_whatsapp_link(agent_doc.whatsapp_number or agent_doc.phone),
-		"trakheesi_permit_number": getattr(agent_doc, "trakheesi_permit_number", None),
-		"trakheesi_qr_code": getattr(agent_doc, "trakheesi_qr_code", None),
-		"zone_name": getattr(agent_doc, "zone_name", None),
-		"email": agent_doc.email,
-	}
-	if completion_status_key in {"off-plan", "offplan"}:
-		agent_payload = None
-	else:
-		try:
-			agent_payload["ratings"] = reviews.get_agent_rating_stats(doc.agent)
-		except Exception:
-			agent_payload["ratings"] = reviews.empty_agent_rating_summary()
+
+	if agent_doc:
+		agent_payload = {
+			"id": agent_doc.name,
+			"name": agent_doc.full_name or agent_doc.user,
+			"phone": agent_doc.phone,
+			"whatsapp_number": agent_doc.whatsapp_number,
+			"whatsapp_link": _build_whatsapp_link(agent_doc.whatsapp_number or agent_doc.phone),
+			"email": agent_doc.email,
+		}
+		if completion_status_key in {"off-plan", "offplan"}:
+			agent_payload = None
+		else:
+			try:
+				agent_payload["ratings"] = reviews.get_agent_rating_stats(doc.agent)
+			except Exception:
+				agent_payload["ratings"] = reviews.empty_agent_rating_summary()
 
 	return {
 		"id": doc.name,
@@ -758,19 +783,10 @@ def serialize_property_detail(doc) -> dict[str, Any]:
 			for row in doc.gallery
 		],
 		"payment_plan_table": [
-			{"milestone": r.milestone, "percentage": r.percentage, "idx": r.idx}
+			{"payment_plan": r.payment_plan, "milestone": r.milestone, "percentage": r.percentage, "idx": r.idx}
 			for r in getattr(doc, "payment_plan_table", [])
 		],
-		"project_units_table": [
-			{
-				"layout_type": r.layout_type,
-				"size": r.size,
-				"bathrooms": r.bathrooms,
-				"floor_plan": r.floor_plan,
-				"idx": r.idx,
-			}
-			for r in getattr(doc, "project_units_table", [])
-		],
+		"project_units_table": _group_project_units(getattr(doc, "project_units_table", [])),
 		"off_plan_agencies": _get_off_plan_agencies(doc.name),
 		"agent": agent_payload,
 		"agency": agency_details,
@@ -786,6 +802,44 @@ def _validate_property_owner(doc):
 	agent_name = frappe.db.get_value("Agent", {"user": current_user}, "name")
 	if not agent_name or doc.agent != agent_name:
 		frappe.throw(_("You can only access properties you own."), frappe.PermissionError)
+
+
+def _group_project_units(rows) -> list[dict]:
+	"""AP-03: Group project unit rows into nested structure:
+	[{property_type, units: [{num_bedrooms, layouts: [{layout_type, size, bathrooms, floor_plan}]}]}]
+	"""
+	from collections import OrderedDict
+
+	# Use OrderedDict to preserve insertion order
+	grouped: dict = OrderedDict()
+	for r in rows:
+		# Support both frappe doc objects and plain dicts
+		pt = getattr(r, "property_type", None) or (r.get("property_type") if isinstance(r, dict) else None) or ""
+		nb = getattr(r, "num_bedrooms", None) or (r.get("num_bedrooms") if isinstance(r, dict) else None)
+		lt = getattr(r, "layout_type", None) or (r.get("layout_type") if isinstance(r, dict) else None)
+		size = getattr(r, "size", None) or (r.get("size") if isinstance(r, dict) else None)
+		baths = getattr(r, "bathrooms", None) or (r.get("bathrooms") if isinstance(r, dict) else None)
+		fp = getattr(r, "floor_plan", None) or (r.get("floor_plan") if isinstance(r, dict) else None)
+
+		if pt not in grouped:
+			grouped[pt] = OrderedDict()
+		nb_key = nb if nb is not None else ""
+		if nb_key not in grouped[pt]:
+			grouped[pt][nb_key] = []
+		grouped[pt][nb_key].append({
+			"layout_type": lt,
+			"size": size,
+			"bathrooms": baths,
+			"floor_plan": fp,
+		})
+
+	result = []
+	for property_type, bedrooms_map in grouped.items():
+		units = []
+		for num_bedrooms, layouts in bedrooms_map.items():
+			units.append({"num_bedrooms": num_bedrooms, "layouts": layouts})
+		result.append({"property_type": property_type, "units": units})
+	return result
 
 
 def _build_location_label(
