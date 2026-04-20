@@ -21,6 +21,7 @@ SUMMARY_FIELDS = [
 	"trakheesi_permit_number",
 	"trakheesi_qr_code",
 	"zone_name",
+	"email",
 ]
 
 

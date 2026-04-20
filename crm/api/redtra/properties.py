@@ -621,8 +621,6 @@ def serialize_property_summary(row: dict[str, Any]) -> dict[str, Any]:
 	featured_until_value, featured_remaining = _get_featured_timer(featured_until)
 	completion_status = row.get("completion_status")
 	completion_status_key = (completion_status or "").strip().lower()
-	if completion_status_key in {"off-plan", "offplan"}:
-		agent = None
 
 	payment_plan = []
 	project_units = []
@@ -728,13 +726,10 @@ def serialize_property_detail(doc) -> dict[str, Any]:
 			"whatsapp_link": _build_whatsapp_link(agent_doc.whatsapp_number or agent_doc.phone),
 			"email": agent_doc.email,
 		}
-		if completion_status_key in {"off-plan", "offplan"}:
-			agent_payload = None
-		else:
-			try:
-				agent_payload["ratings"] = reviews.get_agent_rating_stats(doc.agent)
-			except Exception:
-				agent_payload["ratings"] = reviews.empty_agent_rating_summary()
+		try:
+			agent_payload["ratings"] = reviews.get_agent_rating_stats(doc.agent)
+		except Exception:
+			agent_payload["ratings"] = reviews.empty_agent_rating_summary()
 
 	return {
 		"id": doc.name,
