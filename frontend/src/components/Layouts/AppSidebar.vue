@@ -266,6 +266,11 @@ const links = [
     icon: PhoneIcon,
     to: 'Call Logs',
   },
+  {
+    label: 'Addons',
+    icon: SquareAsterisk,
+    to: 'Addon Marketplace',
+  },
 ]
 
 const allViews = computed(() => {

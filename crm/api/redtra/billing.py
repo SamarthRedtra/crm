@@ -356,6 +356,7 @@ def _serialize_billing_addon(addon: dict[str, Any]) -> dict[str, Any]:
 		"currency": addon.get("currency"),
 		"unit_label": addon.get("unit_label"),
 		"active": cint(addon.get("active")),
+		"requires_upfront_payment": cint(addon.get("requires_upfront_payment") or 0),
 		"sort_order": cint(addon.get("sort_order") or 0),
 		"description": addon.get("description"),
 	}
@@ -921,15 +922,25 @@ def update_current_agency_profile(agency_id: str | None = None, data: str | None
 			quantity = flt(row.get("quantity") or 1)
 			if quantity <= 0:
 				frappe.throw(_("Billing addon quantity must be greater than zero."))
-			custom_rate = None
+			prev = existing_addon_rows.get(addon_name)
 			if _is_internal_manager():
 				if row.get("custom_rate") not in (None, ""):
 					custom_rate = flt(row.get("custom_rate"))
 					if custom_rate < 0:
 						frappe.throw(_("Custom addon rate cannot be negative."))
 			else:
-				prev = existing_addon_rows.get(addon_name)
 				custom_rate = prev.custom_rate if prev and prev.custom_rate not in (None, 0) else None
+
+			is_new_enablement = cint(row.get("enabled", 1)) and not (prev and cint(prev.enabled))
+			if is_new_enablement and not _is_internal_manager():
+				addon_doc = frappe.get_cached_doc("Billing Addon", addon_name)
+				if cint(getattr(addon_doc, "requires_upfront_payment", 0)):
+					frappe.throw(
+						_("Addon '{0}' requires upfront payment. Please use the Addon Marketplace to purchase it.").format(
+							addon_doc.addon_name or addon_name
+						)
+					)
+
 			agency_doc.append(
 				"billing_addons",
 				{
@@ -1206,7 +1217,7 @@ def _list_billing_addons(*, active_only: int = 0) -> list[dict[str, Any]]:
 	rows = frappe.get_all(
 		"Billing Addon",
 		filters=filters,
-		fields=["name", "addon_name", "pricing_model", "rate", "currency", "unit_label", "active", "sort_order", "description"],
+		fields=["name", "addon_name", "pricing_model", "rate", "currency", "unit_label", "active", "requires_upfront_payment", "sort_order", "description"],
 		order_by="sort_order asc, addon_name asc",
 	)
 	return [_serialize_billing_addon(row) for row in rows]
@@ -1233,6 +1244,7 @@ def save_billing_addon(name: str | None = None, data: str | None = None) -> dict
 		"currency",
 		"unit_label",
 		"active",
+		"requires_upfront_payment",
 		"sort_order",
 		"description",
 	]:
@@ -1355,7 +1367,9 @@ def run_daily_agency_billing(run_date: str | None = None) -> dict[str, Any]:
 				continue
 			if addon_doc.pricing_model == "Usage Based":
 				continue
-			if _get_addon_charge_timing() == "upfront_immediate":
+			# Per-addon charge control: addons that require upfront payment were
+			# already charged at activation time; skip daily accruals for them.
+			if cint(getattr(addon_doc, "requires_upfront_payment", 0)):
 				continue
 
 			original_rate = flt(addon_row.custom_rate) if addon_row.custom_rate else flt(addon_doc.rate)
@@ -2398,6 +2412,310 @@ def record_addon_usage(
 	return {"created": bool(accrual), "name": accrual.name if accrual else None}
 
 
+@frappe.whitelist()
+def list_agency_addon_status(agency_id: str | None = None) -> dict[str, Any]:
+	"""Return the full addon catalog merged with the agency's current activation status."""
+	context, agency_doc = _require_agency_access(agency_id=agency_id)
+	catalog = _list_billing_addons(active_only=1)
+	enabled_map: dict[str, dict[str, Any]] = {}
+	for row in agency_doc.billing_addons or []:
+		if cint(row.enabled):
+			enabled_map[row.addon] = {
+				"quantity": flt(row.quantity or 1),
+				"custom_rate": flt(row.custom_rate) if row.custom_rate else None,
+				"enabled": True,
+			}
+
+	addons = []
+	for addon in catalog:
+		active_info = enabled_map.get(addon["name"])
+		addons.append({
+			**addon,
+			"is_active": bool(active_info),
+			"current_quantity": active_info["quantity"] if active_info else 0,
+			"current_custom_rate": active_info.get("custom_rate") if active_info else None,
+		})
+
+	return {
+		"addons": addons,
+		"agency": agency_doc.name,
+		"agency_name": agency_doc.agency_name,
+		"billing_status": agency_doc.billing_status,
+		"stripe_enabled": _stripe_enabled(),
+		"context": context,
+	}
+
+
+@frappe.whitelist(methods=["POST"])
+def purchase_addon(
+	agency_id: str | None = None,
+	addon: str | None = None,
+	quantity: float = 1,
+	success_url: str | None = None,
+	cancel_url: str | None = None,
+) -> dict[str, Any]:
+	"""Create a Stripe Checkout Session to purchase an addon that requires upfront payment."""
+	_require_billing_enabled()
+	if not addon:
+		frappe.throw(_("Addon is required."))
+	if not frappe.db.exists("Billing Addon", addon):
+		frappe.throw(_("Billing addon not found."), frappe.DoesNotExistError)
+
+	addon_doc = frappe.get_doc("Billing Addon", addon)
+	if not cint(addon_doc.active):
+		frappe.throw(_("This addon is not currently available."))
+	if not cint(getattr(addon_doc, "requires_upfront_payment", 0)):
+		frappe.throw(_("This addon does not require upfront payment. Use the activate endpoint instead."))
+
+	_context, agency_doc = _require_agency_access(agency_id=agency_id, require_billing=True)
+
+	# Check if already enabled
+	for row in agency_doc.billing_addons or []:
+		if row.addon == addon and cint(row.enabled):
+			frappe.throw(_("This addon is already active for your agency."))
+
+	if not _stripe_enabled():
+		frappe.throw(_("Stripe is not configured for billing."))
+
+	quantity = max(flt(quantity or 1), 1)
+	rate = flt(addon_doc.rate or 0)
+	if rate <= 0:
+		frappe.throw(_("Addon rate must be positive for purchase."))
+
+	stripe, _settings = _get_stripe_sdk()
+	customer_id = _ensure_stripe_customer(agency_doc)
+	currency = (addon_doc.currency or agency_doc.billing_currency or _get_default_currency(agency_doc) or "AED").lower()
+
+	default_success = f"{get_url('/crm/addons')}?addon_purchase=success&session_id={{CHECKOUT_SESSION_ID}}"
+	default_cancel = f"{get_url('/crm/addons')}?addon_purchase=cancel"
+	success_url = _validate_redirect_url(success_url, default_success)
+	cancel_url = _validate_redirect_url(cancel_url, default_cancel)
+
+	session = stripe.checkout.Session.create(
+		mode="payment",
+		customer=customer_id,
+		currency=currency,
+		line_items=[
+			{
+				"price_data": {
+					"currency": currency,
+					"product_data": {
+						"name": addon_doc.addon_name,
+						"description": addon_doc.description or f"{addon_doc.addon_name} ({addon_doc.pricing_model})",
+					},
+					"unit_amount": _to_minor_units_for_currency(rate * quantity, currency),
+				},
+				"quantity": 1,
+			}
+		],
+		success_url=success_url,
+		cancel_url=cancel_url,
+		metadata={
+			"agency": agency_doc.name,
+			"intent": "addon_purchase",
+			"addon": addon_doc.name,
+			"quantity": str(quantity),
+		},
+	)
+
+	return {"url": session.url, "session_id": session.id}
+
+
+@frappe.whitelist(methods=["POST"])
+def activate_addon(
+	agency_id: str | None = None,
+	addon: str | None = None,
+	quantity: float = 1,
+) -> dict[str, Any]:
+	"""Instantly activate an addon that does NOT require upfront payment."""
+	_require_billing_enabled()
+	if not addon:
+		frappe.throw(_("Addon is required."))
+	if not frappe.db.exists("Billing Addon", addon):
+		frappe.throw(_("Billing addon not found."), frappe.DoesNotExistError)
+
+	addon_doc = frappe.get_doc("Billing Addon", addon)
+	if not cint(addon_doc.active):
+		frappe.throw(_("This addon is not currently available."))
+	if cint(getattr(addon_doc, "requires_upfront_payment", 0)):
+		frappe.throw(_("This addon requires payment before activation. Use the purchase flow."))
+
+	_context, agency_doc = _require_agency_access(agency_id=agency_id, require_billing=True)
+
+	# Check if already enabled
+	for row in agency_doc.billing_addons or []:
+		if row.addon == addon and cint(row.enabled):
+			frappe.throw(_("This addon is already active for your agency."))
+
+	quantity = max(flt(quantity or 1), 1)
+
+	# Add or update the child table row
+	existing_row = None
+	for row in agency_doc.billing_addons or []:
+		if row.addon == addon:
+			existing_row = row
+			break
+
+	if existing_row:
+		existing_row.enabled = 1
+		existing_row.quantity = quantity
+	else:
+		agency_doc.append("billing_addons", {
+			"addon": addon,
+			"quantity": quantity,
+			"enabled": 1,
+		})
+
+	agency_doc.flags.ignore_permissions = True
+	agency_doc.save()
+
+	_create_agency_audit_comment(
+		agency_doc.name,
+		_("Addon '{0}' activated by {1}.").format(addon_doc.addon_name, frappe.session.user),
+	)
+
+	return {
+		"ok": True,
+		"addon": addon,
+		"addon_name": addon_doc.addon_name,
+		"agency": _serialize_agency(agency_doc),
+	}
+
+
+@frappe.whitelist(methods=["POST"])
+def deactivate_addon(
+	agency_id: str | None = None,
+	addon: str | None = None,
+) -> dict[str, Any]:
+	"""Disable an active addon. Accruals will stop from the next day."""
+	_require_billing_enabled()
+	if not addon:
+		frappe.throw(_("Addon is required."))
+
+	_context, agency_doc = _require_agency_access(agency_id=agency_id, require_billing=True)
+
+	found = False
+	for row in agency_doc.billing_addons or []:
+		if row.addon == addon:
+			row.enabled = 0
+			found = True
+			break
+
+	if not found:
+		frappe.throw(_("This addon is not configured for your agency."))
+
+	agency_doc.flags.ignore_permissions = True
+	agency_doc.save()
+
+	addon_name = addon
+	if frappe.db.exists("Billing Addon", addon):
+		addon_name = frappe.db.get_value("Billing Addon", addon, "addon_name") or addon
+
+	_create_agency_audit_comment(
+		agency_doc.name,
+		_("Addon '{0}' deactivated by {1}.").format(addon_name, frappe.session.user),
+	)
+
+	return {
+		"ok": True,
+		"addon": addon,
+		"addon_name": addon_name,
+		"agency": _serialize_agency(agency_doc),
+	}
+
+
+@frappe.whitelist(methods=["POST"])
+def complete_addon_purchase(
+	session_id: str | None = None,
+	agency_id: str | None = None,
+) -> dict[str, Any]:
+	"""After Stripe Checkout redirect, verify payment and activate the addon."""
+	_require_billing_enabled()
+	if not session_id:
+		frappe.throw(_("Session ID is required."))
+	_context, agency_doc = _require_agency_access(agency_id=agency_id, require_billing=True)
+
+	if not _stripe_enabled():
+		frappe.throw(_("Stripe is not configured."))
+
+	stripe, _settings = _get_stripe_sdk()
+	session = stripe.checkout.Session.retrieve(session_id)
+
+	meta = getattr(session, "metadata", None) or {}
+	if not isinstance(meta, dict):
+		meta = dict(meta) if meta else {}
+
+	if meta.get("agency") != agency_doc.name:
+		frappe.throw(_("Invalid or expired checkout session."), frappe.PermissionError)
+	if meta.get("intent") != "addon_purchase":
+		frappe.throw(_("This session is not for an addon purchase."))
+	if getattr(session, "payment_status", None) != "paid":
+		frappe.throw(_("Payment has not been completed. Please try again."))
+
+	addon_name = meta.get("addon")
+	quantity = flt(meta.get("quantity") or 1)
+
+	if not addon_name or not frappe.db.exists("Billing Addon", addon_name):
+		frappe.throw(_("Addon from checkout session not found."))
+
+	addon_doc = frappe.get_doc("Billing Addon", addon_name)
+
+	# Enable addon on agency
+	agency_doc = frappe.get_doc("Agency", agency_doc.name)
+	existing_row = None
+	for row in agency_doc.billing_addons or []:
+		if row.addon == addon_name:
+			existing_row = row
+			break
+
+	if existing_row:
+		existing_row.enabled = 1
+		existing_row.quantity = quantity
+	else:
+		agency_doc.append("billing_addons", {
+			"addon": addon_name,
+			"quantity": quantity,
+			"enabled": 1,
+		})
+
+	agency_doc.flags.ignore_permissions = True
+	agency_doc.save()
+
+	# Create a paid accrual as proof of purchase
+	effective_date = str(getdate(today()))
+	period_start, period_end = _get_period_bounds()
+	accrual_key = f"addon_purchase::{agency_doc.name}::{addon_name}::{session_id}"
+	_ensure_accrual({
+		"agency": agency_doc.name,
+		"posting_date": effective_date,
+		"billing_period_start": period_start,
+		"billing_period_end": period_end,
+		"entry_type": "Addon",
+		"addon": addon_name,
+		"quantity": quantity,
+		"rate": flt(addon_doc.rate),
+		"currency": addon_doc.currency or agency_doc.billing_currency or _get_default_currency(agency_doc),
+		"description": f"Upfront purchase: {addon_doc.addon_name}",
+		"status": "Paid",
+		"accrual_key": accrual_key,
+		"external_reference": session_id,
+	})
+
+	_create_agency_audit_comment(
+		agency_doc.name,
+		_("Addon '{0}' purchased and activated by {1} via Stripe Checkout.").format(
+			addon_doc.addon_name, frappe.session.user
+		),
+	)
+
+	return {
+		"ok": True,
+		"addon": addon_name,
+		"addon_name": addon_doc.addon_name,
+		"agency": _serialize_agency(agency_doc),
+	}
+
+
 def _mark_invoice_paid(invoice_name: str, stripe_status: str | None = None, payment_intent_id: str | None = None):
 	if not frappe.db.exists("Agency Billing Invoice", invoice_name):
 		return
@@ -2585,7 +2903,48 @@ def process_stripe_webhook_event(webhook_event_name: str):
 			stripe, _settings = _get_stripe_sdk()
 			setup_intent_id = data_object.get("setup_intent")
 			intent = (data_object.get("metadata") or {}).get("intent")
-			if setup_intent_id:
+
+			if intent == "addon_purchase":
+				# Addon purchase via Stripe Checkout — activate the addon
+				addon_name = (data_object.get("metadata") or {}).get("addon")
+				quantity = flt((data_object.get("metadata") or {}).get("quantity") or 1)
+				if addon_name and frappe.db.exists("Billing Addon", addon_name):
+					existing_row = None
+					for row in agency_doc.billing_addons or []:
+						if row.addon == addon_name:
+							existing_row = row
+							break
+					if existing_row:
+						existing_row.enabled = 1
+						existing_row.quantity = quantity
+					else:
+						agency_doc.append("billing_addons", {
+							"addon": addon_name,
+							"quantity": quantity,
+							"enabled": 1,
+						})
+					# Create paid accrual
+					effective_date = str(getdate(today()))
+					period_start, period_end = _get_period_bounds()
+					session_id = data_object.get("id") or ""
+					accrual_key = f"addon_purchase_wh::{agency_doc.name}::{addon_name}::{session_id}"
+					addon_doc = frappe.get_doc("Billing Addon", addon_name)
+					_ensure_accrual({
+						"agency": agency_doc.name,
+						"posting_date": effective_date,
+						"billing_period_start": period_start,
+						"billing_period_end": period_end,
+						"entry_type": "Addon",
+						"addon": addon_name,
+						"quantity": quantity,
+						"rate": flt(addon_doc.rate),
+						"currency": addon_doc.currency or agency_doc.billing_currency or _get_default_currency(agency_doc),
+						"description": f"Upfront purchase (webhook): {addon_doc.addon_name}",
+						"status": "Paid",
+						"accrual_key": accrual_key,
+						"external_reference": session_id,
+					})
+			elif setup_intent_id:
 				setup_intent = stripe.SetupIntent.retrieve(setup_intent_id, expand=["payment_method"])
 				payment_method = setup_intent.get("payment_method")
 				if isinstance(payment_method, str):

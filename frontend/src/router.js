@@ -168,6 +168,11 @@ const routes = [
     component: () => import('@/pages/BillingActivation.vue'),
   },
   {
+    path: '/addons',
+    name: 'Addon Marketplace',
+    component: () => import('@/pages/AddonMarketplace.vue'),
+  },
+  {
     path: '/:invalidpath',
     name: 'Invalid Page',
     component: () => import('@/pages/InvalidPage.vue'),

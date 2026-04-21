@@ -31,6 +31,12 @@
                 variant="subtle"
                 :theme="addon.active ? 'green' : 'gray'"
               />
+              <Badge
+                v-if="addon.requires_upfront_payment"
+                :label="__('Upfront Payment')"
+                variant="subtle"
+                theme="orange"
+              />
             </div>
             <p class="mt-2 text-p-sm text-ink-gray-5">
               {{ addon.pricing_model }} · {{ addon.rate }} {{ addon.currency }}
@@ -110,6 +116,12 @@
               {{ __('Active') }}
             </label>
           </div>
+          <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
+            <label class="flex items-center gap-2 rounded border border-outline-gray-2 px-3 py-2 text-p-sm text-ink-gray-6">
+              <input v-model="form.requires_upfront_payment" type="checkbox" class="h-4 w-4 rounded accent-orange-500" />
+              {{ __('Requires Upfront Payment') }}
+            </label>
+          </div>
           <div class="flex flex-col gap-1.5">
             <label class="text-p-sm font-medium text-ink-gray-7">{{ __('Description') }}</label>
             <textarea v-model="form.description" rows="3" :class="inputClass"></textarea>
@@ -150,6 +162,7 @@ const form = reactive({
   rate: '',
   unit_label: '',
   active: true,
+  requires_upfront_payment: false,
   sort_order: 0,
   description: '',
 })
@@ -174,6 +187,7 @@ function resetForm() {
     rate: '',
     unit_label: '',
     active: true,
+    requires_upfront_payment: false,
     sort_order: 0,
     description: '',
   })
@@ -194,6 +208,7 @@ function openEditDialog(addon) {
     rate: addon.rate ?? '',
     unit_label: addon.unit_label || '',
     active: Boolean(addon.active),
+    requires_upfront_payment: Boolean(addon.requires_upfront_payment),
     sort_order: addon.sort_order ?? 0,
     description: addon.description || '',
   })
@@ -212,6 +227,7 @@ async function saveAddon() {
         rate: Number(form.rate || 0),
         unit_label: form.unit_label,
         active: form.active ? 1 : 0,
+        requires_upfront_payment: form.requires_upfront_payment ? 1 : 0,
         sort_order: Number(form.sort_order || 0),
         description: form.description,
       }),

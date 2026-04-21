@@ -167,74 +167,22 @@
         v-if="management.data.context?.can_manage_billing"
         class="rounded-lg border border-outline-gray-2 bg-surface-white p-5"
       >
-        <div class="mb-4">
-          <h3 class="text-p-base font-semibold text-ink-gray-8">
-            {{ __('Enabled Addons') }}
-          </h3>
-          <p class="mt-1 text-p-sm text-ink-gray-5">
-            {{ __('Choose which extra services should be billed to this agency.') }}
-          </p>
-        </div>
-
-        <div v-if="addonRows.length" class="grid grid-cols-1 gap-3 xl:grid-cols-2">
-          <div
-            v-for="addon in addonRows"
-            :key="addon.addon"
-            class="rounded-lg border border-outline-gray-2 p-4"
-            :class="addon.enabled ? 'bg-surface-blue-1 border-outline-blue-1' : 'bg-surface-gray-1'"
-          >
-            <div class="flex items-start justify-between gap-3">
-              <div>
-                <p class="text-p-base font-medium text-ink-gray-8">{{ addon.addon_name }}</p>
-                <p class="mt-1 text-p-sm text-ink-gray-5">
-                  <template v-if="addonHasCatalogRate(addon)">
-                    {{ addon.pricing_model }} · {{ addon.effective_rate }} {{ addon.currency }}
-                  </template>
-                  <template v-else>
-                    {{ addon.pricing_model }} ·
-                    {{
-                      __(
-                        'Set a positive catalog rate on Billing Addon — accruals are skipped while the rate is zero.',
-                      )
-                    }}
-                  </template>
-                </p>
-                <p v-if="addon.unit_label" class="text-p-xs text-ink-gray-4">
-                  {{ __('Unit: {0}', [addon.unit_label]) }}
-                </p>
-              </div>
-              <label
-                class="flex items-center gap-2 text-p-sm text-ink-gray-6"
-                :class="{ 'opacity-60': !addonHasCatalogRate(addon) && !addon.enabled }"
-              >
-                <input
-                  v-model="addon.enabled"
-                  type="checkbox"
-                  class="h-4 w-4 rounded accent-blue-600"
-                  :disabled="!addonHasCatalogRate(addon) && !addon.enabled"
-                />
-                {{ __('Enabled') }}
-              </label>
-            </div>
-
-            <div v-if="addon.enabled" class="mt-4 grid grid-cols-1 gap-3 md:grid-cols-2">
-              <div class="flex flex-col gap-1.5">
-                <label class="text-p-xs font-medium uppercase tracking-wide text-ink-gray-5">{{ __('Quantity') }}</label>
-                <input v-model.number="addon.quantity" type="number" min="0" step="1" :class="inputClass" />
-              </div>
-              <div v-if="canEditAddonCustomRate" class="flex flex-col gap-1.5">
-                <label class="text-p-xs font-medium uppercase tracking-wide text-ink-gray-5">{{ __('Custom Rate') }}</label>
-                <input v-model="addon.custom_rate" type="number" min="0" step="0.01" :class="inputClass" />
-              </div>
-              <p v-else class="md:col-span-2 text-p-xs text-ink-gray-5">
-                {{ __('Rates use the billing catalog. Contact CRM support to change negotiated rates.') }}
-              </p>
-            </div>
+        <div class="flex items-center justify-between">
+          <div>
+            <h3 class="text-p-base font-semibold text-ink-gray-8">
+              {{ __('Add-ons') }}
+            </h3>
+            <p class="mt-1 text-p-sm text-ink-gray-5">
+              {{ __('Browse and manage billing add-ons for your agency.') }}
+            </p>
           </div>
-        </div>
-
-        <div v-else class="rounded-md bg-surface-gray-1 px-4 py-3 text-p-sm text-ink-gray-5">
-          {{ __('No billing addons have been configured yet.') }}
+          <router-link
+            to="/addons"
+            class="inline-flex items-center gap-1.5 rounded-md border border-outline-gray-2 px-3 py-2 text-p-sm font-medium text-ink-gray-7 transition hover:border-blue-400 hover:text-blue-600"
+          >
+            {{ __('Manage Add-ons') }}
+            <FeatherIcon name="arrow-right" class="h-3.5 w-3.5" />
+          </router-link>
         </div>
       </section>
 
@@ -326,6 +274,7 @@ import {
   Button,
   Badge,
   ErrorMessage,
+  FeatherIcon,
   LoadingIndicator,
   createResource,
   call,
