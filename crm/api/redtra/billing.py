@@ -2681,25 +2681,47 @@ def complete_addon_purchase(
 	agency_doc.flags.ignore_permissions = True
 	agency_doc.save()
 
-	# Create a paid accrual as proof of purchase
+	# Create a paid invoice with accrual as proof of purchase
 	effective_date = str(getdate(today()))
-	period_start, period_end = _get_period_bounds()
+	total_amount = flt(addon_doc.rate) * quantity
 	accrual_key = f"addon_purchase::{agency_doc.name}::{addon_name}::{session_id}"
-	_ensure_accrual({
+
+	# 1. Create Accrual (temporarily Open to link to invoice)
+	accrual_doc = _ensure_accrual({
 		"agency": agency_doc.name,
 		"posting_date": effective_date,
-		"billing_period_start": period_start,
-		"billing_period_end": period_end,
+		"billing_period_start": effective_date,
+		"billing_period_end": effective_date,
 		"entry_type": "Addon",
 		"addon": addon_name,
 		"quantity": quantity,
 		"rate": flt(addon_doc.rate),
 		"currency": addon_doc.currency or agency_doc.billing_currency or _get_default_currency(agency_doc),
 		"description": f"Upfront purchase: {addon_doc.addon_name}",
-		"status": "Paid",
+		"status": "Open",
 		"accrual_key": accrual_key,
 		"external_reference": session_id,
 	})
+
+	# 2. Create Invoice
+	invoice_doc = _create_upfront_addon_invoice(
+		agency_doc=agency_doc,
+		effective_date=effective_date,
+		delta={
+			"addon": addon_name,
+			"currency": accrual_doc.currency,
+			"amount_delta": total_amount,
+			"description": accrual_doc.description,
+		},
+		accrual_doc=accrual_doc
+	)
+
+	# 3. Mark Invoice as Paid (this also marks the accrual as Paid)
+	_mark_invoice_paid(
+		invoice_doc.name,
+		stripe_status=getattr(session, "status", "paid"),
+		payment_intent_id=getattr(session, "payment_intent", None)
+	)
 
 	_create_agency_audit_comment(
 		agency_doc.name,
@@ -2923,27 +2945,46 @@ def process_stripe_webhook_event(webhook_event_name: str):
 							"quantity": quantity,
 							"enabled": 1,
 						})
-					# Create paid accrual
+					# Create paid invoice and accrual
 					effective_date = str(getdate(today()))
-					period_start, period_end = _get_period_bounds()
 					session_id = data_object.get("id") or ""
 					accrual_key = f"addon_purchase_wh::{agency_doc.name}::{addon_name}::{session_id}"
 					addon_doc = frappe.get_doc("Billing Addon", addon_name)
-					_ensure_accrual({
+					total_amount = flt(addon_doc.rate) * quantity
+
+					accrual_doc = _ensure_accrual({
 						"agency": agency_doc.name,
 						"posting_date": effective_date,
-						"billing_period_start": period_start,
-						"billing_period_end": period_end,
+						"billing_period_start": effective_date,
+						"billing_period_end": effective_date,
 						"entry_type": "Addon",
 						"addon": addon_name,
 						"quantity": quantity,
 						"rate": flt(addon_doc.rate),
 						"currency": addon_doc.currency or agency_doc.billing_currency or _get_default_currency(agency_doc),
 						"description": f"Upfront purchase (webhook): {addon_doc.addon_name}",
-						"status": "Paid",
+						"status": "Open",
 						"accrual_key": accrual_key,
 						"external_reference": session_id,
 					})
+
+					invoice_doc = _create_upfront_addon_invoice(
+						agency_doc=agency_doc,
+						effective_date=effective_date,
+						delta={
+							"addon": addon_name,
+							"currency": accrual_doc.currency,
+							"amount_delta": total_amount,
+							"description": accrual_doc.description,
+						},
+						accrual_doc=accrual_doc
+					)
+
+					_mark_invoice_paid(
+						invoice_doc.name,
+						stripe_status=data_object.get("status"),
+						payment_intent_id=data_object.get("payment_intent")
+					)
 			elif setup_intent_id:
 				setup_intent = stripe.SetupIntent.retrieve(setup_intent_id, expand=["payment_method"])
 				payment_method = setup_intent.get("payment_method")
