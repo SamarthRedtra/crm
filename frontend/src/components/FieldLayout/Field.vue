@@ -45,6 +45,7 @@
       </div>
       <ImageUploader
         :image_url="data[field.fieldname]"
+        :validateFile="validateIsImageFile"
         @upload="(url) => fieldChange(url, field)"
         @remove="() => fieldChange('', field)"
       />

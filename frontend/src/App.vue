@@ -11,7 +11,16 @@
 import { Dialogs } from '@/utils/dialogs'
 import { sessionStore as session } from '@/stores/session'
 import { FrappeUIProvider, setConfig } from 'frappe-ui'
-import { computed, defineAsyncComponent } from 'vue'
+import { usePropertySettings } from '@/stores/propertySettings'
+import { computed, defineAsyncComponent, onMounted } from 'vue'
+
+const { reload: reloadPropertySettings } = usePropertySettings()
+
+onMounted(() => {
+  if (session().isLoggedIn) {
+    reloadPropertySettings()
+  }
+})
 
 const MobileLayout = defineAsyncComponent(
   () => import('./components/Layouts/MobileLayout.vue'),

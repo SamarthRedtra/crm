@@ -1,5 +1,9 @@
 import { sessionStore } from '@/stores/session'
 import { agentStore } from '@/stores/agent'
+import { usePropertySettings } from '@/stores/propertySettings'
+
+const { fieldConfigs } = usePropertySettings()
+const session = sessionStore()
 
 const PROPERTY_FIELD_GROUPS = {
   sidebar: [
@@ -144,8 +148,8 @@ const PROPERTY_FIELD_GROUPS = {
           name: 'basics_section',
           label: 'Basic Information',
           columns: [
-            ['title', 'agent', 'developer', 'status', 'property_category'],
-            ['listing_type', 'property_type', 'completion_status', 'rent_type', 'property_code'],
+            ['title', 'agent', 'developer', 'status', 'property_category', 'trakheesi_permit_number'],
+            ['listing_type', 'property_type', 'completion_status', 'rent_type', 'property_code', 'trakheesi_qr_code'],
           ],
         },
         {
@@ -168,6 +172,17 @@ const PROPERTY_FIELD_GROUPS = {
           name: 'content_section',
           label: 'Content',
           columns: [['description']],
+        },
+      ],
+    },
+    {
+      name: 'media_tab',
+      label: 'Media',
+      sections: [
+        {
+          name: 'media_section',
+          label: 'Media',
+          columns: [['primary_image', 'gallery']],
         },
       ],
     },
@@ -264,6 +279,15 @@ function getField(fieldMap, fieldname, overrides = {}) {
   }
 
   field = clone(field)
+
+  // Apply backend field configs
+  const config = fieldConfigs.value?.[fieldname]
+  if (config) {
+    if (config.label) overrides.label = config.label
+    if (config.is_mandatory) overrides.reqd = 1
+    if (config.is_hidden) overrides.hidden = 1
+    if (config.is_read_only) overrides.read_only = 1
+  }
 
   if (field.fieldtype === 'Select') {
     field.options = normalizeSelectOptions(overrides.options || field.options, field)
@@ -386,13 +410,18 @@ export function buildPropertyDataTabs(metaFields, doc = {}) {
             }
             return true
           }).map((fieldname) => {
-            if (fieldname !== 'property_type') {
+            if (fieldname === 'property_type') {
+              fieldMap.property_type = getField(fieldMap, 'property_type', {
+                options: getPropertyTypeOptions(doc.property_category),
+              })
               return fieldname
             }
 
-            fieldMap.property_type = getField(fieldMap, 'property_type', {
-              options: getPropertyTypeOptions(doc.property_category),
-            })
+            if (['status', 'is_sold', 'is_rented'].includes(fieldname)) {
+              fieldMap[fieldname] = getField(fieldMap, fieldname, {
+                read_only: 1,
+              })
+            }
             return fieldname
           }),
         ),
@@ -422,6 +451,14 @@ export function buildPropertyQuickEntryTabs(metaFields, doc = {}) {
     fieldMap.property_code.description = 'Auto-generated after creation'
   }
 
+  if (fieldMap.trakheesi_permit_number) {
+    fieldMap.trakheesi_permit_number.reqd = 1
+  }
+
+  if (fieldMap.trakheesi_qr_code) {
+    fieldMap.trakheesi_qr_code.reqd = 1
+  }
+
   return PROPERTY_FIELD_GROUPS.quickEntry.map((tab) => ({
     name: tab.name,
     label: tab.label,
@@ -430,17 +467,38 @@ export function buildPropertyQuickEntryTabs(metaFields, doc = {}) {
 }
 
 export function validatePropertyDoc(doc) {
+  // Hardcoded validations...
   if (!doc.title) {
     return 'Title is mandatory'
   }
 
-  // C-13: Enforce title length between 10 and 200 characters
-  const titleLen = doc.title.trim().length
-  if (titleLen < 10) {
-    return 'Title must be at least 10 characters'
+  // Dynamic validations from backend
+  for (const fieldname in fieldConfigs.value) {
+    const config = fieldConfigs.value[fieldname]
+    const value = doc[fieldname]
+
+    if (config.is_mandatory && (!value || value === '')) {
+      return `${config.label || fieldname} is mandatory`
+    }
+
+    if (typeof value === 'string' && (config.min_words || config.max_words)) {
+      const words = value.trim().split(/\s+/).filter(Boolean).length
+      if (config.min_words && words < config.min_words) {
+        return `${config.label || fieldname} must be at least ${config.min_words} words`
+      }
+      if (config.max_words && words > config.max_words) {
+        return `${config.label || fieldname} must not exceed ${config.max_words} words`
+      }
+    }
   }
-  if (titleLen > 200) {
-    return 'Title must not exceed 200 characters'
+
+  // Enforce title words if not overridden by backend or in addition to
+  const titleWords = doc.title.trim().split(/\s+/).filter(Boolean)
+  if (titleWords.length < 50) {
+    return 'Title must be at least 50 words'
+  }
+  if (titleWords.length > 200) {
+    return 'Title must not exceed 200 words'
   }
 
   // C-07: Trakheesi fields mandatory — admin (session.user === 'Administrator') can bypass
@@ -449,14 +507,13 @@ export function validatePropertyDoc(doc) {
   const { agentResource } = agentStore()
   const isAgent = !!(agentResource.data && agentResource.data.name)
 
-  if (!isAdmin) {
-    if (!doc.trakheesi_permit_number) {
-      return 'Trakheesi Permit Number is mandatory'
-    }
+  // Force Trakheesi fields mandatory in Vue CRM
+  if (!doc.trakheesi_permit_number) {
+    return 'Trakheesi Permit Number is mandatory'
+  }
 
-    if (!doc.trakheesi_qr_code) {
-      return 'Trakheesi QR Code is mandatory'
-    }
+  if (!doc.trakheesi_qr_code) {
+    return 'Trakheesi QR Code is mandatory'
   }
 
   if (doc.property_category) {
@@ -482,17 +539,35 @@ export function validatePropertyDoc(doc) {
     return 'Currency is mandatory'
   }
 
+  if (doc.bedrooms !== undefined && doc.bedrooms !== null && doc.bedrooms !== '') {
+    if (Number(doc.bedrooms) < 0) {
+      return 'Bedrooms must be greater than or equal to zero'
+    }
+  }
+
+  if (doc.bathrooms !== undefined && doc.bathrooms !== null && doc.bathrooms !== '') {
+    if (Number(doc.bathrooms) < 0) {
+      return 'Bathrooms must be greater than or equal to zero'
+    }
+  }
+
+  if (doc.area_sqft !== undefined && doc.area_sqft !== null && doc.area_sqft !== '') {
+    if (Number(doc.area_sqft) < 0) {
+      return 'Area must be greater than or equal to zero'
+    }
+  }
+
   return null
 }
 
 export function normalizePropertyDoc(doc) {
   if (!doc) return
 
-  if (doc.listing_type === 'Buy') {
+  if (doc.listing_type === 'Buy' && doc.rent_type) {
     doc.rent_type = ''
   }
 
-  if (!doc.is_featured) {
+  if (!doc.is_featured && doc.featured_until) {
     doc.featured_until = ''
   }
 

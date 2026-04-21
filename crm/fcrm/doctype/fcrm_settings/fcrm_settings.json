@@ -23,7 +23,9 @@
   "dropdown_items_tab",
   "dropdown_items",
   "agent_settings_tab",
-  "mandatory_kyc_documents"
+  "mandatory_kyc_documents",
+  "property_settings_tab",
+  "field_configs"
  ],
  "fields": [
   {
@@ -134,6 +136,17 @@
    "fieldname": "mandatory_kyc_documents",
    "fieldtype": "Data",
    "label": "Mandatory KYC Document Types"
+  },
+  {
+   "fieldname": "property_settings_tab",
+   "fieldtype": "Tab Break",
+   "label": "Property Settings"
+  },
+  {
+   "fieldname": "field_configs",
+   "fieldtype": "Table",
+   "label": "Field Level Configuration",
+   "options": "Property Field Config"
   }
  ],
  "index_web_pages_for_search": 1,

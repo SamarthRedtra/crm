@@ -80,15 +80,30 @@ watch(
   (newValue, oldValue) => {
     if (!oldValue) return
     if (newValue && oldValue) {
-      const isDirty =
-        JSON.stringify(newValue) !== JSON.stringify(document.originalDoc)
-      document.isDirty = isDirty
+      // Use frappe-ui's internal dirty tracking if available, 
+      // but keep this for custom field normalization tracking
+      const isDirty = JSON.stringify(newValue) !== JSON.stringify(document.originalDoc)
+      
+      // Only set if it actually changed to avoid redundant re-renders
+      if (document.isDirty !== isDirty) {
+        document.isDirty = isDirty
+      }
+      
       if (isDirty) {
         document.save.loading = false
       }
     }
   },
   { deep: true },
+)
+
+watch(
+  () => document.save.success,
+  (success) => {
+    if (success) {
+      document.isDirty = false
+    }
+  }
 )
 
 function saveChanges() {

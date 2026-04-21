@@ -107,11 +107,11 @@ import { ref, computed } from 'vue'
 const props = defineProps({
   doctype: {
     type: String,
-    required: true,
+    required: false,
   },
   docname: {
     type: String,
-    required: true,
+    required: false,
   },
   options: {
     type: Object,
@@ -121,7 +121,7 @@ const props = defineProps({
   },
 })
 
-const emit = defineEmits(['after'])
+const emit = defineEmits(['after', 'success'])
 
 const show = defineModel()
 
@@ -206,7 +206,8 @@ function attachFile(file, i) {
 
   uploader.value
     .upload(file, args || {})
-    .then(() => {
+    .then((file_doc) => {
+      emit('success', file_doc)
       if (i === files.value.length - 1) {
         files.value = []
         show.value = false

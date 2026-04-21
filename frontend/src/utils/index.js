@@ -461,11 +461,29 @@ export function isImage(extention) {
   )
 }
 
-export function validateIsImageFile(file) {
+export async function validateIsImageFile(file) {
   const extn = file.name.split('.').pop().toLowerCase()
   if (!isImage(extn)) {
     return __('Only image files are allowed')
   }
+
+  // Dimension check: minimum 800x600
+  return new Promise((resolve) => {
+    const img = new Image()
+    img.src = URL.createObjectURL(file)
+    img.onload = () => {
+      URL.revokeObjectURL(img.src)
+      if (img.width < 800 || img.height < 600) {
+        resolve(__('Image must be at least 800x600 pixels and high-quality.'))
+      } else {
+        resolve(null)
+      }
+    }
+    img.onerror = () => {
+      URL.revokeObjectURL(img.src)
+      resolve(__('Invalid image file'))
+    }
+  })
 }
 
 export function getRandom(len = 4) {

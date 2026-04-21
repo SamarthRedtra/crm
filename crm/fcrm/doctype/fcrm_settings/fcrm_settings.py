@@ -228,3 +228,21 @@ def get_exchange_rate(from_currency, to_currency, date=None):
 			"Failed to fetch exchange rate from {0} to {1} on {2}. Please check your internet connection or try again later."
 		).format(from_currency, to_currency, date)
 	)
+
+
+@frappe.whitelist()
+def get_field_configs():
+	settings = frappe.get_single("FCRM Settings")
+	configs = {}
+	if hasattr(settings, "field_configs"):
+		for row in settings.field_configs:
+			configs[row.fieldname] = {
+				"fieldname": row.fieldname,
+				"label": row.label,
+				"is_mandatory": row.is_mandatory,
+				"is_hidden": row.is_hidden,
+				"is_read_only": row.is_read_only,
+				"min_words": row.min_words,
+				"max_words": row.max_words,
+			}
+	return configs

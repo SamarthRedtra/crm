@@ -39,6 +39,7 @@ const prop = defineProps({
     type: String,
     default: 'image/*',
   },
+  validateFile: Function,
 })
 const emit = defineEmits(['upload', 'remove'])
 </script>

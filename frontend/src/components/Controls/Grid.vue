@@ -6,12 +6,13 @@
 
     <div
       v-if="fields?.length"
-      class="rounded border border-outline-gray-modals"
+      :class="isGalleryView ? 'p-4 bg-white' : ''"
     >
-      <!-- Header -->
-      <div
-        class="grid-header flex items-center rounded-t-[7px] bg-surface-gray-2 text-ink-gray-5 truncate"
-      >
+      <div v-if="!isGalleryView">
+        <!-- Header -->
+        <div
+          class="grid-header flex items-center rounded-t-[7px] bg-surface-gray-2 text-ink-gray-5 truncate"
+        >
         <div
           class="inline-flex items-center justify-center border-r border-outline-gray-2 h-8 p-2 w-12"
         >
@@ -334,24 +335,94 @@
           </template>
         </Draggable>
       </template>
+    </div>
+
+    <template v-else>
+        <div v-if="rows?.length" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+          <div
+            v-for="(row, index) in rows"
+            :key="row.name"
+            class="group relative aspect-square rounded-lg border border-outline-gray-modals bg-surface-gray-2 overflow-hidden flex items-center justify-center shadow-sm hover:shadow-md transition-all"
+          >
+            <img
+              v-if="row[imageField?.fieldname]"
+              :src="row[imageField.fieldname]"
+              class="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
+            />
+            <div v-else class="text-ink-gray-3 flex flex-col items-center">
+              <FeatherIcon name="image" class="h-8 w-8 mb-1" />
+              <span class="text-[10px]">{{ __('No Image') }}</span>
+            </div>
+
+            <!-- Overlay Actions -->
+            <div class="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
+              <Button
+                variant="solid"
+                size="sm"
+                icon="edit-2"
+                class="!rounded-full h-8 w-8 p-0"
+                @click.stop="showRowList[index] = true"
+              />
+              <Button
+                variant="solid"
+                theme="red"
+                size="sm"
+                icon="trash-2"
+                class="!rounded-full h-8 w-8 p-0"
+                @click.stop="() => {
+                  selectedRows.clear();
+                  selectedRows.add(row.name);
+                  deleteRows();
+                }"
+              />
+            </div>
+            
+            <!-- Index Badge -->
+            <div class="absolute top-2 left-2 h-5 w-5 bg-white/80 backdrop-blur-sm rounded-full flex items-center justify-center text-[10px] font-bold text-ink-gray-7 shadow-sm">
+              {{ index + 1 }}
+            </div>
+
+            <!-- Edit Modal -->
+            <GridRowModal
+              v-if="showRowList[index]"
+              v-model="showRowList[index]"
+              v-model:showGridRowFieldsModal="showGridRowFieldsModal"
+              :index="index"
+              :data="row"
+              :doctype="doctype"
+              :parentDoctype="parentDoctype"
+            />
+          </div>
+        </div>
+        <div v-else class="flex flex-col items-center justify-center py-12 border-2 border-dashed border-outline-gray-2 rounded-lg bg-surface-gray-1">
+           <FeatherIcon name="image" class="h-10 w-10 text-ink-gray-3 mb-2" />
+           <p class="text-sm text-ink-gray-5">{{ __('No images in gallery') }}</p>
+        </div>
+      </template>
 
       <div
-        v-else
+        v-if="!isGalleryView && !rows?.length"
         class="flex flex-col items-center rounded p-5 text-sm text-ink-gray-5"
       >
         {{ __('No Data') }}
       </div>
     </div>
 
-    <div v-if="fields?.length" class="mt-2 flex flex-row gap-2">
-      <Button
-        v-if="showDeleteBtn"
-        :label="__('Delete')"
-        variant="solid"
-        theme="red"
-        @click="deleteRows"
-      />
+    <div class="mt-2 flex flex-row gap-2">
+      <Button v-if="showDeleteBtn" :label="__('Delete')" variant="solid" theme="red" @click="deleteRows" />
       <Button :label="__('Add Row')" @click="addRow" />
+      <Button
+        v-if="imageField"
+        :label="__('Bulk Upload Images')"
+        @click="showBulkUploadDialog = true"
+      />
+      <FilesUploader
+        v-if="showBulkUploadDialog"
+        v-model="showBulkUploadDialog"
+        :doctype="uploaderDoctype"
+        :docname="uploaderDocname"
+        @success="onBulkUpload"
+      />
     </div>
     <GridRowFieldsModal
       v-if="showGridRowFieldsModal"
@@ -371,6 +442,7 @@
 <script setup>
 import Password from '@/components/Controls/Password.vue'
 import FileAttachmentInput from '@/components/Controls/FileAttachmentInput.vue'
+import FilesUploader from '@/components/FilesUploader/FilesUploader.vue'
 import FormattedInput from '@/components/Controls/FormattedInput.vue'
 import GridFieldsEditorModal from '@/components/Controls/GridFieldsEditorModal.vue'
 import GridRowFieldsModal from '@/components/Controls/GridRowFieldsModal.vue'
@@ -392,7 +464,8 @@ import {
   DatePicker,
   Tooltip,
   dayjs,
-  Autocomplete
+  Autocomplete,
+  FeatherIcon,
 } from 'frappe-ui'
 import Draggable from 'vuedraggable'
 import { ref, reactive, computed, inject, provide } from 'vue'
@@ -445,8 +518,56 @@ const selectedRows = reactive(new Set())
 
 const showGridFieldsEditorModal = ref(false)
 const showGridRowFieldsModal = ref(false)
+const showBulkUploadDialog = ref(false)
 
 const gridSettings = computed(() => getGridSettings())
+
+const isGalleryView = computed(() => {
+  return props.doctype === 'Property Image'
+})
+
+const imageField = computed(() => allFields.value.find((f) => f.fieldtype === 'Attach Image'))
+
+const uploaderDoctype = computed(() => {
+  if (!parentDoc.value?.name || parentDoc.value.name.startsWith('new-')) return null
+  return props.parentDoctype
+})
+
+const uploaderDocname = computed(() => {
+  const name = parentDoc.value?.name
+  if (!name || name.startsWith('new-')) return null
+  return name
+})
+
+function onBulkUpload(file) {
+  if (!imageField.value) return
+  if (!Array.isArray(rows.value)) rows.value = []
+
+  const newRow = {}
+  allFields.value?.forEach((field) => {
+    if (field.fieldtype === 'Check') {
+      newRow[field.fieldname] = false
+    } else {
+      newRow[field.fieldname] = ''
+    }
+
+    if (field.default) {
+      newRow[field.fieldname] = getDefaultValue(field.default, field.fieldtype)
+    }
+  })
+
+  newRow.name = getRandom(10)
+  showRowList.value.push(false)
+  newRow['__islocal'] = true
+  newRow['idx'] = rows.value.length + 1
+  newRow['doctype'] = props.doctype
+  newRow['parentfield'] = props.parentFieldname
+  newRow['parenttype'] = props.parentDoctype
+  newRow[imageField.value.fieldname] = file.file_url
+
+  rows.value = [...(rows.value || []), newRow]
+  triggerOnRowAdd(newRow)
+}
 
 const fields = computed(() => {
   let gridViewSettings = getGridViewSettings(props.parentDoctype)
