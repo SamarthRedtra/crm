@@ -1,0 +1,121 @@
+{
+ "actions": [],
+ "allow_import": 1,
+ "allow_rename": 0,
+ "autoname": "hash",
+ "creation": "2026-03-31 00:00:00",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "agency",
+  "email",
+  "agency_role",
+  "key",
+  "invited_by",
+  "column_break_status",
+  "status",
+  "email_sent_at",
+  "accepted_at"
+ ],
+ "fields": [
+  {
+   "fieldname": "agency",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "label": "Agency",
+   "options": "Agency",
+   "reqd": 1
+  },
+  {
+   "fieldname": "email",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Email",
+   "options": "Email",
+   "reqd": 1
+  },
+  {
+   "default": "Agent",
+   "fieldname": "agency_role",
+   "fieldtype": "Select",
+   "label": "Agency Role",
+   "options": "Agent\nManager\nAdmin",
+   "reqd": 1
+  },
+  {
+   "fieldname": "key",
+   "fieldtype": "Data",
+   "label": "Key",
+   "read_only": 1
+  },
+  {
+   "fieldname": "invited_by",
+   "fieldtype": "Link",
+   "label": "Invited By",
+   "options": "User",
+   "read_only": 1
+  },
+  {
+   "fieldname": "column_break_status",
+   "fieldtype": "Column Break"
+  },
+  {
+   "default": "Pending",
+   "fieldname": "status",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "label": "Status",
+   "options": "Pending\nAccepted\nExpired",
+   "reqd": 1
+  },
+  {
+   "fieldname": "email_sent_at",
+   "fieldtype": "Datetime",
+   "label": "Email Sent At",
+   "read_only": 1
+  },
+  {
+   "fieldname": "accepted_at",
+   "fieldtype": "Datetime",
+   "label": "Accepted At",
+   "read_only": 1
+  }
+ ],
+ "index_web_pages_for_search": 0,
+ "links": [],
+ "modified": "2026-03-31 00:00:00",
+ "modified_by": "Administrator",
+ "module": "FCRM",
+ "name": "Agency Team Invitation",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Sales Manager",
+   "share": 1,
+   "write": 1
+  }
+ ],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": [],
+ "track_changes": 1
+}

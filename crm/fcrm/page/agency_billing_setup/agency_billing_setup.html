@@ -1,0 +1,54 @@
+<!-- jinja -->
+<div class="layout-main-section frappe-card p-5" style="max-width: 52rem; margin: 1rem auto;">
+	<h2 class="mb-2">Agency billing — setup checklist</h2>
+	<p class="text-muted mb-4">
+		Operators configure global billing and Stripe here; agency admins finish onboarding in the CRM portal.
+	</p>
+
+	<h4 class="mt-4 mb-2">Quick links</h4>
+	<ul class="mb-4">
+		<li><a href="{{ frappe.utils.get_url_to_form('Agency Billing Settings', 'Agency Billing Settings') }}">Agency Billing Settings</a> (currency, due days, Stripe keys)</li>
+		<li><a href="{{ frappe.utils.get_url_to_list('Agent Level') }}">Agent Level</a> (daily rates)</li>
+		<li><a href="{{ frappe.utils.get_url_to_list('Billing Addon') }}">Billing Addon</a> (catalog)</li>
+		<li><a href="{{ frappe.utils.get_url_to_list('Agency') }}">Agency</a> · <a href="{{ frappe.utils.get_url_to_list('Agent') }}">Agent</a> (team &amp; billable flags)</li>
+	</ul>
+
+	<h4 class="mb-2">1. Billing settings (Desk)</h4>
+	<ol class="mb-3 pl-4">
+		<li class="mb-2">Open <strong>Agency Billing Settings</strong>.</li>
+		<li class="mb-2">Set default currency and invoice due days.</li>
+		<li class="mb-2">Add Stripe publishable key, secret key, and webhook signing secret.</li>
+		<li class="mb-2">Choose collection method: <code>send_invoice</code> (hosted invoices) or <code>charge_automatically</code> (saved card).</li>
+	</ol>
+
+	<h4 class="mb-2">2. Stripe webhook</h4>
+	<ol class="mb-3 pl-4">
+		<li class="mb-2">Endpoint path: <code>/api/method/crm.api.redtra.billing.stripe_webhook</code> (full URL on your site).</li>
+		<li class="mb-2">Events: <code>checkout.session.completed</code>, <code>invoice.paid</code>, <code>invoice.payment_failed</code> (include <code>invoice.payment_succeeded</code> if your Stripe version sends it).</li>
+	</ol>
+
+	<h4 class="mb-2">3. Scheduler (bench)</h4>
+	<p class="mb-2">Ensure Redis and the scheduler are running, and register:</p>
+	<ul class="mb-3 pl-4">
+		<li><code>crm.api.redtra.billing.run_daily_agency_billing</code> (daily)</li>
+		<li><code>crm.api.redtra.billing.close_previous_month_agency_billing</code> (monthly)</li>
+	</ul>
+
+	<h4 class="mb-2">4. Master data</h4>
+	<ol class="mb-3 pl-4">
+		<li class="mb-2">Create <strong>Agent Level</strong> rows with daily rates.</li>
+		<li class="mb-2">Create <strong>Billing Addon</strong> rows (daily, monthly, or usage-based).</li>
+		<li class="mb-2">Link each billable <strong>Agent</strong> to an agent level; set <strong>Agency Role</strong> (Admin = billing, Manager = team).</li>
+	</ol>
+
+	<h4 class="mb-2">5. Agency admins (portal)</h4>
+	<ol class="mb-3 pl-4">
+		<li class="mb-2">Agency admin opens <code>/crm/agency-onboarding</code> on your site.</li>
+		<li class="mb-2">Complete profile and billing contact details; optional Stripe payment-method setup.</li>
+		<li class="mb-2">After onboarding, use <strong>Agency Profile</strong> and <strong>Agency Billing</strong> in CRM settings.</li>
+	</ol>
+
+	<p class="text-muted mt-4 mb-0" style="font-size: 0.9rem;">
+		Install the Stripe Python package on the bench if invoice sync fails. See <code>apps/crm/AGENCY_BILLING_SETUP.md</code> in the app repo for the same steps.
+	</p>
+</div>

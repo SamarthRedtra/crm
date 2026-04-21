@@ -6,6 +6,7 @@ from typing import Any
 import frappe
 from frappe import _
 from frappe.auth import LoginManager
+from frappe.permissions import add_user_permission
 from frappe.utils import add_months, cint, get_datetime_str, now_datetime
 from frappe.utils.password import update_password
 
@@ -41,8 +42,9 @@ def register() -> dict[str, Any]:
 
 	user.insert()
 	if is_agent:
-		utils.ensure_agent_role(user.name)
 		_create_agent_record(user.name, data, agent_id)
+		agency_role = frappe.db.get_value("Agent", {"user": user.name}, "agency_role") or "Agent"
+		utils.ensure_agency_member_crm_roles(user.name, agency_role)
 	else:
 		user.add_roles("Customer")
 		utils.ensure_customer_record(user.name, data["full_name"], email, data.get("phone"))
@@ -240,6 +242,33 @@ def _coerce_bool(value: Any) -> bool:
 	return False
 
 
+def _promote_first_admin_if_pending_agency(agent_doc: Any, agency_id: str) -> None:
+	"""If agency is awaiting ops verification and no Admin exists yet, assign Admin to this agent."""
+	try:
+		agency = frappe.get_doc("Agency", agency_id)
+	except frappe.DoesNotExistError:
+		return
+	if not hasattr(agency, "verification_status"):
+		return
+	vs = agency.verification_status or "Verified"
+	if vs not in ("Pending Verification", "Rejected"):
+		return
+	if frappe.db.exists("Agent", {"agency": agency_id, "agency_role": "Admin"}):
+		return
+	agent_doc.agency_role = "Admin"
+
+
+def _ensure_agency_user_permission(user: str, agency_id: str) -> None:
+	"""Link user to Agency via User Permission (Frappe row-level access)."""
+	if not user or not agency_id:
+		return
+	from frappe.core.doctype.user_permission.user_permission import user_permission_exists
+
+	if user_permission_exists(user, "Agency", agency_id, None):
+		return
+	add_user_permission("Agency", agency_id, user, ignore_permissions=True)
+
+
 def _create_agent_record(user: str, data: dict[str, Any], agent_id: str | None = None):
 	existing_agent_name = frappe.db.exists("Agent", {"user": user})
 	if existing_agent_name:
@@ -286,11 +315,16 @@ def _create_agent_record(user: str, data: dict[str, Any], agent_id: str | None =
 				"agency_name": agency_name,
 				"status": "Active"
 			})
+			if frappe.db.has_column("Agency", "verification_status"):
+				new_agency.verification_status = "Pending Verification"
+			if frappe.db.has_column("Agency", "onboarding_status"):
+				new_agency.onboarding_status = "Not Started"
 			new_agency.insert(ignore_permissions=True)
 			agency_doc_name = new_agency.name
 		
 		# Link to Agent
 		agent_doc.agency = agency_doc_name
+		_promote_first_admin_if_pending_agency(agent_doc, agency_doc_name)
 
 	max_daily = data.get("max_daily_appointments")
 	if max_daily is not None:
@@ -316,6 +350,9 @@ def _create_agent_record(user: str, data: dict[str, Any], agent_id: str | None =
 		agent_doc.insert(ignore_permissions=True)
 	else:
 		agent_doc.save(ignore_permissions=True)
+
+	if agent_doc.agency:
+		_ensure_agency_user_permission(user, agent_doc.agency)
 
 
 def _update_agent_details(user: str, data: dict[str, Any]):

@@ -9,6 +9,7 @@
   {
    "child": 0,
    "collapsible": 1,
+   "icon": "list",
    "indent": 0,
    "keep_closed": 0,
    "label": "Home",
@@ -138,10 +139,11 @@
    "type": "Link"
   }
  ],
- "modified": "2026-02-13 18:20:20.796604",
+ "modified": "2026-03-30 23:16:02.853721",
  "modified_by": "Administrator",
  "module": "FCRM",
  "name": "Property Management",
  "owner": "Administrator",
+ "standard": 1,
  "title": "Property Management"
 }

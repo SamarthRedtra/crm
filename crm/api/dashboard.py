@@ -3,8 +3,9 @@ import json
 import frappe
 from frappe import _
 
+from crm.api.redtra.permissions import get_property_sql_scope_for_user
 from crm.fcrm.doctype.crm_dashboard.crm_dashboard import create_default_manager_dashboard
-from crm.utils import sales_user_only
+from crm.utils import dashboard_user_only, is_agency_leadership
 
 
 @frappe.whitelist()
@@ -14,7 +15,7 @@ def reset_to_default():
 
 
 @frappe.whitelist()
-@sales_user_only
+@dashboard_user_only
 def get_dashboard(from_date="", to_date="", user=""):
 	"""
 	Get the dashboard data for the CRM dashboard.
@@ -25,7 +26,9 @@ def get_dashboard(from_date="", to_date="", user=""):
 		to_date = frappe.utils.get_last_day(to_date or frappe.utils.nowdate())
 
 	roles = frappe.get_roles(frappe.session.user)
-	is_sales_manager = "Sales Manager" in roles or "System Manager" in roles
+	is_sales_manager = (
+		"Sales Manager" in roles or "System Manager" in roles or is_agency_leadership()
+	)
 	is_sales_user = "Sales User" in roles and not is_sales_manager
 
 	if is_sales_user:
@@ -41,6 +44,63 @@ def get_dashboard(from_date="", to_date="", user=""):
 	else:
 		layout = json.loads(frappe.db.get_value("CRM Dashboard", "Manager Dashboard", "layout") or "[]")
 
+	# Layout normalization / backward-compatibility:
+	# Old layouts added `total_properties` at x=4,y=0 (overlapping
+	# `average_time_to_close_a_lead`) which breaks the grid.
+	# Current layout places it in the second-row spacer region: x=8,y=2.
+	def _to_int(v) -> int | None:
+		try:
+			if v is None:
+				return None
+			# Layout JSON sometimes stores numeric fields as strings/floats.
+			return int(float(v))
+		except Exception:
+			return None
+
+	found_total_properties = False
+	for tile in layout or []:
+		if (tile or {}).get("name") == "total_properties":
+			found_total_properties = True
+			tile_layout = (tile or {}).get("layout") or {}
+			# Only move if it looks like the old overlapping placement.
+			x = _to_int(tile_layout.get("x"))
+			y = _to_int(tile_layout.get("y"))
+			if (x == 4 and y == 0) or (y == 0):
+				tile_layout["x"] = 8
+				tile_layout["y"] = 2
+				tile_layout["w"] = 4
+				tile_layout["h"] = 3
+				tile_layout["i"] = "total_properties"
+				tile["layout"] = tile_layout
+
+			break
+
+	if not found_total_properties:
+		# Insert missing tile.
+		layout.insert(
+			1,
+			{
+				"name": "total_properties",
+				"type": "number_chart",
+				"tooltip": "Property listings in period",
+				"layout": {"x": 8, "y": 2, "w": 4, "h": 3, "i": "total_properties"},
+			},
+		)
+
+	# Ensure spacer does not cover the new tile.
+	for tile in layout or []:
+		if (tile or {}).get("name") == "spacer":
+			tile_layout = (tile or {}).get("layout") or {}
+			# Only update if it's still the old oversized spacer.
+			sp_x = _to_int(tile_layout.get("x"))
+			sp_w = _to_int(tile_layout.get("w"))
+			if sp_x == 8 and sp_w == 12:
+				tile_layout["x"] = 12
+				tile_layout["w"] = 8
+				tile_layout["i"] = "spacer"
+				tile["layout"] = tile_layout
+			break
+
 	for l in layout:
 		method_name = f"get_{l['name']}"
 		if hasattr(frappe.get_attr("crm.api.dashboard"), method_name):
@@ -53,7 +113,7 @@ def get_dashboard(from_date="", to_date="", user=""):
 
 
 @frappe.whitelist()
-@sales_user_only
+@dashboard_user_only
 def get_chart(name, type, from_date="", to_date="", user=""):
 	"""
 	Get number chart data for the dashboard.
@@ -63,7 +123,9 @@ def get_chart(name, type, from_date="", to_date="", user=""):
 		to_date = frappe.utils.get_last_day(to_date or frappe.utils.nowdate())
 
 	roles = frappe.get_roles(frappe.session.user)
-	is_sales_manager = "Sales Manager" in roles or "System Manager" in roles
+	is_sales_manager = (
+		"Sales Manager" in roles or "System Manager" in roles or is_agency_leadership()
+	)
 	is_sales_user = "Sales User" in roles and not is_sales_manager
 
 	if is_sales_user:
@@ -129,6 +191,58 @@ def get_total_leads(from_date, to_date, user=""):
 		"title": _("Total leads"),
 		"tooltip": _("Total number of leads"),
 		"value": current_month_leads,
+		"delta": delta_in_percentage,
+		"deltaSuffix": "%",
+	}
+
+
+def get_total_properties(from_date, to_date, user=""):
+	"""
+	Property listings created in the period, scoped like Property list permissions
+	(own agent vs agency-wide for Admin/Manager).
+	"""
+	del user
+	scope_sql, _params = get_property_sql_scope_for_user(frappe.session.user)
+
+	diff = frappe.utils.date_diff(to_date, from_date)
+	if diff == 0:
+		diff = 1
+
+	params = {
+		"from_date": from_date,
+		"to_date": to_date,
+		"prev_from_date": frappe.utils.add_days(from_date, -diff),
+	}
+
+	result = frappe.db.sql(
+		f"""
+		SELECT
+			COUNT(CASE
+				WHEN creation >= %(from_date)s AND creation < DATE_ADD(%(to_date)s, INTERVAL 1 DAY)
+				THEN name ELSE NULL
+			END) AS current_month,
+			COUNT(CASE
+				WHEN creation >= %(prev_from_date)s AND creation < %(from_date)s
+				THEN name ELSE NULL
+			END) AS prev_month
+		FROM `tabProperty`
+		WHERE 1=1 {scope_sql}
+		""",
+		params,
+		as_dict=1,
+	)
+
+	current_month = result[0].current_month or 0
+	prev_month = result[0].prev_month or 0
+
+	delta_in_percentage = (
+		(current_month - prev_month) / prev_month * 100 if prev_month else 0
+	)
+
+	return {
+		"title": _("Total properties"),
+		"tooltip": _("Property listings in period (scoped to your Property access)"),
+		"value": current_month,
 		"delta": delta_in_percentage,
 		"deltaSuffix": "%",
 	}

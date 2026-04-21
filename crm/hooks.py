@@ -64,6 +64,10 @@ app_include_css = "/assets/crm/css/crm_lucide_icons.css"
 
 website_route_rules = [
 	{"from_route": "/crm/<path:app_path>", "to_route": "crm"},
+	{
+		"from_route": "/property_management_setup",
+		"to_route": "property_management_setup",
+	},
 ]
 
 # Generators
@@ -121,10 +125,14 @@ before_uninstall = "crm.uninstall.before_uninstall"
 
 permission_query_conditions = {
 	"Property": "crm.api.redtra.permissions.get_property_permission_query",
+	"Agency Billing Invoice": "crm.api.redtra.permissions.get_agency_billing_invoice_permission_query",
+	"Agency Billing Accrual": "crm.api.redtra.permissions.get_agency_billing_accrual_permission_query",
 }
 
 has_permission = {
 	"Property": "crm.api.redtra.permissions.has_property_permission",
+	"Agency Billing Invoice": "crm.api.redtra.permissions.has_agency_billing_invoice_permission",
+	"Agency Billing Accrual": "crm.api.redtra.permissions.has_agency_billing_accrual_permission",
 }
 
 # DocType Class
@@ -173,26 +181,27 @@ doc_events = {
 
 scheduler_events = {
 	"daily_long": [
-		"crm.lead_syncing.background_sync.sync_leads_from_sources_daily"
+		"crm.lead_syncing.background_sync.sync_leads_from_sources_daily",
+		"crm.api.redtra.billing.run_daily_agency_billing",
+		"crm.api.redtra.billing.run_daily_agency_trial_maintenance",
 	],
 	"hourly_long": [
 		"crm.lead_syncing.background_sync.sync_leads_from_sources_hourly"
 	],
 	"monthly_long": [
-		"crm.lead_syncing.background_sync.sync_leads_from_sources_monthly"
+		"crm.lead_syncing.background_sync.sync_leads_from_sources_monthly",
+		"crm.api.redtra.billing.close_previous_month_agency_billing",
 	],
-    "cron": {
-        "*/5 * * * *": [
-            "crm.lead_syncing.background_sync.sync_leads_from_sources_5_minutes"
+	"cron": {
+		"*/5 * * * *": [
+			"crm.lead_syncing.background_sync.sync_leads_from_sources_5_minutes"
 		],
-        "*/10 * * * *": [
-			"crm.lead_syncing.background_sync.sync_leads_from_sources_10_minutes"
+		"*/10 * * * *": [
+			"crm.lead_syncing.background_sync.sync_leads_from_sources_10_minutes",
+			"crm.api.redtra.reminders.send_scheduled_reminders",
 		],
-        "*/15 * * * *": [
+		"*/15 * * * *": [
 			"crm.lead_syncing.background_sync.sync_leads_from_sources_15_minutes"
-		],
-        "*/10 * * * *": [
-			"crm.api.redtra.reminders.send_scheduled_reminders"
 		],
 		"*/20 * * * *": [
 			"crm.api.redtra.properties.expire_featured_properties"

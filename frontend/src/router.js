@@ -5,6 +5,19 @@ import { viewsStore } from '@/stores/views'
 
 const routes = [
   {
+    path: '/login',
+    name: 'CRM Login',
+    meta: { publicAuthPage: true, allowGuest: true },
+    component: () => import('@/pages/Login.vue'),
+  },
+  {
+    alias: ['/signup', '/register'],
+    path: '/register-agency',
+    name: 'Register Agency',
+    meta: { publicAuthPage: true, allowGuest: true },
+    component: () => import('@/pages/RegisterAgency.vue'),
+  },
+  {
     path: '/',
     name: 'Home',
   },
@@ -137,6 +150,24 @@ const routes = [
     component: () => import('@/pages/AgentOnboarding.vue'),
   },
   {
+    alias: ['/agency_onboarding', '/agency-onboarding'],
+    path: '/agencies/onboarding',
+    name: 'Agency Onboarding',
+    component: () => import('@/pages/AgencyOnboarding.vue'),
+  },
+  {
+    alias: ['/agency_verification', '/agency-verification'],
+    path: '/agencies/verification',
+    name: 'Agency Verification',
+    component: () => import('@/pages/AgencyVerification.vue'),
+  },
+  {
+    alias: ['/billing_activation', '/billing-activation'],
+    path: '/agencies/billing-activation',
+    name: 'Billing Activation',
+    component: () => import('@/pages/BillingActivation.vue'),
+  },
+  {
     path: '/:invalidpath',
     name: 'Invalid Page',
     component: () => import('@/pages/InvalidPage.vue'),
@@ -153,9 +184,13 @@ let router = createRouter({
 })
 
 import { agentStore } from '@/stores/agent'
+import { agencyStore } from '@/stores/agency'
+import { usersStore } from '@/stores/users'
+import { userCanAccessDashboard } from '@/utils/dashboardAccess'
 
 router.beforeEach(async (to, from, next) => {
   const { isLoggedIn } = sessionStore()
+  const isGuestAllowedRoute = Boolean(to.meta?.allowGuest)
 
   // If sid is in URL and not logged in, use set-session-from-sid to establish session
   const sidFromUrl = to.query.sid || (typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('sid'))
@@ -165,23 +200,121 @@ router.beforeEach(async (to, from, next) => {
     return
   }
 
+  if (!isLoggedIn && isGuestAllowedRoute) {
+    next()
+    return
+  }
+
   isLoggedIn && (await userResource.promise)
+
+  if (isLoggedIn && to.meta?.publicAuthPage) {
+    next({ name: 'Home' })
+    return
+  }
 
   if (isLoggedIn) {
     const { agentResource } = agentStore()
+    const {
+      contextResource,
+      needsAgencyVerification,
+      needsAgencyOnboarding,
+      needsBillingActivation,
+    } = agencyStore()
+
+    if (!contextResource.data) {
+      try {
+        await contextResource.reload()
+      } catch {
+        // Keep navigation resilient for non-agency users.
+      }
+    }
+
+    const routingName = String(to.name || '')
+    /** Gates that must remain reachable while agency/agent onboarding is in progress. */
+    const onboardingGateRoutes = new Set([
+      'Agency Onboarding',
+      'Agency Verification',
+      'Agent Onboarding',
+      'Billing Activation',
+      'Logout',
+    ])
+    const agentOnboardingBypass = new Set(['Billing Activation', 'Logout'])
+
     if (!agentResource.data) {
       await agentResource.reload()
     }
     const isUnverifiedAgent = agentResource.data && agentResource.data.name && agentResource.data.status !== 'Verified'
 
-    if (isUnverifiedAgent && to.name !== 'Agent Onboarding' && to.name !== 'Logout') {
+    // 1) Company profile + billing (Agency Onboarding) — including while ops verification is pending — before agent KYC.
+    if (needsAgencyOnboarding() && !onboardingGateRoutes.has(routingName)) {
+      next({ name: 'Agency Onboarding' })
+      return
+    }
+
+    // 2) Agency verification status page
+    if (needsAgencyVerification() && !onboardingGateRoutes.has(routingName)) {
+      next({ name: 'Agency Verification' })
+      return
+    }
+
+    if (!needsAgencyVerification() && routingName === 'Agency Verification') {
+      next({ name: 'Home' })
+      return
+    }
+
+    // 3) Agent KYC (only after agency gates above)
+    if (
+      isUnverifiedAgent &&
+      to.name !== 'Agent Onboarding' &&
+      to.name !== 'Agency Onboarding' &&
+      !agentOnboardingBypass.has(routingName)
+    ) {
       next({ name: 'Agent Onboarding' })
       return
     }
 
-    if (!isUnverifiedAgent && to.name === 'Agent Onboarding') {
+    if (!isUnverifiedAgent && to.name === 'Agent Onboarding' && !needsAgencyVerification()) {
       next({ name: 'Home' })
       return
+    }
+
+    if (
+      !needsAgencyOnboarding() &&
+      routingName === 'Agency Onboarding' &&
+      to.query.resume !== 'agency'
+    ) {
+      next({ name: 'Home' })
+      return
+    }
+
+    if (
+      !needsAgencyOnboarding() &&
+      !needsAgencyVerification() &&
+      needsBillingActivation() &&
+      routingName !== 'Billing Activation'
+    ) {
+      next({ name: 'Billing Activation' })
+      return
+    }
+
+    if (!needsBillingActivation() && routingName === 'Billing Activation') {
+      next({ name: 'Home' })
+      return
+    }
+
+    // Manager dashboard: agency Admin/Manager must match API (`dashboard_user_only`), not plain Sales User.
+    if (to.name === 'Dashboard') {
+      const { users } = usersStore()
+      await users.promise
+      if (!agentResource.data) {
+        await agentResource.reload()
+      }
+      const session = sessionStore()
+      const udoc = users.getUser(session.user)
+      if (!userCanAccessDashboard(session.user, udoc, agentResource.data)) {
+        next({ name: 'Leads' })
+        return
+      }
     }
   }
 
@@ -191,7 +324,19 @@ router.beforeEach(async (to, from, next) => {
 
     let defaultView = getDefaultView()
     if (!defaultView) {
-      next({ name: 'Dashboard' })
+      const { agentResource } = agentStore()
+      const { users } = usersStore()
+      await users.promise
+      if (!agentResource.data) {
+        await agentResource.reload()
+      }
+      const session = sessionStore()
+      const udoc = users.getUser(session.user)
+      if (userCanAccessDashboard(session.user, udoc, agentResource.data)) {
+        next({ name: 'Dashboard' })
+      } else {
+        next({ name: 'Leads' })
+      }
       return
     }
 
@@ -204,7 +349,7 @@ router.beforeEach(async (to, from, next) => {
       next({ name: route_name, params: { viewType: type } })
     }
   } else if (!isLoggedIn) {
-    window.location.href = '/login?redirect-to=/crm'
+    next({ name: 'CRM Login', query: { redirect: to.fullPath || '/dashboard' } })
   } else if (to.matched.length === 0) {
     next({ name: 'Invalid Page' })
   } else if (['Deal', 'Lead', 'Property'].includes(to.name) && !to.hash) {

@@ -1,0 +1,62 @@
+<!-- jinja -->
+<div class="layout-main-section frappe-card p-5" style="max-width: 48rem; margin: 1rem auto;">
+	<h2 class="mb-2">Property Management — step-by-step setup</h2>
+	<p class="text-muted mb-4">
+		Follow these steps once per site (or when onboarding a new team). Use the links to open each list in Desk.
+	</p>
+
+	<ol class="pm-setup-steps" style="padding-left: 1.25rem; line-height: 1.6;">
+		<li class="mb-4">
+			<strong>Areas</strong> — Define cities, communities, or zones used to classify listings.
+			<div class="mt-1">
+				<a href="{{ frappe.utils.get_url_to_list('Area') }}">Open Areas</a>
+			</div>
+		</li>
+		<li class="mb-4">
+			<strong>Developers</strong> — Add property developers or master developers you reference on listings.
+			<div class="mt-1">
+				<a href="{{ frappe.utils.get_url_to_list('Developer') }}">Open Developers</a>
+			</div>
+		</li>
+		<li class="mb-4">
+			<strong>Amenities</strong> — Maintain amenity tags (pool, gym, etc.) available when editing properties.
+			<div class="mt-1">
+				<a href="{{ frappe.utils.get_url_to_list('Amenity') }}">Open Amenities</a>
+			</div>
+		</li>
+		<li class="mb-4">
+			<strong>Agencies</strong> — Create agencies and billing profile fields as needed for your process.
+			<div class="mt-1">
+				<a href="{{ frappe.utils.get_url_to_list('Agency') }}">Open Agencies</a>
+			</div>
+		</li>
+		<li class="mb-4">
+			<strong>Agents</strong> — Create agent records, link users, set agency and verification status so they can own listings and appointments.
+			<div class="mt-1">
+				<a href="{{ frappe.utils.get_url_to_list('Agent') }}">Open Agents</a>
+			</div>
+		</li>
+		<li class="mb-4">
+			<strong>Properties</strong> — Add listings (assign agent, area, developer, status Active when ready).
+			<div class="mt-1">
+				<a href="{{ frappe.utils.get_url_to_list('Property') }}">Open Properties</a>
+			</div>
+		</li>
+		<li class="mb-4">
+			<strong>Customers</strong> — Add customer profiles used for appointments and engagement.
+			<div class="mt-1">
+				<a href="{{ frappe.utils.get_url_to_list('Customer') }}">Open Customers</a>
+			</div>
+		</li>
+		<li class="mb-4">
+			<strong>Property appointments</strong> — After the above is in place, schedule and track viewings from Desk or the mobile app.
+			<div class="mt-1">
+				<a href="{{ frappe.utils.get_url_to_list('Property Appointment') }}">Open Property Appointments</a>
+			</div>
+		</li>
+	</ol>
+
+	<p class="text-muted mt-4 mb-0" style="font-size: 0.9rem;">
+		Tip: the <strong>Property Management</strong> workspace groups these DocTypes for daily work after setup is complete.
+	</p>
+</div>

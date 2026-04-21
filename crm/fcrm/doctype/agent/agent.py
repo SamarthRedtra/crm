@@ -17,12 +17,16 @@ class Agent(Document):
 		from frappe.types import DF
 
 		agency: DF.Link | None
-		agency_role: DF.Literal["Admin", "Manager", "Agent"]
+		agency_role: DF.Literal["Admin", "Manager", "Agent"] | None
+		agent_level: DF.Link | None
 		availability_slots: DF.Table[AgentAvailabilitySlot]
 		billable: DF.Check
 		billing_end_date: DF.Date | None
 		billing_start_date: DF.Date | None
 		bio: DF.SmallText | None
+		billable: DF.Check
+		billing_end_date: DF.Date | None
+		billing_start_date: DF.Date | None
 		brn_id: DF.Data | None
 		dfd_registration_id: DF.Data
 		email: DF.Data
@@ -49,6 +53,12 @@ class Agent(Document):
 
 	def validate(self):
 		self._sync_user_details()
+		if self.is_new() and self.agency:
+			from crm.api.redtra.billing import get_default_agent_level_for_new_agent, validate_trial_agent_quota
+
+			validate_trial_agent_quota(self.agency)
+			if not self.agent_level:
+				self.agent_level = get_default_agent_level_for_new_agent()
 		self._validate_status_transition()
 		self._validate_daily_limit()
 

@@ -1,0 +1,168 @@
+{
+ "actions": [],
+ "allow_import": 1,
+ "allow_rename": 0,
+ "autoname": "field:stripe_payment_method_id",
+ "creation": "2026-03-30 00:00:00",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "agency",
+  "stripe_customer_id",
+  "stripe_payment_method_id",
+  "column_break_primary",
+  "status",
+  "is_default",
+  "type",
+  "section_break_card",
+  "brand",
+  "last4",
+  "exp_month",
+  "exp_year",
+  "section_break_timestamps",
+  "added_on",
+  "detached_on"
+ ],
+ "fields": [
+  {
+   "fieldname": "agency",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Agency",
+   "options": "Agency",
+   "reqd": 1
+  },
+  {
+   "fieldname": "stripe_customer_id",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Stripe Customer ID",
+   "reqd": 1
+  },
+  {
+   "fieldname": "stripe_payment_method_id",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Stripe Payment Method ID",
+   "reqd": 1,
+   "unique": 1
+  },
+  {
+   "fieldname": "column_break_primary",
+   "fieldtype": "Column Break"
+  },
+  {
+   "default": "Active",
+   "fieldname": "status",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "label": "Status",
+   "options": "Active\nDetached",
+   "reqd": 1
+  },
+  {
+   "default": "0",
+   "fieldname": "is_default",
+   "fieldtype": "Check",
+   "in_list_view": 1,
+   "label": "Is Default"
+  },
+  {
+   "fieldname": "type",
+   "fieldtype": "Data",
+   "label": "Type",
+   "read_only": 1
+  },
+  {
+   "fieldname": "section_break_card",
+   "fieldtype": "Section Break",
+   "label": "Card"
+  },
+  {
+   "fieldname": "brand",
+   "fieldtype": "Data",
+   "label": "Brand",
+   "read_only": 1
+  },
+  {
+   "fieldname": "last4",
+   "fieldtype": "Data",
+   "label": "Last4",
+   "read_only": 1
+  },
+  {
+   "fieldname": "exp_month",
+   "fieldtype": "Int",
+   "label": "Exp Month",
+   "read_only": 1
+  },
+  {
+   "fieldname": "exp_year",
+   "fieldtype": "Int",
+   "label": "Exp Year",
+   "read_only": 1
+  },
+  {
+   "fieldname": "section_break_timestamps",
+   "fieldtype": "Section Break",
+   "label": "Timestamps"
+  },
+  {
+   "default": "Now",
+   "fieldname": "added_on",
+   "fieldtype": "Datetime",
+   "label": "Added On",
+   "read_only": 1
+  },
+  {
+   "fieldname": "detached_on",
+   "fieldtype": "Datetime",
+   "label": "Detached On",
+   "read_only": 1
+  }
+ ],
+ "index_web_pages_for_search": 0,
+ "links": [],
+ "modified": "2026-03-30 00:00:00",
+ "modified_by": "Administrator",
+ "module": "FCRM",
+ "name": "Agency Payment Method",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Sales Manager",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "read": 1,
+   "role": "Agent",
+   "share": 1
+  }
+ ],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": [],
+ "track_changes": 1
+}
