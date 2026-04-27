@@ -13,12 +13,21 @@
 <script setup>
 import { Dialogs } from '@/utils/dialogs'
 import { sessionStore as session } from '@/stores/session'
-import { FrappeUIProvider, setConfig } from 'frappe-ui'
+import { FrappeUIProvider, setConfig, useTheme } from 'frappe-ui'
 import { usePropertySettings } from '@/stores/propertySettings'
-import { computed, defineAsyncComponent, onMounted } from 'vue'
+import { computed, defineAsyncComponent, onMounted, watch } from 'vue'
 import { useRoute } from 'vue-router'
 
 const { reload: reloadPropertySettings } = usePropertySettings()
+const { currentTheme } = useTheme()
+
+watch(
+  currentTheme,
+  (theme) => {
+    document.documentElement.classList.toggle('dark', theme === 'dark')
+  },
+  { immediate: true },
+)
 
 onMounted(() => {
   if (session().isLoggedIn) {

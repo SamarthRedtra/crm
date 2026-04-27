@@ -310,6 +310,23 @@
         "
       />
       <div class="mx-4.5 my-2.5 border-t border-outline-gray-1" />
+      <div class="flex items-center px-4.5 py-[7px] text-ink-gray-7">
+        <div class="flex items-center">
+          <Switch v-model="_event.syncWithAppointment" @update:model-value="sync" />
+          <div class="ml-2">{{ __('Sync with Appointment') }}</div>
+        </div>
+      </div>
+      <div v-if="_event.syncWithAppointment" class="flex flex-col gap-2 px-4.5 py-1">
+        <div class="flex items-center justify-between text-ink-gray-7 text-sm">
+          <div class="">{{ __('Customer Email') }}</div>
+          <TextInput v-model="_event.customerEmail" placeholder="customer@example.com" class="w-[216px]" @change="sync" />
+        </div>
+        <div class="flex items-center justify-between text-ink-gray-7 text-sm">
+          <div class="">{{ __('Property') }}</div>
+          <Link class="w-[216px]" v-model="_event.property" doctype="Property" variant="outline" @update:model-value="sync" />
+        </div>
+      </div>
+      <div class="mx-4.5 my-2.5 border-t border-outline-gray-1" />
       <div class="px-4.5 py-3">
         <div class="flex items-center gap-x-2 border rounded py-1">
           <TextEditor

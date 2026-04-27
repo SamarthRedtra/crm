@@ -31,6 +31,10 @@ def get_users():
 			user.role = "System Manager"
 		elif "Sales Manager" in user.roles:
 			user.role = "Sales Manager"
+		elif "Agency Admin" in user.roles:
+			user.role = "Agency Admin"
+		elif "Agency Manager" in user.roles:
+			user.role = "Agency Manager"
 		elif "Sales User" in user.roles:
 			user.role = "Sales User"
 		elif "Guest" in user.roles:
@@ -45,7 +49,7 @@ def get_users():
 
 	# crm users are users with role Sales User or Sales Manager
 	for user in users:
-		if "Sales User" in user.roles or "Sales Manager" in user.roles:
+		if any(role in user.roles for role in ["Sales User", "Sales Manager", "Agency Admin", "Agency Manager"]):
 			crm_users.append(user)
 
 	return users, crm_users

@@ -14,7 +14,6 @@ const PROPERTY_FIELD_GROUPS = {
       fields: [
         'title',
         'property_code',
-        'status',
         'listing_type',
         'property_category',
         'property_type',
@@ -61,7 +60,7 @@ const PROPERTY_FIELD_GROUPS = {
           name: 'details_section',
           label: 'Details',
           columns: [
-            ['title', 'developer', 'agent', 'status', 'is_sold', 'is_rented'],
+            ['title', 'developer', 'agent', 'is_sold', 'is_rented'],
             [
               'property_category',
               'listing_type',
@@ -82,8 +81,8 @@ const PROPERTY_FIELD_GROUPS = {
           name: 'off_plan_section',
           label: 'Off-Plan Details',
           columns: [
-            ['trakheesi_permit_number', 'trakheesi_qr_code', 'zone_name'],
-            ['payment_plan_table', 'project_units_table'],
+            ['trakheesi_permit_number', 'trakheesi_qr_code', 'zone_name', 'handover_quarter', 'handover_year'],
+            ['payment_plan_table', 'project_units_table', 'payment_plan_type', 'completion_percentage'],
           ],
         },
       ],
@@ -138,6 +137,17 @@ const PROPERTY_FIELD_GROUPS = {
         },
       ],
     },
+    {
+      name: 'admin_tab',
+      label: 'Admin Details',
+      sections: [
+        {
+          name: 'admin_section',
+          label: 'Quality Scoring',
+          columns: [['quality_score']],
+        },
+      ],
+    },
   ],
   quickEntry: [
     {
@@ -148,7 +158,7 @@ const PROPERTY_FIELD_GROUPS = {
           name: 'basics_section',
           label: 'Basic Information',
           columns: [
-            ['title', 'agent', 'developer', 'status', 'property_category', 'trakheesi_permit_number'],
+            ['title', 'agent', 'developer', 'property_category', 'trakheesi_permit_number'],
             ['listing_type', 'property_type', 'completion_status', 'rent_type', 'property_code', 'trakheesi_qr_code'],
           ],
         },
@@ -183,6 +193,20 @@ const PROPERTY_FIELD_GROUPS = {
           name: 'media_section',
           label: 'Media',
           columns: [['primary_image', 'gallery']],
+        },
+      ],
+    },
+    {
+      name: 'offplan_tab',
+      label: 'Off-Plan',
+      sections: [
+        {
+          name: 'offplan_section',
+          label: 'Off-Plan Details',
+          columns: [
+            ['handover_quarter', 'handover_year', 'payment_plan_type', 'completion_percentage'],
+            ['payment_plan_table'],
+          ],
         },
       ],
     },
@@ -395,8 +419,17 @@ export function buildPropertySidebarSections(metaFields, options = {}) {
 export function buildPropertyDataTabs(metaFields, doc = {}) {
   const fieldMap = createFieldMap(metaFields)
   const session = sessionStore()
+  const { agentResource } = agentStore()
+  const isAgent = !!(agentResource.data && agentResource.data.name)
 
-  return PROPERTY_FIELD_GROUPS.data.map((tab) => ({
+  return PROPERTY_FIELD_GROUPS.data
+    .filter((tab) => {
+      if (tab.name === 'admin_tab' && isAgent) {
+        return false
+      }
+      return true
+    })
+    .map((tab) => ({
     name: tab.name,
     label: tab.label,
     sections: buildSections(
@@ -459,11 +492,18 @@ export function buildPropertyQuickEntryTabs(metaFields, doc = {}) {
     fieldMap.trakheesi_qr_code.reqd = 1
   }
 
-  return PROPERTY_FIELD_GROUPS.quickEntry.map((tab) => ({
-    name: tab.name,
-    label: tab.label,
-    sections: buildSections(fieldMap, tab.sections),
-  }))
+  return PROPERTY_FIELD_GROUPS.quickEntry
+    .filter((tab) => {
+      if (tab.name === 'offplan_tab' && doc.completion_status !== 'Off-Plan') {
+        return false
+      }
+      return true
+    })
+    .map((tab) => ({
+      name: tab.name,
+      label: tab.label,
+      sections: buildSections(fieldMap, tab.sections),
+    }))
 }
 
 export function validatePropertyDoc(doc) {
@@ -506,6 +546,10 @@ export function validatePropertyDoc(doc) {
   const isAdmin = session.user === 'Administrator'
   const { agentResource } = agentStore()
   const isAgent = !!(agentResource.data && agentResource.data.name)
+
+  if (!isAgent && !doc.quality_score) {
+    return 'Quality Score is mandatory for Admin review'
+  }
 
   // Force Trakheesi fields mandatory in Vue CRM
   if (!doc.trakheesi_permit_number) {

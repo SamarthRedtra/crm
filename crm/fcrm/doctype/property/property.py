@@ -25,13 +25,14 @@ class Property(Document):
 
 		address_line1: DF.Data | None
 		address_line2: DF.Data | None
-		agent: DF.Link
+		agent: DF.Link | None
 		amenities: DF.Table[PropertyAmenity]
 		area: DF.Link | None
 		area_sqft: DF.Float
 		bathrooms: DF.Int
 		bedrooms: DF.Int
 		city: DF.Data | None
+		completion_percentage: DF.Literal["", "0-25%", "25-50%", "50-75%", "75-100%"]
 		completion_status: DF.Literal["All", "Ready", "Off-Plan"]
 		country: DF.Link | None
 		currency: DF.Link
@@ -40,6 +41,8 @@ class Property(Document):
 		featured_until: DF.Datetime | None
 		furnishing_status: DF.Literal["Furnished", "Semi-Furnished", "Unfurnished"]
 		gallery: DF.Table[PropertyImage]
+		handover_quarter: DF.Literal["", "Q1", "Q2", "Q3", "Q4"]
+		handover_year: DF.Literal["", "2024", "2025", "2026", "2027", "2028", "2029", "2030", "2031", "2032", "2033", "2034", "2035"]
 		is_featured: DF.Check
 		is_rented: DF.Check
 		is_sold: DF.Check
@@ -48,6 +51,7 @@ class Property(Document):
 		longitude: DF.Float
 		off_plan_agencies: DF.TableMultiSelect[PropertyAgency]
 		payment_plan_table: DF.Table[OffPlanPaymentInstallment]
+		payment_plan_type: DF.Literal["", "60/40", "50/50", "40/60", "30/70", "70/30", "20/80", "80/20", "10/90", "90/10", "Post-handover", "100% Upfront", "Other"]
 		pincode: DF.Data | None
 		price: DF.Currency
 		primary_image: DF.AttachImage | None
@@ -55,12 +59,13 @@ class Property(Document):
 		property_category: DF.Literal["Residential", "Commercial"]
 		property_code: DF.Data | None
 		property_type: DF.Literal["Apartment", "Villa", "Townhouse", "Penthouse", "Villa Compound", "Hotel Apartment", "Land", "Floor", "Building", "Office", "Shop", "Warehouse", "Labour Camp", "Bulk Unit", "Factory", "Industrial Land", "Mixed Use Land", "Showroom", "Other Commercial", "Plot", "Other"]
+		quality_score: DF.Literal["", "1", "2", "3", "4", "5", "6", "7", "8", "9", "10"]
 		rent_type: DF.Literal["", "Daily", "Weekly", "Monthly", "Yearly"]
 		state: DF.Data | None
 		status: DF.Literal["Draft", "Under Verification", "Active", "Inactive"]
 		title: DF.Data
-		trakheesi_permit_number: DF.Data
-		trakheesi_qr_code: DF.AttachImage
+		trakheesi_permit_number: DF.Data | None
+		trakheesi_qr_code: DF.AttachImage | None
 		views_count: DF.Int
 		zone_name: DF.Data | None
 	# end: auto-generated types
@@ -105,6 +110,15 @@ class Property(Document):
 		self._ensure_active_developer()
 		self._ensure_verified_agent()
 		self._enforce_property_code_rules()
+		self._validate_quality_score()
+
+	def _validate_quality_score(self):
+		"""Quality Score is mandatory for Admins/Managers."""
+		from crm.api.redtra.permissions import _is_internal_manager
+
+		if _is_internal_manager(frappe.session.user):
+			if not self.quality_score:
+				frappe.throw(_("Quality Score is mandatory for Admin review."), title=_("Missing Scoring"))
 
 	def _validate_property_type_for_category(self):
 		if not self.property_type or not self.property_category:

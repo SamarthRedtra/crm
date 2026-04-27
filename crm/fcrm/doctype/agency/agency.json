@@ -16,6 +16,8 @@
     "phone",
     "whatsapp_number",
     "brn_id",
+    "rera_id",
+    "company_license_number",
     "website",
     "section_break_address",
     "address_line1",
@@ -100,7 +102,17 @@
     {
       "fieldname": "brn_id",
       "fieldtype": "Data",
-      "label": "BRN ID"
+      "label": "BRN/BLN ID"
+    },
+    {
+      "fieldname": "rera_id",
+      "fieldtype": "Data",
+      "label": "RERA ID"
+    },
+    {
+      "fieldname": "company_license_number",
+      "fieldtype": "Data",
+      "label": "Company License Number"
     },
     {
       "fieldname": "website",

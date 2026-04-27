@@ -21,6 +21,19 @@
         />
       </div>
 
+      <!-- ── Agency Status Banner ── -->
+      <div v-if="agencyStatus === 'Pending Verification' || agencyStatus === 'Rejected'" class="px-8 py-3 bg-surface-yellow-1 border-b border-outline-yellow-1 flex items-center gap-3 dark:bg-amber-900/10 dark:border-amber-800/50">
+        <FeatherIcon :name="agencyStatus === 'Rejected' ? 'alert-circle' : 'info'" class="h-4 w-4" :class="agencyStatus === 'Rejected' ? 'text-red-600 dark:text-red-500' : 'text-yellow-600 dark:text-amber-500'" />
+        <p class="text-p-xs flex-1" :class="agencyStatus === 'Rejected' ? 'text-red-800 dark:text-red-200' : 'text-yellow-800 dark:text-amber-100'">
+          <span class="font-semibold">{{ agencyStatus === 'Rejected' ? __('Agency Verification Rejected:') : __('Agency Verification Pending:') }}</span>
+          {{ agencyStatus === 'Rejected' 
+              ? __('Your agency profile was rejected. Please contact the administrator or check your agency profile.') 
+              : __('The agency profile is currently under review. You can proceed with your onboarding, but full CRM access requires agency verification.') 
+          }}
+        </p>
+        <Button v-if="agencyContext?.can_manage_billing" variant="subtle" size="sm" :label="__('Fix Agency Profile')" @click="goAgencyOnboarding" />
+      </div>
+
       <div class="px-8 py-6 flex flex-col gap-6">
 
         <!-- ════════════════════════════
@@ -47,7 +60,7 @@
             <p class="text-p-sm font-semibold text-ink-gray-7 mb-3">{{ __('Your Submitted Profile') }}</p>
             <div class="grid grid-cols-2 gap-3 text-p-sm">
               <div><span class="text-ink-gray-4">DLD ID:</span> <span class="font-medium text-ink-gray-8">{{ formData.dfd_registration_id }}</span></div>
-              <div><span class="text-ink-gray-4">BRN ID:</span> <span class="font-medium text-ink-gray-8">{{ formData.brn_id || '—' }}</span></div>
+              <div><span class="text-ink-gray-4">BRN/BLN ID:</span> <span class="font-medium text-ink-gray-8">{{ formData.brn_id || '—' }}</span></div>
               <div><span class="text-ink-gray-4">Phone:</span> <span class="font-medium text-ink-gray-8">{{ formData.phone || '—' }}</span></div>
               <div><span class="text-ink-gray-4">WhatsApp:</span> <span class="font-medium text-ink-gray-8">{{ formData.whatsapp_number || '—' }}</span></div>
             </div>
@@ -169,7 +182,7 @@
                 <TextInput v-model="formData.dfd_registration_id" :placeholder="__('e.g. 12345')" size="md" />
               </div>
               <div class="flex flex-col gap-1.5">
-                <label class="text-p-sm font-medium text-ink-gray-7">{{ __('BRN ID') }}</label>
+                <label class="text-p-sm font-medium text-ink-gray-7">{{ __('BRN/BLN ID') }}</label>
                 <TextInput v-model="formData.brn_id" :placeholder="__('e.g. 67890')" size="md" />
               </div>
               <div class="flex flex-col gap-1.5">
@@ -244,7 +257,7 @@
             </div>
 
             <!-- Upload area (hidden for non-rejected docs if status is Rejected) -->
-            <FileUploader @success="(file) => handleDocumentUpload(file)" :validateFile="validateIsDocument">
+            <FileUploader @success="(file) => handleDocumentUpload(file)" :validateFile="validateIsDocument" :multiple="true">
               <template #default="{ openFileSelector, uploading, progress }">
                 <div
                   class="flex cursor-pointer flex-col items-center justify-center gap-2 rounded-lg border-2 border-dashed border-outline-gray-3 p-8 transition-colors hover:bg-surface-gray-1 hover:border-blue-400"
@@ -442,6 +455,7 @@ const sections = [
 const weekDays = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
 
 const localStatus = computed(() => agentResource.data?.status || 'Draft')
+const agencyStatus = computed(() => agencyContext.value?.verification_status || 'Verified')
 
 const formData = ref({
   dfd_registration_id: '',

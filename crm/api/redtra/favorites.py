@@ -45,14 +45,22 @@ def get_favorites_by_user(user: str) -> list[dict[str, Any]]:
 def add_favorite() -> dict[str, Any]:
 	data = utils.get_request_json(["property_id"])
 	property_id = data["property_id"]
+	user = utils.get_current_user()
 
-	if not frappe.db.exists("Property", property_id):
+	property_status = frappe.db.get_value("Property", property_id, "status")
+	if not property_status:
 		frappe.throw(_("Property does not exist."))
+	if property_status != "Active":
+		frappe.throw(_("Only active properties can be added to favorites."))
+
+	if frappe.db.exists("Favorite Property", {"user": user, "property": property_id}):
+		frappe.response.http_status_code = 200
+		return {"message": _("Property is already in favorites.")}
 
 	doc = frappe.get_doc(
 		{
 			"doctype": "Favorite Property",
-			"user": utils.get_current_user(),
+			"user": user,
 			"property": property_id,
 		}
 	)

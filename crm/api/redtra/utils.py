@@ -347,16 +347,29 @@ def ensure_agent_role(user: str):
 		doc.add_roles("Agent")
 
 
-def ensure_agency_member_crm_roles(user: str, agency_role: str | None = None) -> None:
-	"""CRM roles for agency team: Agent + Sales User; Managers/Admins also get Sales Manager (scoped by Agency User Permission)."""
-	ensure_agent_role(user)
-	roles = frappe.get_roles(user)
-	need: list[str] = []
-	if frappe.db.exists("Role", "Sales User") and "Sales User" not in roles:
-		need.append("Sales User")
+def get_agency_member_roles(agency_role: str | None = None) -> list[str]:
+	"""Get default roles for agency team members based on their role."""
+	roles = ["Agent"]
+	if frappe.db.exists("Role", "Sales User"):
+		roles.append("Sales User")
+	
 	role = (agency_role or "Agent").strip()
-	if role in {"Manager", "Admin"} and frappe.db.exists("Role", "Sales Manager") and "Sales Manager" not in roles:
-		need.append("Sales Manager")
+	if role in {"Manager", "Admin"} and frappe.db.exists("Role", "Agency Manager"):
+		roles.append("Agency Manager")
+	
+	if role == "Admin" and frappe.db.exists("Role", "Agency Admin"):
+		roles.append("Agency Admin")
+	
+	return roles
+
+
+def ensure_agency_member_crm_roles(user: str, agency_role: str | None = None) -> None:
+	"""CRM roles for agency team: Agent + Sales User; Managers/Admins also get Agency Manager (scoped by Agency User Permission)."""
+	current_roles = frappe.get_roles(user)
+	required_roles = get_agency_member_roles(agency_role)
+	
+	need = [r for r in required_roles if r not in current_roles]
+	
 	if need:
 		doc = frappe.get_doc("User", user)
 		doc.flags.ignore_permissions = True

@@ -73,7 +73,7 @@ ZERO_DECIMAL_CURRENCIES = {
 def _is_internal_manager(user: str | None = None) -> bool:
 	user = user or frappe.session.user
 	roles = set(frappe.get_roles(user))
-	return user == "Administrator" or bool({"System Manager", "Sales Manager"} & roles)
+	return user == "Administrator" or bool({"System Manager", "Sales Manager", "Agency Admin", "Agency Manager"} & roles)
 
 
 def _require_internal_manager():

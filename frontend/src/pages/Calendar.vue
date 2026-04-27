@@ -179,6 +179,9 @@ const events = createListResource({
       color: ev.color,
       referenceDoctype: ev.reference_doctype,
       referenceDocname: ev.reference_docname,
+      syncWithAppointment: ev.sync_with_appointment,
+      customerEmail: ev.customer_email,
+      property: ev.property,
     })),
 })
 
@@ -228,12 +231,32 @@ function buildEventPayload(_event) {
     reference_doctype: _event.referenceDoctype,
     reference_docname: _event.referenceDocname,
     event_participants: _event.event_participants,
+    sync_with_appointment: _event.syncWithAppointment,
+    customer_email: _event.customerEmail,
+    property: _event.property,
   }
 }
 
 function createEvent(_event) {
   if (!_event?.title) return
-  events.insert.submit(buildEventPayload(_event), {
+  const payload = buildEventPayload(_event)
+  
+  if (_event.syncWithAppointment) {
+    call('crm.api.events.create_event_with_appointment', {
+      event_data: payload,
+      appointment_data: {
+        sync: true,
+        customer_email: _event.customerEmail,
+        property: _event.property
+      }
+    }).then(async (e) => {
+      await events.reload()
+      showDetails({ id: e.name })
+    })
+    return
+  }
+
+  events.insert.submit(payload, {
     onSuccess: async (e) => {
       await events.reload()
       showDetails({ id: e.name })

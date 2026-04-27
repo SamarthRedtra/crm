@@ -7,7 +7,7 @@ def add_existing_users(users, role="Sales User"):
 	Add existing users to the CRM by assigning them a role (Sales User or Sales Manager).
 	:param users: List of user names to be added
 	"""
-	frappe.only_for(["System Manager", "Sales Manager"])
+	frappe.only_for(["System Manager", "Sales Manager", "Agency Admin", "Agency Manager"])
 	users = frappe.parse_json(users)
 
 	for user in users:
@@ -22,9 +22,9 @@ def update_user_role(user, new_role):
 	:param new_role: The new role to assign (Sales Manager or Sales User)
 	"""
 
-	frappe.only_for(["System Manager", "Sales Manager"])
+	frappe.only_for(["System Manager", "Sales Manager", "Agency Admin", "Agency Manager"])
 
-	if new_role not in ["System Manager", "Sales Manager", "Sales User"]:
+	if new_role not in ["System Manager", "Sales Manager", "Sales User", "Agency Admin", "Agency Manager"]:
 		frappe.throw("Cannot assign this role")
 
 	user_doc = frappe.get_doc("User", user)
@@ -35,9 +35,15 @@ def update_user_role(user, new_role):
 	if new_role == "Sales Manager":
 		user_doc.append_roles("Sales Manager", "Sales User")
 		user_doc.remove_roles("System Manager")
+	if new_role == "Agency Admin":
+		user_doc.append_roles("Agency Admin", "Agency Manager", "Agent", "Sales User")
+		user_doc.remove_roles("System Manager", "Sales Manager")
+	if new_role == "Agency Manager":
+		user_doc.append_roles("Agency Manager", "Agent", "Sales User")
+		user_doc.remove_roles("System Manager", "Sales Manager", "Agency Admin")
 	if new_role == "Sales User":
 		user_doc.append_roles("Sales User")
-		user_doc.remove_roles("Sales Manager", "System Manager")
+		user_doc.remove_roles("Sales Manager", "System Manager", "Agency Admin", "Agency Manager")
 		update_module_in_user(user_doc, "FCRM")
 
 	user_doc.save(ignore_permissions=True)
@@ -59,7 +65,7 @@ def remove_user(user):
 	Remove a user means removing Sales User & Sales Manager roles from the user.
 	:param user: The name of the user to be removed
 	"""
-	frappe.only_for(["System Manager", "Sales Manager"])
+	frappe.only_for(["System Manager", "Sales Manager", "Agency Admin", "Agency Manager"])
 
 	user_doc = frappe.get_doc("User", user)
 	roles = [d.role for d in user_doc.roles]
@@ -68,6 +74,10 @@ def remove_user(user):
 		user_doc.remove_roles("Sales User")
 	if "Sales Manager" in roles:
 		user_doc.remove_roles("Sales Manager")
+	if "Agency Admin" in roles:
+		user_doc.remove_roles("Agency Admin")
+	if "Agency Manager" in roles:
+		user_doc.remove_roles("Agency Manager")
 
 	user_doc.save(ignore_permissions=True)
 	frappe.msgprint(f"User {user} has been removed from CRM roles.")

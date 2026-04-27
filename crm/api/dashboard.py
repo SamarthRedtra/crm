@@ -27,7 +27,7 @@ def get_dashboard(from_date="", to_date="", user=""):
 
 	roles = frappe.get_roles(frappe.session.user)
 	is_sales_manager = (
-		"Sales Manager" in roles or "System Manager" in roles or is_agency_leadership()
+		"Sales Manager" in roles or "System Manager" in roles or "Agency Admin" in roles or "Agency Manager" in roles or is_agency_leadership()
 	)
 	is_sales_user = "Sales User" in roles and not is_sales_manager
 
@@ -124,7 +124,7 @@ def get_chart(name, type, from_date="", to_date="", user=""):
 
 	roles = frappe.get_roles(frappe.session.user)
 	is_sales_manager = (
-		"Sales Manager" in roles or "System Manager" in roles or is_agency_leadership()
+		"Sales Manager" in roles or "System Manager" in roles or "Agency Admin" in roles or "Agency Manager" in roles or is_agency_leadership()
 	)
 	is_sales_user = "Sales User" in roles and not is_sales_manager
 

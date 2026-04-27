@@ -35,6 +35,34 @@
           {{ __('Billing setup was cancelled. You can retry from the final step.') }}
         </div>
 
+        <!-- Verification Pending Banner -->
+        <div
+          v-if="management.data?.agency?.verification_status === 'Pending Verification' || management.data?.agency?.verification_status === 'Rejected'"
+          class="mb-6 rounded-lg border px-5 py-4 flex items-start gap-4 transition-colors"
+          :class="management.data.agency.verification_status === 'Rejected' 
+            ? 'border-outline-red-1 bg-surface-red-1 text-red-700 dark:bg-red-900/10 dark:border-red-800 dark:text-red-100' 
+            : 'border-outline-yellow-1 bg-surface-yellow-1 text-yellow-700 dark:bg-amber-900/10 dark:border-amber-800 dark:text-amber-100'"
+        >
+          <div class="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-surface-white/60 shadow-sm dark:bg-white/10">
+            <FeatherIcon 
+              :name="management.data.agency.verification_status === 'Rejected' ? 'alert-octagon' : 'clock'" 
+              class="h-5 w-5" 
+              :class="management.data.agency.verification_status === 'Rejected' ? 'text-red-500' : 'text-yellow-600 dark:text-amber-500'" 
+            />
+          </div>
+          <div class="flex-1">
+            <h3 class="text-p-base font-semibold">
+              {{ management.data.agency.verification_status === 'Rejected' ? __('Verification Rejected') : __('Verification Pending') }}
+            </h3>
+            <p class="mt-1 text-p-sm opacity-90">
+              {{ management.data.agency.verification_status === 'Rejected'
+                  ? __('Your agency profile was rejected. Please review your details below and resubmit.')
+                  : __('Your agency profile is currently under review by our team. You can still update your details if needed.')
+              }}
+            </p>
+          </div>
+        </div>
+
         <div v-if="!management.data?.agency" class="rounded-lg border border-outline-gray-2 bg-surface-gray-1 p-5">
           <p class="text-p-sm text-ink-gray-6">
             {{ __('No agency is linked to your user yet.') }}
@@ -84,8 +112,16 @@
               <input v-model="form.website" :class="inputClass" />
             </div>
             <div class="flex flex-col gap-1.5">
-              <label class="text-p-sm font-medium text-ink-gray-7">{{ __('BRN ID') }}</label>
+              <label class="text-p-sm font-medium text-ink-gray-7">{{ __('BRN/BLN ID') }}</label>
               <input v-model="form.brn_id" :class="inputClass" />
+            </div>
+            <div class="flex flex-col gap-1.5">
+              <label class="text-p-sm font-medium text-ink-gray-7">{{ __('RERA ID') }}</label>
+              <input v-model="form.rera_id" :class="inputClass" />
+            </div>
+            <div class="flex flex-col gap-1.5">
+              <label class="text-p-sm font-medium text-ink-gray-7">{{ __('Company License Number') }}</label>
+              <input v-model="form.company_license_number" :class="inputClass" />
             </div>
             <div class="flex flex-col gap-1.5 md:col-span-2">
               <label class="text-p-sm font-medium text-ink-gray-7">{{ __('Description') }}</label>
@@ -299,6 +335,8 @@ const form = reactive({
   phone: '',
   website: '',
   brn_id: '',
+  rera_id: '',
+  company_license_number: '',
   description: '',
   billing_contact_name: '',
   billing_email: '',
@@ -320,6 +358,8 @@ function applyData(data) {
     phone: agency.phone || '',
     website: agency.website || '',
     brn_id: agency.brn_id || '',
+    rera_id: agency.rera_id || '',
+    company_license_number: agency.company_license_number || '',
     description: agency.description || '',
     billing_contact_name: agency.billing_contact_name || '',
     billing_email: agency.billing_email || '',

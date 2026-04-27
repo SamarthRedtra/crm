@@ -10,10 +10,18 @@
  "field_order": [
   "title",
   "content",
+  "agency",
   "reference_doctype",
   "reference_docname"
  ],
  "fields": [
+  {
+   "fieldname": "agency",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "label": "Agency",
+   "options": "Agency"
+  },
   {
    "fieldname": "title",
    "fieldtype": "Data",

@@ -25,3 +25,8 @@ crm.patches.v1_0.migrate_transaction_rent_to_rented
 crm.patches.v1_0.reload_property_management_workspace
 crm.patches.v1_0.consolidate_agent_levels_to_one
 crm.patches.v1_0.seed_dummy_billing_catalog
+crm.patches.v1_0.create_agency_roles
+crm.patches.v1_0.add_isolation_fields
+crm.patches.v1_0.migrate_appointments_to_events
+crm.patches.v1_0.add_event_sync_fields
+crm.patches.v1_0.add_agency_manager_role

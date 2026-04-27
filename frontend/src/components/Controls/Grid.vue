@@ -181,8 +181,13 @@
                   </div>
                   <div
                     v-else-if="field.fieldtype === 'Attach Image'"
-                    class="flex h-full items-center px-2"
+                    class="flex h-full items-center gap-2 px-2"
                   >
+                    <img
+                      v-if="row[field.fieldname]"
+                      :src="row[field.fieldname]"
+                      class="h-7 w-7 rounded object-cover border border-outline-gray-2"
+                    />
                     <ImageUploader
                       :image_url="row[field.fieldname]"
                       @upload="(url) => fieldChange(url, field, row)"

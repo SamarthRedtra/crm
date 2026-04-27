@@ -171,9 +171,23 @@
 
         <div class="flex flex-col gap-1.5">
           <label class="text-p-sm font-medium text-ink-gray-7">
-            {{ __('BRN ID') }} <span class="text-red-600">*</span>
+            {{ __('BRN/BLN ID') }}
           </label>
-          <input v-model.trim="form.brn_id" required :class="inputClass" placeholder="BRN-12345" />
+          <input v-model.trim="form.brn_id" :class="inputClass" placeholder="BRN-12345" />
+        </div>
+
+        <div class="flex flex-col gap-1.5">
+          <label class="text-p-sm font-medium text-ink-gray-7">
+            {{ __('RERA ID') }}
+          </label>
+          <input v-model.trim="form.rera_id" :class="inputClass" placeholder="RERA-12345" />
+        </div>
+
+        <div class="flex flex-col gap-1.5">
+          <label class="text-p-sm font-medium text-ink-gray-7">
+            {{ __('Company License Number') }}
+          </label>
+          <input v-model.trim="form.company_license_number" :class="inputClass" placeholder="LIC-12345" />
         </div>
 
         <div class="flex flex-col gap-1.5">
@@ -318,6 +332,8 @@ const form = reactive({
   agency_phone: '',
   website: '',
   brn_id: '',
+  rera_id: '',
+  company_license_number: '',
   billing_contact_name: '',
   billing_email: '',
   challenge_answer: '',
@@ -348,6 +364,8 @@ async function submitRegistration() {
         agency_phone: form.agency_phone,
         website: form.website,
         brn_id: form.brn_id,
+        rera_id: form.rera_id,
+        company_license_number: form.company_license_number,
         billing_contact_name: form.billing_contact_name,
         billing_email: form.billing_email,
         challenge_id: challengeId.value,

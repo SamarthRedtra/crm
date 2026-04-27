@@ -121,6 +121,10 @@ class FilesUploadHandler {
         formData.append('type', options.type)
       }
 
+      if (options.fileObj) {
+        formData.append('total_file_size', options.fileObj.size.toString())
+      }
+
       xhr.send(formData)
     })
   }

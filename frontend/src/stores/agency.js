@@ -5,7 +5,6 @@ import { computed } from 'vue'
 export const agencyStore = defineStore('crm-agency', () => {
   const contextResource = createResource({
     url: 'crm.api.redtra.billing.get_session_agency_context',
-    cache: 'AgencyContext',
     auto: true,
   })
 

@@ -817,13 +817,20 @@ def get_linked_docs_of_document(doctype, docname):
 
 @frappe.whitelist()
 def get_current_agent():
+	user = frappe.session.user
 	agent = frappe.db.get_value(
 		"Agent",
-		{"user": frappe.session.user},
-		["name", "status", "dfd_registration_id", "full_name"],
+		{"user": user},
+		["name", "status", "dfd_registration_id", "full_name", "agency", "agency_role"],
 		as_dict=True
-	)
-	return agent or {}
+	) or {}
+	
+	if agent.get("agency"):
+		agent["agency_onboarding_status"] = frappe.db.get_value("Agency", agent["agency"], "onboarding_status")
+	
+	agent["roles"] = frappe.get_roles(user)
+	
+	return agent
 
 
 def remove_doc_link(doctype, docname):

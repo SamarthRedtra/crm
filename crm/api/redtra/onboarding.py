@@ -159,6 +159,7 @@ def register_agency_admin(data: str | dict[str, Any] | None = None) -> dict[str,
 			"enabled": 1,
 			"send_welcome_email": 0,
 			"mobile_no": payload.get("phone"),
+			"roles": [{"role": r} for r in utils.get_agency_member_roles("Admin")],
 		}
 	)
 	user_doc.flags.ignore_permissions = True
@@ -177,6 +178,9 @@ def register_agency_admin(data: str | dict[str, Any] | None = None) -> dict[str,
 			"phone": payload.get("agency_phone") or payload.get("phone"),
 			"website": payload.get("website"),
 			"brn_id": payload.get("brn_id"),
+			"rera_id": payload.get("rera_id"),
+			"company_license_number": payload.get("company_license_number"),
+			"whatsapp_number": payload.get("agency_phone") or payload.get("phone"),
 			"billing_contact_name": payload.get("billing_contact_name") or full_name,
 			"billing_email": payload.get("billing_email") or email,
 			"onboarding_status": "Not Started",

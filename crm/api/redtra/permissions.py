@@ -1,204 +1,109 @@
-from __future__ import annotations
-
 import frappe
-from frappe import _
+from frappe.permissions import has_permission as frappe_has_permission
 
-# Agency roles that may list all Property rows tied to any Agent in the same agency.
-AGENCY_WIDE_PROPERTY_ROLES = ("Admin", "Manager")
-
-
-def has_agency_leadership_role(user: str | None = None) -> bool:
-	"""Agent doc has agency_role Admin or Manager (dashboard access, manager charts)."""
-	user = user or frappe.session.user
-	profile = _get_agent_profile_for_user(user)
-	if not profile or not profile.get("name"):
-		return False
-	role = (profile.get("agency_role") or "Agent").strip()
-	return role in AGENCY_WIDE_PROPERTY_ROLES
-
-
-def has_agency_wide_property_access(user: str | None = None) -> bool:
-	"""
-	Same scope as the agency-wide branch of Property list permission:
-	Admin/Manager with an agency sees every listing from agents on that agency.
-	"""
-	user = user or frappe.session.user
-	profile = _get_agent_profile_for_user(user)
-	if not profile or not profile.get("name"):
-		return False
-	agency = profile.get("agency")
-	role = (profile.get("agency_role") or "Agent").strip()
-	return bool(agency and role in AGENCY_WIDE_PROPERTY_ROLES)
-
-
-def get_property_sql_scope_for_user(user: str | None = None) -> tuple[str, dict]:
-	"""
-	Extra WHERE fragment for `tabProperty` queries (dashboard counts, reports).
-	Mirrors `get_property_permission_query` rules.
-	"""
-	user = user or frappe.session.user
-	if user == "Administrator":
-		return "", {}
-	roles = set(frappe.get_roles(user))
-	if "System Manager" in roles:
-		return "", {}
-	if "Agent" not in roles:
-		return "", {}
-
-	profile = _get_agent_profile_for_user(user)
-	if not profile or not profile.get("name"):
-		return " AND 1=0", {}
-
-	agent_id = profile["name"]
-	agency = profile.get("agency")
-	role = (profile.get("agency_role") or "Agent").strip()
-
-	if agency and role in AGENCY_WIDE_PROPERTY_ROLES:
-		esc = frappe.db.escape(agency)
-		return (
-			f" AND `tabProperty`.`agent` IN (SELECT `name` FROM `tabAgent` WHERE `agency` = {esc})",
-			{},
-		)
-	esc_agent = frappe.db.escape(agent_id)
-	return f" AND `tabProperty`.`agent` = {esc_agent}", {}
-
-
-def _get_agent_profile_for_user(user: str) -> dict | None:
-	"""Current user's Agent row: name, agency, agency_role."""
-	return frappe.db.get_value(
-		"Agent",
-		{"user": user},
-		["name", "agency", "agency_role"],
-		as_dict=True,
-	)
-
-
-def _property_agent_in_same_agency(property_agent: str | None, agency: str | None) -> bool:
-	if not property_agent or not agency:
-		return False
-	agent_agency = frappe.db.get_value("Agent", property_agent, "agency")
-	return bool(agent_agency and agent_agency == agency)
-
-
-def get_property_permission_query(user: str) -> str | None:
-	if not user or user in {"Guest"}:
-		return "1=0"
-
-	if user == "Administrator":
+def get_agency_context():
+	if frappe.session.user == "Administrator":
 		return None
+	
+	agency = frappe.db.get_value("Agent", {"user": frappe.session.user}, "agency")
+	return agency
 
-	user_roles = set(frappe.get_roles(user))
-	if "System Manager" in user_roles:
-		return None
+def apply_agency_isolation(doctype, user=None):
+	if not user:
+		user = frappe.session.user
+	
+	if user == "Administrator" or "System Manager" in frappe.get_roles(user):
+		return ""
 
-	if "Agent" not in user_roles:
-		return None
+	agency = get_agency_context()
+	if not agency:
+		return "1=0" # No agency, no data
 
-	scope, _ = get_property_sql_scope_for_user(user)
-	if not scope:
-		return None
-	s = scope.strip()
-	if s.upper().startswith("AND"):
-		s = s[3:].strip()
-	return s
+	roles = frappe.get_roles(user)
+	
+	# Agency Admin and Agency Manager can see everything in the agency
+	if "Agency Admin" in roles or "Agency Manager" in roles:
+		return f"`agency` = '{agency}'"
+	
+	# Agent can only see what they created within their agency
+	return f"`agency` = '{agency}' AND `owner` = '{user}'"
 
-
-def has_property_permission(doc, user: str) -> bool:
-	if not user or user in {"Guest"}:
-		return False
-
-	if user == "Administrator":
+def has_agency_permission(doc, ptype, user=None):
+	if not user:
+		user = frappe.session.user
+	
+	if user == "Administrator" or "System Manager" in frappe.get_roles(user):
 		return True
 
-	user_roles = set(frappe.get_roles(user))
-	if "System Manager" in user_roles:
+	agency = get_agency_context()
+	if not agency:
+		return False
+	
+	if doc.agency != agency:
+		return False
+	
+	roles = frappe.get_roles(user)
+	if "Agency Admin" in roles or "Agency Manager" in roles:
 		return True
-
-	if "Agent" not in user_roles:
+	
+	if doc.owner == user:
 		return True
-
-	profile = _get_agent_profile_for_user(user)
-	if not profile or not profile.get("name"):
-		frappe.throw(_("Agent profile not found."), frappe.PermissionError)
-
-	agent_id = profile["name"]
-	if getattr(doc, "agent", None) == agent_id:
-		return True
-
-	agency = profile.get("agency")
-	role = (profile.get("agency_role") or "Agent").strip()
-	if agency and role in AGENCY_WIDE_PROPERTY_ROLES:
-		return _property_agent_in_same_agency(getattr(doc, "agent", None), agency)
-
+		
 	return False
 
+# Permission Query Conditions
+def get_contact_permission_query(user):
+	return apply_agency_isolation("Contact", user)
 
-def _is_internal_manager(user: str) -> bool:
+def get_call_log_permission_query(user):
+	return apply_agency_isolation("CRM Call Log", user)
+
+def get_note_permission_query(user):
+	return apply_agency_isolation("FCRM Note", user)
+
+# Has Permission hooks
+def has_contact_permission(doc, ptype, user):
+	return has_agency_permission(doc, ptype, user)
+
+def has_call_log_permission(doc, ptype, user):
+	return has_agency_permission(doc, ptype, user)
+
+def has_note_permission(doc, ptype, user):
+	return has_agency_permission(doc, ptype, user)
+
+def set_agency_on_doc(doc, method=None):
+	if not user_can_bypass_isolation(frappe.session.user):
+		user = doc.owner or frappe.session.user
+		
+		if hasattr(doc, "created_by") and not doc.created_by:
+			doc.created_by = user
+
+		if hasattr(doc, "agency") and not doc.agency:
+			agency = frappe.db.get_value("Agent", {"user": user}, "agency")
+			if agency:
+				doc.agency = agency
+
+def user_can_bypass_isolation(user):
+	return user == "Administrator" or "System Manager" in frappe.get_roles(user)
+
+def has_agency_leadership_role(user=None):
+	user = user or frappe.session.user
 	if user == "Administrator":
 		return True
-	roles = set(frappe.get_roles(user))
-	return bool({"System Manager", "Sales Manager"} & roles)
+	roles = frappe.get_roles(user)
+	return "Agency Admin" in roles or "Agency Manager" in roles
 
+def get_property_sql_scope_for_user(user):
+	"""Returns (sql_where_clause, params) for Property scoping."""
+	if user == "Administrator" or "System Manager" in frappe.get_roles(user):
+		return "", {}
 
-def _get_agent_agency(user: str) -> str | None:
-	return frappe.db.get_value("Agent", {"user": user}, "agency")
+	agency = get_agency_context()
+	if not agency:
+		return " AND 1=0", {}
 
+	roles = frappe.get_roles(user)
+	if "Agency Admin" in roles or "Agency Manager" in roles:
+		return f" AND agency = '{agency}'", {}
 
-def _get_agency_filter_query(doctype: str, user: str) -> str | None:
-	if not user or user in {"Guest"}:
-		return "1=0"
-	if _is_internal_manager(user):
-		return None
-	if "Agent" not in set(frappe.get_roles(user)):
-		return "1=0"
-	agency_name = _get_agent_agency(user)
-	if not agency_name:
-		return "1=0"
-	return f"`tab{doctype}`.`agency` = {frappe.db.escape(agency_name)}"
-
-
-def _has_agency_scoped_permission(doc, user: str) -> bool:
-	if not user or user in {"Guest"}:
-		return False
-	if _is_internal_manager(user):
-		return True
-	agency_name = _get_agent_agency(user)
-	if not agency_name:
-		frappe.throw(_("Agent profile not found."), frappe.PermissionError)
-	return getattr(doc, "agency", None) == agency_name
-
-
-def get_agency_billing_invoice_permission_query(user: str) -> str | None:
-	return _get_agency_filter_query("Agency Billing Invoice", user)
-
-
-def has_agency_billing_invoice_permission(doc, user: str) -> bool:
-	return _has_agency_scoped_permission(doc, user)
-
-
-def get_agency_billing_accrual_permission_query(user: str) -> str | None:
-	return _get_agency_filter_query("Agency Billing Accrual", user)
-
-
-def has_agency_billing_accrual_permission(doc, user: str) -> bool:
-	return _has_agency_scoped_permission(doc, user)
-
-
-def has_agency_permission(doc, user: str, ptype: str | None = None) -> bool:
-	del ptype
-	if not user or user in {"Guest"}:
-		return False
-	if _is_internal_manager(user):
-		return True
-	agency_name = _get_agent_agency(user)
-	if not agency_name:
-		return False
-	return getattr(doc, "name", None) == agency_name
-
-
-def has_agency_billing_permission(doc, user: str, ptype: str | None = None) -> bool:
-	del ptype
-	return _has_agency_scoped_permission(doc, user)
-
-
-
+	return f" AND agency = '{agency}' AND owner = '{user}'", {}

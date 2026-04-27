@@ -17,16 +17,13 @@ class Agent(Document):
 		from frappe.types import DF
 
 		agency: DF.Link | None
-		agency_role: DF.Literal["Admin", "Manager", "Agent"] | None
+		agency_role: DF.Literal["Admin", "Manager", "Agent"]
 		agent_level: DF.Link | None
 		availability_slots: DF.Table[AgentAvailabilitySlot]
 		billable: DF.Check
 		billing_end_date: DF.Date | None
 		billing_start_date: DF.Date | None
 		bio: DF.SmallText | None
-		billable: DF.Check
-		billing_end_date: DF.Date | None
-		billing_start_date: DF.Date | None
 		brn_id: DF.Data | None
 		dfd_registration_id: DF.Data
 		email: DF.Data
@@ -37,8 +34,6 @@ class Agent(Document):
 		phone: DF.Data
 		profile_image: DF.AttachImage | None
 		status: DF.Literal["Draft", "Pending Verification", "Verified", "Rejected"]
-		trakheesi_permit_number: DF.Data | None
-		trakheesi_qr_code: DF.AttachImage | None
 		user: DF.Link
 		whatsapp_number: DF.Data
 		zone_name: DF.Data | None
@@ -140,7 +135,7 @@ def review_kyc_document(agent_name, row_name, action, comment=""):
 	Allow admin to Approve or Reject an individual KYC document.
 	action: 'Approved' | 'Rejected'
 	"""
-	frappe.only_for(["System Manager", "Sales Manager"])
+	frappe.only_for(["System Manager", "Sales Manager", "Agency Admin", "Agency Manager"])
 
 	agent = frappe.get_doc("Agent", agent_name)
 	doc_row = None

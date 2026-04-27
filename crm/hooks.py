@@ -127,12 +127,18 @@ permission_query_conditions = {
 	"Property": "crm.api.redtra.permissions.get_property_permission_query",
 	"Agency Billing Invoice": "crm.api.redtra.permissions.get_agency_billing_invoice_permission_query",
 	"Agency Billing Accrual": "crm.api.redtra.permissions.get_agency_billing_accrual_permission_query",
+	"Contact": "crm.api.redtra.permissions.get_contact_permission_query",
+	"CRM Call Log": "crm.api.redtra.permissions.get_call_log_permission_query",
+	"FCRM Note": "crm.api.redtra.permissions.get_note_permission_query",
 }
 
 has_permission = {
 	"Property": "crm.api.redtra.permissions.has_property_permission",
 	"Agency Billing Invoice": "crm.api.redtra.permissions.has_agency_billing_invoice_permission",
 	"Agency Billing Accrual": "crm.api.redtra.permissions.has_agency_billing_accrual_permission",
+	"Contact": "crm.api.redtra.permissions.has_contact_permission",
+	"CRM Call Log": "crm.api.redtra.permissions.has_call_log_permission",
+	"FCRM Note": "crm.api.redtra.permissions.has_note_permission",
 }
 
 # DocType Class
@@ -152,7 +158,16 @@ auth_hooks = ["crm.api.redtra.jwt_auth.authenticate"]
 
 doc_events = {
 	"Contact": {
-		"validate": ["crm.api.contact.validate"],
+		"validate": [
+			"crm.api.contact.validate",
+			"crm.api.redtra.permissions.set_agency_on_doc"
+		],
+	},
+	"CRM Call Log": {
+		"validate": ["crm.api.redtra.permissions.set_agency_on_doc"],
+	},
+	"FCRM Note": {
+		"validate": ["crm.api.redtra.permissions.set_agency_on_doc"],
 	},
 	"ToDo": {
 		"after_insert": ["crm.api.todo.after_insert"],

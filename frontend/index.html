@@ -193,6 +193,10 @@
       href="/assets/crm/manifest/apple-splash-1136-640.jpg"
       media="(device-width: 320px) and (device-height: 568px) and (-webkit-device-pixel-ratio: 2) and (orientation: landscape)"
     />
+    <script>
+      let theme = localStorage.getItem('frappe-ui-theme') || 'light'
+      document.documentElement.classList.toggle('dark', theme === 'dark')
+    </script>
   </head>
   <body class="sm:overscroll-y-none no-scrollbar">
     <div id="app" class="h-full"></div>

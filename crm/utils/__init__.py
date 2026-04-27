@@ -249,7 +249,10 @@ def is_sales_user(user: str | None = None) -> bool:
 	:return: Whether `user` is an agent
 	"""
 	user = user or frappe.session.user
-	return is_admin() or "Sales Manager" in frappe.get_roles(user) or "Sales User" in frappe.get_roles(user)
+	return is_admin() or any(
+		role in frappe.get_roles(user)
+		for role in ["Sales Manager", "Sales User", "Agency Admin", "Agency Manager"]
+	)
 
 
 def is_agency_leadership(user: str | None = None) -> bool:
@@ -269,7 +272,7 @@ def can_access_crm_dashboard(user: str | None = None) -> bool:
 	if user == "Administrator":
 		return True
 	roles = set(frappe.get_roles(user))
-	if "System Manager" in roles or "Sales Manager" in roles:
+	if any(role in roles for role in ["System Manager", "Sales Manager", "Agency Admin", "Agency Manager"]):
 		return True
 	from crm.api.redtra.permissions import has_agency_leadership_role
 

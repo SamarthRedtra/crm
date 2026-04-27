@@ -24,13 +24,16 @@ class PropertyAppointment(Document):
 		self._enforce_daily_limit()
 
 	def after_insert(self):
-		"""Send notifications when appointment is created"""
-		"""Send notifications when appointment is created"""
+		"""Send notifications and sync to calendar when appointment is created"""
 		self.flags.just_created = True
 		self._send_appointment_notifications(is_new=True)
+		self.sync_to_event()
 
 	def on_update(self):
-		"""Send notifications when appointment is rescheduled (datetime changed) or status changed"""
+		"""Handle rescheduling, status changes, and calendar sync"""
+		# Always sync to event on update to reflect changes
+		self.sync_to_event()
+
 		# Check if datetime was changed (reschedule)
 		datetime_changed = (
 			self.has_value_changed("start_datetime") or 
@@ -40,20 +43,60 @@ class PropertyAppointment(Document):
 		# Check if status changed
 		status_changed = self.has_value_changed("status")
 		
-		# Handle reschedule (datetime changed while status remains Scheduled)
-		# Handle reschedule (datetime changed while status remains Scheduled)
-		# Skip if just created (after_insert already handled notification)
+		# Handle reschedule
 		if datetime_changed and self.status == "Scheduled" and not self.flags.just_created:
-			# Appointment was rescheduled - reset reminder status so new reminder can be sent
 			if hasattr(self, "reminder_sent") and self.reminder_sent:
 				self.reminder_sent = 0
-			# Appointment was rescheduled
 			self._send_appointment_notifications(is_new=False, is_reschedule=True)
 		
-		# Handle status changes (cancellation, completion, etc.)
-		# Check if status changed to Cancelled or Completed
+		# Handle status changes
 		if status_changed and self.status in ["Cancelled", "Completed"]:
 			self._send_status_change_notification()
+
+	def sync_to_event(self):
+		"""Sync the appointment with standard Frappe Event for calendar view"""
+		try:
+			filters = {"reference_doctype": self.doctype, "reference_docname": self.name}
+			event_name = frappe.db.get_value("Event", filters, "name")
+
+			if self.status != "Scheduled":
+				if event_name:
+					frappe.delete_doc("Event", event_name, ignore_permissions=True)
+				return
+
+			agent_user = frappe.db.get_value("Agent", self.agent, "user") if self.agent else None
+			
+			property_title = frappe.db.get_value("Property", self.property, "title") or self.property
+			subject = _("Property Viewing: {0}").format(property_title)
+			
+			if event_name:
+				event_doc = frappe.get_doc("Event", event_name)
+			else:
+				event_doc = frappe.new_doc("Event")
+				event_doc.reference_doctype = self.doctype
+				event_doc.reference_docname = self.name
+				event_doc.owner = agent_user or frappe.session.user
+
+			event_doc.update({
+				"subject": subject,
+				"description": _("Appointment for {0} with customer {1}").format(property_title, self.customer),
+				"starts_on": self.start_datetime,
+				"ends_on": self.end_datetime,
+				"event_type": "Private" if agent_user else "Public",
+				"status": "Open",
+				"all_day": 0
+			})
+			
+			# Ensure participants
+			if agent_user and not event_doc.get("event_participants"):
+				event_doc.append("event_participants", {
+					"reference_doctype": "User",
+					"reference_docname": agent_user
+				})
+			
+			event_doc.save(ignore_permissions=True)
+		except Exception as e:
+			frappe.log_error(f"Failed to sync appointment to event: {str(e)}", "Appointment Sync Error")
 
 	def _assign_default_agent(self):
 		if self.agent or not self.property:
@@ -70,7 +113,7 @@ class PropertyAppointment(Document):
 
 	def _validate_agent_status(self):
 		if not self.agent:
-			frappe.throw(_("Agent is required for the appointment."))
+			return
 
 		agent_status = frappe.db.get_value("Agent", self.agent, "status")
 		if get_mandate_agent_verification() and agent_status != "Verified":

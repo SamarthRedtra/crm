@@ -9,6 +9,8 @@ _make_form_dict_patched = False
 _original_make_form_dict = None
 _validate_auth_patched = False
 _original_validate_auth = None
+_upload_file_patched = False
+_original_upload_file = None
 
 
 def _patched_make_form_dict(request):
@@ -57,6 +59,21 @@ def _patched_handle(request):
 	return _original_handle(request)
 
 
+@frappe.whitelist()
+def _patched_upload_file():
+	"""Ensures total_file_size is at least 0 to prevent TypeError in Frappe handler."""
+	if frappe.form_dict.get("total_file_size") is None:
+		frappe.form_dict.total_file_size = 0
+	
+	if frappe.form_dict.get("total_chunks") is None:
+		frappe.form_dict.total_chunks = 1
+	
+	if frappe.form_dict.get("current_chunk") is None:
+		frappe.form_dict.current_chunk = 0
+
+	return _original_upload_file()
+
+
 def _patched_validate_auth():
 	"""Frappe raises AuthenticationError if Authorization: Bearer x is sent but user is still Guest.
 
@@ -90,6 +107,19 @@ def patch_validate_auth_for_redtra_bearer():
 	_validate_auth_patched = True
 
 
+def patch_upload_file():
+	global _upload_file_patched, _original_upload_file
+
+	if _upload_file_patched:
+		return
+
+	import frappe.handler as handler_module
+
+	_original_upload_file = handler_module.upload_file
+	handler_module.upload_file = _patched_upload_file
+	_upload_file_patched = True
+
+
 def patch_frappe_api_handler():
 	global _patched, _original_handle
 
@@ -102,4 +132,5 @@ def patch_frappe_api_handler():
 	_patched = True
 	patch_make_form_dict_for_sid()
 	patch_validate_auth_for_redtra_bearer()
+	patch_upload_file()
 

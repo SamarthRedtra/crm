@@ -233,5 +233,8 @@ export function parseEventDoc(doc) {
           value: doc.owner,
         }
       : null,
+    syncWithAppointment: doc.sync_with_appointment,
+    customerEmail: doc.customer_email,
+    property: doc.property,
   }
 }

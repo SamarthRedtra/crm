@@ -58,8 +58,16 @@
               <input v-model="form.website" :class="inputClass" />
             </div>
             <div class="flex flex-col gap-1.5">
-              <label class="text-p-sm font-medium text-ink-gray-7">{{ __('BRN ID') }}</label>
+              <label class="text-p-sm font-medium text-ink-gray-7">{{ __('BRN/BLN ID') }}</label>
               <input v-model="form.brn_id" :class="inputClass" />
+            </div>
+            <div class="flex flex-col gap-1.5">
+              <label class="text-p-sm font-medium text-ink-gray-7">{{ __('RERA ID') }}</label>
+              <input v-model="form.rera_id" :class="inputClass" />
+            </div>
+            <div class="flex flex-col gap-1.5">
+              <label class="text-p-sm font-medium text-ink-gray-7">{{ __('Company License Number') }}</label>
+              <input v-model="form.company_license_number" :class="inputClass" />
             </div>
             <div class="flex flex-col gap-1.5 md:col-span-2">
               <label class="text-p-sm font-medium text-ink-gray-7">{{ __('Description') }}</label>
@@ -296,6 +304,8 @@ const form = reactive({
   phone: '',
   website: '',
   brn_id: '',
+  rera_id: '',
+  company_license_number: '',
   description: '',
   address_line1: '',
   address_line2: '',
@@ -359,6 +369,8 @@ function applyManagementData(data) {
     phone: agency.phone || '',
     website: agency.website || '',
     brn_id: agency.brn_id || '',
+    rera_id: agency.rera_id || '',
+    company_license_number: agency.company_license_number || '',
     description: agency.description || '',
     address_line1: agency.address_line1 || '',
     address_line2: agency.address_line2 || '',

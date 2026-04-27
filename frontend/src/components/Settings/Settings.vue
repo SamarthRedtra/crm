@@ -74,6 +74,7 @@ import AgencyProfileSettings from '@/components/Settings/AgencyProfileSettings.v
 import AgencyTeamInvite from '@/components/Settings/AgencyTeamInvite.vue'
 import AgencyBillingInvoicesAdmin from '@/components/Settings/AgencyBillingInvoicesAdmin.vue'
 import SidebarLink from '@/components/SidebarLink.vue'
+import { agentStore } from '@/stores/agent'
 import { agencyStore } from '@/stores/agency'
 import { usersStore } from '@/stores/users'
 import {
@@ -88,13 +89,17 @@ import { ref, markRaw, computed, watch, h } from 'vue'
 import AssignmentRulePage from './AssignmentRules/AssignmentRulePage.vue'
 
 const { isManager, isTelephonyAgent, getUser } = usersStore()
+const { agentResource } = agentStore()
 const agency = agencyStore()
 const { context: agencyContext } = storeToRefs(agency)
 
-const user = computed(() => getUser() || {})
+const isAgencyAdmin = computed(() => {
+  const roles = agentResource.data?.roles || []
+  return roles.includes('Agency Admin') || isManager()
+})
 const hasLinkedAgency = computed(() => Boolean(agencyContext.value?.agency))
-const canOpenAgencyBilling = computed(() => Boolean(agencyContext.value?.can_manage_billing))
-const canInviteAgencyTeam = computed(() => Boolean(agencyContext.value?.can_manage_team))
+const canOpenAgencyBilling = computed(() => Boolean(agencyContext.value?.can_manage_billing) && isAgencyAdmin.value)
+const canInviteAgencyTeam = computed(() => Boolean(agencyContext.value?.can_manage_team) && isAgencyAdmin.value)
 
 const tabs = computed(() => {
   let _tabs = [
@@ -177,16 +182,16 @@ const tabs = computed(() => {
           label: __('Users'),
           icon: 'user',
           component: markRaw(Users),
-          condition: () => isManager(),
+          condition: () => isAgencyAdmin.value,
         },
         {
           label: __('Invite User'),
           icon: 'user-plus',
           component: markRaw(InviteUserPage),
-          condition: () => isManager(),
+          condition: () => isAgencyAdmin.value,
         },
       ],
-      condition: () => isManager(),
+      condition: () => isAgencyAdmin.value,
     },
     {
       label: __('Email Settings'),

@@ -26,11 +26,19 @@
   "caller",
   "recording_url",
   "end_time",
+  "agency",
   "note",
   "section_break_kebz",
   "links"
  ],
  "fields": [
+  {
+   "fieldname": "agency",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "label": "Agency",
+   "options": "Agency"
+  },
   {
    "fieldname": "id",
    "fieldtype": "Data",

@@ -207,6 +207,8 @@ def get_exchange_rate(from_currency, to_currency, date=None):
 		is_manager = (
 			"System Manager" in frappe.get_roles(user)
 			or "Sales Manager" in frappe.get_roles(user)
+			or "Agency Admin" in frappe.get_roles(user)
+			or "Agency Manager" in frappe.get_roles(user)
 			or user == "Administrator"
 		)
 

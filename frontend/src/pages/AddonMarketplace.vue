@@ -1,5 +1,12 @@
 <template>
-  <div class="addon-marketplace">
+  <div class="flex flex-col h-full overflow-hidden bg-surface-gray-1">
+    <LayoutHeader>
+      <template #left-header>
+        <ViewBreadcrumbs routeName="Addon Marketplace" />
+      </template>
+    </LayoutHeader>
+    <div class="flex-1 overflow-y-auto">
+      <div class="addon-marketplace">
     <!-- Header -->
     <header class="addon-header">
       <div class="addon-header-content">
@@ -208,6 +215,8 @@
     </Dialog>
 
     <ErrorMessage :message="errorMessage" />
+      </div>
+    </div>
   </div>
 </template>
 
@@ -225,6 +234,8 @@ import {
 } from 'frappe-ui'
 import { computed, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import LayoutHeader from '@/components/LayoutHeader.vue'
+import ViewBreadcrumbs from '@/components/ViewBreadcrumbs.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -384,7 +395,6 @@ watch(
   max-width: 80rem;
   margin: 0 auto;
   min-height: 100%;
-  overflow-y: auto;
 }
 
 /* ─── Header ─── */

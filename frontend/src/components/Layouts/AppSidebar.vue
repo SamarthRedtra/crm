@@ -204,11 +204,13 @@ const canSeeDashboard = computed(() =>
   userCanAccessDashboard(session.user, users.getUser(session.user), agentResource.data),
 )
 
-// Agent verification gate — hide all CRM nav until agent is verified
 const isAgentVerified = computed(() => {
-  // If no agent record exists for this user, show everything (non-agent user)
   if (!agentResource.data?.name) return true
-  return agentResource.data?.status === 'Verified'
+  
+  const isAgentStatusVerified = agentResource.data?.status === 'Verified'
+  const isAgencyOnboarded = agentResource.data?.agency_onboarding_status === 'Completed'
+  
+  return isAgentStatusVerified && isAgencyOnboarded
 })
 
 const isFCSite = ref(window.is_fc_site)
@@ -241,11 +243,11 @@ const links = [
     icon: ContactsIcon,
     to: 'Contacts',
   },
-  {
-    label: 'Organizations',
-    icon: OrganizationsIcon,
-    to: 'Organizations',
-  },
+//   {
+//     label: 'Organizations',
+//     icon: OrganizationsIcon,
+//     to: 'Organizations',
+//   },
   {
     label: 'Notes',
     icon: NoteIcon,
@@ -581,7 +583,7 @@ const articles = ref([
       { name: 'lead', title: __('Lead') },
       { name: 'deal', title: __('Deal') },
       { name: 'contact', title: __('Contact') },
-      { name: 'organization', title: __('Organization') },
+//       { name: 'organization', title: __('Organization') },
       { name: 'note', title: __('Note') },
       { name: 'task', title: __('Task') },
       { name: 'call-log', title: __('Call log') },
