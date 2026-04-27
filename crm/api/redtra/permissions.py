@@ -107,3 +107,23 @@ def get_property_sql_scope_for_user(user):
 		return f" AND agency = '{agency}'", {}
 
 	return f" AND agency = '{agency}' AND owner = '{user}'", {}
+
+# Additional Permission Query Conditions
+def get_property_permission_query(user):
+	return apply_agency_isolation("Property", user)
+
+def get_agency_billing_invoice_permission_query(user):
+	return apply_agency_isolation("Agency Billing Invoice", user)
+
+def get_agency_billing_accrual_permission_query(user):
+	return apply_agency_isolation("Agency Billing Accrual", user)
+
+# Additional Has Permission hooks
+def has_property_permission(doc, ptype, user):
+	return has_agency_permission(doc, ptype, user)
+
+def has_agency_billing_invoice_permission(doc, ptype, user):
+	return has_agency_permission(doc, ptype, user)
+
+def has_agency_billing_accrual_permission(doc, ptype, user):
+	return has_agency_permission(doc, ptype, user)
