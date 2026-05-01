@@ -818,19 +818,67 @@ def get_linked_docs_of_document(doctype, docname):
 @frappe.whitelist()
 def get_current_agent():
 	user = frappe.session.user
-	agent = frappe.db.get_value(
-		"Agent",
-		{"user": user},
-		["name", "status", "dfd_registration_id", "full_name", "agency", "agency_role"],
-		as_dict=True
-	) or {}
-	
-	if agent.get("agency"):
-		agent["agency_onboarding_status"] = frappe.db.get_value("Agency", agent["agency"], "onboarding_status")
-	
-	agent["roles"] = frappe.get_roles(user)
-	
-	return agent
+	name = frappe.db.get_value("Agent", {"user": user}, "name")
+	if not name:
+		return {"roles": frappe.get_roles(user)}
+
+	doc = frappe.get_doc("Agent", name)
+
+	slots_out = []
+	for row in doc.availability_slots or []:
+		slots_out.append(
+			{
+				"name": row.name,
+				"day_of_week": row.day_of_week,
+				"start_time": str(row.start_time) if row.start_time else "",
+				"end_time": str(row.end_time) if row.end_time else "",
+			}
+		)
+
+	kyc_out = []
+	for row in doc.kyc_documents or []:
+		kyc_out.append(
+			{
+				"name": row.name,
+				"document_type": row.document_type,
+				"document_file": row.document_file,
+				"doc_status": row.doc_status,
+				"verified": row.verified,
+				"admin_comment": getattr(row, "admin_comment", None),
+				"remarks": getattr(row, "remarks", None),
+			}
+		)
+
+	out = {
+		"name": doc.name,
+		"status": doc.status,
+		"dfd_registration_id": doc.dfd_registration_id,
+		"brn_id": doc.brn_id,
+		"full_name": doc.full_name,
+		"agency": doc.agency,
+		"agency_role": doc.agency_role,
+		"phone": doc.phone,
+		"whatsapp_number": doc.whatsapp_number,
+		"bio": getattr(doc, "bio", None) or "",
+		"zone_name": getattr(doc, "zone_name", None) or "",
+		"max_daily_appointments": doc.max_daily_appointments
+		if doc.max_daily_appointments is not None
+		else 10,
+		"max_appointment_minutes": doc.max_appointment_minutes
+		if doc.max_appointment_minutes is not None
+		else 30,
+		"availability_slots": slots_out,
+		"kyc_documents": kyc_out,
+	}
+
+	if doc.agency:
+		out["agency_onboarding_status"] = frappe.db.get_value(
+			"Agency", doc.agency, "onboarding_status"
+		)
+
+	out["roles"] = frappe.get_roles(user)
+
+	return out
 
 
 def remove_doc_link(doctype, docname):

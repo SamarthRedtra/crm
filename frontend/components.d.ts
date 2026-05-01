@@ -20,6 +20,7 @@ declare module 'vue' {
     AgencyBillingInvoicesAdmin: typeof import('./src/components/Settings/AgencyBillingInvoicesAdmin.vue')['default']
     AgencyProfileSettings: typeof import('./src/components/Settings/AgencyProfileSettings.vue')['default']
     AgencyTeamInvite: typeof import('./src/components/Settings/AgencyTeamInvite.vue')['default']
+    AgentAppointmentSettings: typeof import('./src/components/Settings/AgentAppointmentSettings.vue')['default']
     AgentLevelPricingSettings: typeof import('./src/components/Settings/AgentLevelPricingSettings.vue')['default']
     AgentSettings: typeof import('./src/components/Settings/AgentSettings.vue')['default']
     AllModals: typeof import('./src/components/Activities/AllModals.vue')['default']

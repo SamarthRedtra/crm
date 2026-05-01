@@ -137,6 +137,7 @@ import {
   DatePicker,
   CalendarActiveEvent as activeEvent,
   call,
+  toast,
 } from 'frappe-ui'
 import { onMounted, ref, computed, provide } from 'vue'
 
@@ -160,6 +161,10 @@ const events = createListResource({
     'color',
     'reference_doctype',
     'reference_docname',
+    'sync_with_appointment',
+    'customer_email',
+    'appointment_customer',
+    'property',
   ],
   filters: { status: 'Open', owner: user },
   pageLength: 9999,
@@ -181,6 +186,7 @@ const events = createListResource({
       referenceDocname: ev.reference_docname,
       syncWithAppointment: ev.sync_with_appointment,
       customerEmail: ev.customer_email,
+      appointmentCustomer: ev.appointment_customer,
       property: ev.property,
     })),
 })
@@ -202,6 +208,14 @@ const isTempEvent = (id) => TEMP_EVENT_IDS.has(id)
 function removeTempEvents() {
   if (!Array.isArray(events.data)) return
   events.data = events.data.filter((ev) => !isTempEvent(ev.id))
+}
+
+function normalizeLink(val) {
+  if (val == null || val === '') return ''
+  if (typeof val === 'object' && val !== null && 'value' in val) {
+    return String(val.value ?? '').trim()
+  }
+  return String(val).trim()
 }
 
 function openEvent(e, nextMode, reloadEvent = false) {
@@ -232,8 +246,9 @@ function buildEventPayload(_event) {
     reference_docname: _event.referenceDocname,
     event_participants: _event.event_participants,
     sync_with_appointment: _event.syncWithAppointment,
-    customer_email: _event.customerEmail,
-    property: _event.property,
+    customer_email: (_event.customerEmail || '').trim(),
+    appointment_customer: normalizeLink(_event.appointmentCustomer),
+    property: normalizeLink(_event.property),
   }
 }
 
@@ -246,13 +261,22 @@ function createEvent(_event) {
       event_data: payload,
       appointment_data: {
         sync: true,
-        customer_email: _event.customerEmail,
-        property: _event.property
-      }
-    }).then(async (e) => {
-      await events.reload()
-      showDetails({ id: e.name })
+        customer_email: (_event.customerEmail || '').trim(),
+        customer: normalizeLink(_event.appointmentCustomer),
+        property: normalizeLink(_event.property),
+      },
     })
+      .then(async (e) => {
+        await events.reload()
+        showDetails({ id: e.name })
+      })
+      .catch((err) => {
+        toast.error(
+          err?.messages?.[0] ||
+            err?.message ||
+            __('Could not create event with appointment.'),
+        )
+      })
     return
   }
 
@@ -397,6 +421,10 @@ function buildTempEvent(e, duplicate) {
     referenceDoctype: e.referenceDoctype,
     referenceDocname: e.referenceDocname,
     event_participants: e.event_participants || [],
+    syncWithAppointment: e.syncWithAppointment,
+    customerEmail: e.customerEmail || '',
+    appointmentCustomer: e.appointmentCustomer || '',
+    property: e.property || '',
   }
 }
 

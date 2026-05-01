@@ -204,7 +204,7 @@
           <DatePicker
             :class="['[&_input]:w-[216px]']"
             variant="outline"
-            :value="_event.fromDate"
+            :modelValue="_event.fromDate"
             :format="'MMM D, YYYY'"
             :placeholder="__('May 1, 2025')"
             :clearable="false"
@@ -317,12 +317,42 @@
         </div>
       </div>
       <div v-if="_event.syncWithAppointment" class="flex flex-col gap-2 px-4.5 py-1">
-        <div class="flex items-center justify-between text-ink-gray-7 text-sm">
-          <div class="">{{ __('Customer Email') }}</div>
-          <TextInput v-model="_event.customerEmail" placeholder="customer@example.com" class="w-[216px]" @change="sync" />
+        <div class="flex flex-col gap-1 text-ink-gray-7 text-sm">
+          <div>{{ __('Existing Customer') }}</div>
+          <Link
+            class="w-full [&_.control-input-wrapper]:max-w-none"
+            v-model="_event.appointmentCustomer"
+            doctype="Customer"
+            variant="outline"
+            @update:model-value="
+              () => {
+                if (_event.appointmentCustomer) _event.customerEmail = ''
+                sync()
+              }
+            "
+          />
+        </div>
+        <div class="text-p-xs text-ink-gray-5 px-0.5">
+          {{ __('Or enter email — a portal Customer record will be created if missing.') }}
         </div>
         <div class="flex items-center justify-between text-ink-gray-7 text-sm">
-          <div class="">{{ __('Property') }}</div>
+          <div>{{ __('Customer Email') }}</div>
+          <TextInput
+            v-model="_event.customerEmail"
+            type="email"
+            placeholder="customer@example.com"
+            class="w-[216px]"
+            :disabled="!!_event.appointmentCustomer"
+            @change="
+              () => {
+                if (_event.customerEmail?.trim()) _event.appointmentCustomer = ''
+                sync()
+              }
+            "
+          />
+        </div>
+        <div class="flex items-center justify-between text-ink-gray-7 text-sm">
+          <div>{{ __('Property') }} <span class="text-red-600">*</span></div>
           <Link class="w-[216px]" v-model="_event.property" doctype="Property" variant="outline" @update:model-value="sync" />
         </div>
       </div>
@@ -581,7 +611,17 @@ function saveEvent() {
     return
   }
 
-  oldEvent.value = { ..._event.value }
+  if (_event.value.syncWithAppointment) {
+    if (!_event.value.property) {
+      error.value = __('Property is required when syncing with appointment.')
+      return
+    }
+    if (!_event.value.appointmentCustomer && !_event.value.customerEmail?.trim()) {
+      error.value = __('Select a customer or enter a customer email.')
+      return
+    }
+  }
+
   sync()
   emit('save', _event.value)
 }
@@ -697,7 +737,7 @@ function redirect() {
 }
 
 function getTooltip(m) {
-  if (!m) return email
+  if (!m) return ''
   const parts = []
   if (m.reference_doctype) parts.push(m.reference_doctype)
   if (m.reference_docname) parts.push(m.reference_docname)

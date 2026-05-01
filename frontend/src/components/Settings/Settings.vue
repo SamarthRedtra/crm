@@ -69,6 +69,7 @@ import EmailTemplatePage from '@/components/Settings/EmailTemplate/EmailTemplate
 import TelephonySettings from '@/components/Settings/TelephonySettings.vue'
 import EmailConfig from '@/components/Settings/EmailConfig.vue'
 import AgentSettings from '@/components/Settings/AgentSettings.vue'
+import AgentAppointmentSettings from '@/components/Settings/AgentAppointmentSettings.vue'
 import AgencyBilling from '@/components/Settings/AgencyBilling.vue'
 import AgencyProfileSettings from '@/components/Settings/AgencyProfileSettings.vue'
 import AgencyTeamInvite from '@/components/Settings/AgencyTeamInvite.vue'
@@ -89,6 +90,7 @@ import { ref, markRaw, computed, watch, h } from 'vue'
 import AssignmentRulePage from './AssignmentRules/AssignmentRulePage.vue'
 
 const { isManager, isTelephonyAgent, getUser } = usersStore()
+const user = computed(() => getUser())
 const { agentResource } = agentStore()
 const agency = agencyStore()
 const { context: agencyContext } = storeToRefs(agency)
@@ -100,6 +102,8 @@ const isAgencyAdmin = computed(() => {
 const hasLinkedAgency = computed(() => Boolean(agencyContext.value?.agency))
 const canOpenAgencyBilling = computed(() => Boolean(agencyContext.value?.can_manage_billing) && isAgencyAdmin.value)
 const canInviteAgencyTeam = computed(() => Boolean(agencyContext.value?.can_manage_team) && isAgencyAdmin.value)
+
+const hasAgentProfile = computed(() => Boolean(agentResource.data?.name))
 
 const tabs = computed(() => {
   let _tabs = [
@@ -116,6 +120,12 @@ const tabs = computed(() => {
               image: user.value.user_image,
             }),
           component: markRaw(ProfileSettings),
+        },
+        {
+          label: __('Appointment availability'),
+          icon: 'calendar',
+          component: markRaw(AgentAppointmentSettings),
+          condition: () => hasAgentProfile.value,
         },
       ],
     },
@@ -134,14 +144,8 @@ const tabs = computed(() => {
           component: markRaw(AgencyBilling),
           condition: () => canOpenAgencyBilling.value,
         },
-        {
-          label: __('Invite team'),
-          icon: 'user-plus',
-          component: markRaw(AgencyTeamInvite),
-          condition: () => canInviteAgencyTeam.value,
-        },
       ],
-      condition: () => hasLinkedAgency.value || canOpenAgencyBilling.value || canInviteAgencyTeam.value,
+      condition: () => hasLinkedAgency.value || canOpenAgencyBilling.value,
     },
     {
       label: __('System Configuration'),
@@ -172,6 +176,11 @@ const tabs = computed(() => {
           icon: 'users',
           component: markRaw(AgentSettings),
         },
+        {
+          label: __('Invite User'),
+          icon: 'user-plus',
+          component: markRaw(InviteUserPage),
+        },
       ],
       condition: () => isManager(),
     },
@@ -185,10 +194,10 @@ const tabs = computed(() => {
           condition: () => isAgencyAdmin.value,
         },
         {
-          label: __('Invite User'),
+          label: __('Invite team'),
           icon: 'user-plus',
-          component: markRaw(InviteUserPage),
-          condition: () => isAgencyAdmin.value,
+          component: markRaw(AgencyTeamInvite),
+          condition: () => canInviteAgencyTeam.value,
         },
       ],
       condition: () => isAgencyAdmin.value,

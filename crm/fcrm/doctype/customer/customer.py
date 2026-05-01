@@ -6,6 +6,22 @@ from frappe.model.document import Document
 
 
 class Customer(Document):
+	# begin: auto-generated types
+	# This code is auto-generated. Do not modify anything in this block.
+
+	from typing import TYPE_CHECKING
+
+	if TYPE_CHECKING:
+		from frappe.types import DF
+
+		email: DF.Data
+		full_name: DF.Data
+		phone: DF.Data | None
+		preferred_city: DF.Data | None
+		user: DF.Link
+		whatsapp_number: DF.Data | None
+	# end: auto-generated types
+
 	def before_insert(self):
 		self._sync_user_defaults()
 

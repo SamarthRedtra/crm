@@ -22,8 +22,8 @@
               onClick: () => (showAddExistingModal = true),
             },
             {
-              label: __('Invite New User'),
-              onClick: () => (activeSettingsPage = 'Invite User'),
+              label: __('Invite team'),
+              onClick: () => (activeSettingsPage = 'Invite team'),
             },
           ]"
           :button="{

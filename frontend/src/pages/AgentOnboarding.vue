@@ -306,7 +306,13 @@
               <FeatherIcon name="calendar" class="h-4 w-4 text-ink-gray-5" />
               <h3 class="text-p-base font-semibold text-ink-gray-8">{{ __('Appointment Schedule') }}</h3>
             </div>
-            <p class="text-p-sm text-ink-gray-5 -mt-2">{{ __('Set your weekly availability so clients can schedule property viewings.') }}</p>
+            <p class="text-p-sm text-ink-gray-5 -mt-2">
+              {{
+                __(
+                  'Optional — set your weekly availability for client viewings. You can skip this now and configure anytime under Settings → Appointment availability.',
+                )
+              }}
+            </p>
 
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div class="flex flex-col gap-1.5">
@@ -686,7 +692,10 @@ const reviewItems = computed(() => [
   {
     label: 'Availability slots',
     ok: true,
-    value: `${formData.value.availability_slots.length} day(s) set`,
+    value:
+      formData.value.availability_slots.length > 0
+        ? `${formData.value.availability_slots.length} day(s) set`
+        : __('Skipped — optional (configure in Settings later)'),
   },
 ])
 

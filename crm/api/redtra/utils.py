@@ -333,6 +333,53 @@ def ensure_customer_record(user: str, full_name: str, email: str, phone: str | N
 	customer.insert()
 
 
+def ensure_customer_for_email(email: str, full_name: str | None = None) -> str:
+	"""Ensure FCRM Customer exists for an email (creates minimal User + Customer if needed).
+	Customer.name follows autoname field:user (typically the User name / email)."""
+	from frappe.utils import validate_email_address
+
+	email = (email or "").strip().lower()
+	if not email:
+		frappe.throw(_("Customer email is required."), frappe.ValidationError)
+	validate_email_address(email, throw=True)
+
+	existing = frappe.db.get_value("Customer", {"email": email}, "name")
+	if existing:
+		return existing
+
+	existing = frappe.db.get_value("Customer", {"user": email}, "name")
+	if existing:
+		return existing
+
+	user_name = frappe.db.get_value("User", {"email": email}, "name")
+	if not user_name:
+		display = (full_name or "").strip() or (email.split("@")[0] if "@" in email else email)
+		user_doc = frappe.get_doc(
+			{
+				"doctype": "User",
+				"email": email,
+				"first_name": display,
+				"send_welcome_email": 0,
+				"enabled": 1,
+			}
+		)
+		user_doc.flags.ignore_permissions = True
+		user_doc.insert()
+		user_name = user_doc.name
+
+	if "Customer" not in frappe.get_roles(user_name):
+		user_doc = frappe.get_doc("User", user_name)
+		user_doc.flags.ignore_permissions = True
+		user_doc.add_roles("Customer")
+
+	if frappe.db.exists("Customer", {"user": user_name}):
+		return frappe.db.get_value("Customer", {"user": user_name}, "name")
+
+	display = (full_name or "").strip() or (email.split("@")[0] if "@" in email else email)
+	ensure_customer_record(user_name, display, email)
+	return frappe.db.get_value("Customer", {"user": user_name}, "name")
+
+
 def get_customer_by_user(user: str):
 	customer_name = frappe.db.get_value("Customer", {"user": user})
 	if customer_name:

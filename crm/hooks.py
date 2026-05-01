@@ -189,6 +189,10 @@ doc_events = {
 		"before_validate": ["crm.api.demo.validate_user"],
 		"validate_reset_password": ["crm.api.demo.validate_reset_password"],
 	},
+	"Event": {
+		"after_insert": ["crm.api.events.sync_property_appointment_after_insert"],
+		"on_update": ["crm.api.events.sync_property_appointment_on_update"],
+	},
 }
 
 # Scheduled Tasks
