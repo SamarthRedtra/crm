@@ -102,12 +102,14 @@
     {
       "fieldname": "brn_id",
       "fieldtype": "Data",
-      "label": "BRN/BLN ID"
+      "label": "BRN/BLN ID",
+      "reqd": 1
     },
     {
       "fieldname": "rera_id",
       "fieldtype": "Data",
-      "label": "RERA ID"
+      "label": "RERA ID",
+      "reqd": 1
     },
     {
       "fieldname": "company_license_number",

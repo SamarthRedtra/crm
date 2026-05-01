@@ -524,6 +524,10 @@ watch(
   },
 )
 
+onMounted(() => {
+  management.reload()
+})
+
 function billingTheme(status) {
   return {
     Active: 'green',

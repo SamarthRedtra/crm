@@ -522,23 +522,29 @@ function sync() {
   emit('sync', _event.value.id, _event.value)
 }
 
+function normalizePickerValue(value) {
+  return typeof value === 'object' ? value?.value : value
+}
+
 function updateDate(d) {
-  _event.value.fromDate = d
-  _event.value.toDate = d
+  const date = normalizePickerValue(d)
+  _event.value.fromDate = date
+  _event.value.toDate = date
 
   sync()
 }
 
 function updateTime(t, fromTime = false) {
+  const time = normalizePickerValue(t)
   error.value = null
   const prevTo = _event.value.toTime
   if (fromTime) {
-    _event.value.fromTime = t
-    if (!_event.value.toTime || _event.value.toTime <= t) {
-      _event.value.toTime = computeAutoToTime(t)
+    _event.value.fromTime = time
+    if (!_event.value.toTime || _event.value.toTime <= time) {
+      _event.value.toTime = computeAutoToTime(time)
     }
   } else {
-    _event.value.toTime = t
+    _event.value.toTime = time
   }
   const { valid, error: err } = validateTimeRange({
     fromDate: _event.value.fromDate,

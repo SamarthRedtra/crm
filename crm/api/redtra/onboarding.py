@@ -140,9 +140,13 @@ def register_agency_admin(data: str | dict[str, Any] | None = None) -> dict[str,
 	email = (payload.get("email") or "").strip().lower()
 	password = payload.get("password") or ""
 	agency_name = (payload.get("agency_name") or "").strip()
+	brn_id = (payload.get("brn_id") or "").strip()
+	rera_id = (payload.get("rera_id") or "").strip()
 
 	if not full_name or not email or not password or not agency_name:
 		frappe.throw(_("Full name, email, password, and agency name are required."), frappe.ValidationError)
+	if not brn_id or not rera_id:
+		frappe.throw(_("BRN/BLN ID and RERA ID are required."), frappe.ValidationError)
 	if len(password) < 8:
 		frappe.throw(_("Password must be at least 8 characters long."), frappe.ValidationError)
 
@@ -177,8 +181,8 @@ def register_agency_admin(data: str | dict[str, Any] | None = None) -> dict[str,
 			"email": payload.get("agency_email") or email,
 			"phone": payload.get("agency_phone") or payload.get("phone"),
 			"website": payload.get("website"),
-			"brn_id": payload.get("brn_id"),
-			"rera_id": payload.get("rera_id"),
+			"brn_id": brn_id,
+			"rera_id": rera_id,
 			"company_license_number": payload.get("company_license_number"),
 			"whatsapp_number": payload.get("agency_phone") or payload.get("phone"),
 			"billing_contact_name": payload.get("billing_contact_name") or full_name,
@@ -252,3 +256,35 @@ def _try_create_stripe_customer_for_agency(agency_doc):
 			frappe.get_traceback(),
 			f"Stripe customer provisioning failed for agency {agency_doc.name}",
 		)
+
+
+@frappe.whitelist()
+def get_agent_onboarding_context() -> dict[str, Any]:
+	"""Returns pre-fill data for agent onboarding from linked agency."""
+	user = frappe.session.user
+	agent = frappe.db.get_value(
+		"Agent",
+		{"user": user},
+		["name", "agency", "phone", "whatsapp_number", "brn_id"],
+		as_dict=True,
+	)
+	if not agent:
+		return {}
+
+	agency_data = {}
+	if agent.agency:
+		agency_data = frappe.db.get_value(
+			"Agency",
+			agent.agency,
+			["phone", "whatsapp_number", "brn_id", "agency_name"],
+			as_dict=True,
+		)
+
+	return {
+		"agent": agent,
+		"agency_defaults": {
+			"phone": agency_data.get("phone") if not agent.phone else None,
+			"whatsapp_number": agency_data.get("whatsapp_number") if not agent.whatsapp_number else None,
+			"brn_id": agency_data.get("brn_id") if not agent.brn_id else None,
+		},
+	}

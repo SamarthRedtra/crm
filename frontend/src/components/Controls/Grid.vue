@@ -137,7 +137,7 @@
                     :filters="field.filters"
                     @change="(v) => fieldChange(v, field, row)"
                     :onCreate="
-                      (value, close) => field.create(v, field, row, close)
+                      (value, close) => field.create(value, field, row, close)
                     "
                   />
                   <Link
@@ -533,10 +533,7 @@ const isGalleryView = computed(() => {
 
 const imageField = computed(() => allFields.value.find((f) => f.fieldtype === 'Attach Image'))
 
-const uploaderDoctype = computed(() => {
-  if (!parentDoc.value?.name || parentDoc.value.name.startsWith('new-')) return null
-  return props.parentDoctype
-})
+const uploaderDoctype = computed(() => props.parentDoctype)
 
 const uploaderDocname = computed(() => {
   const name = parentDoc.value?.name
@@ -568,9 +565,15 @@ function onBulkUpload(file) {
   newRow['doctype'] = props.doctype
   newRow['parentfield'] = props.parentFieldname
   newRow['parenttype'] = props.parentDoctype
-  newRow[imageField.value.fieldname] = file.file_url
+  
+  const fileUrl = file?.file_url || file?.message?.file_url || file
+  newRow[imageField.value.fieldname] = typeof fileUrl === 'string' ? fileUrl : ''
 
-  rows.value = [...(rows.value || []), newRow]
+  if (!Array.isArray(rows.value)) {
+    rows.value = [newRow]
+  } else {
+    rows.value = [...rows.value, newRow]
+  }
   triggerOnRowAdd(newRow)
 }
 

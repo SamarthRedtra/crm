@@ -11,6 +11,7 @@
   "title",
   "developer",
   "agent",
+  "agency",
   "status",
   "is_sold",
   "is_rented",
@@ -64,12 +65,14 @@
   "section_break_media",
   "primary_image",
   "gallery",
-  "is_featured",
-  "featured_until",
-  "views_count",
   "admin_details_tab",
   "quality_scoring_section",
-  "quality_score"
+  "quality_score",
+  "featured_details_tab",
+  "is_featured",
+  "featured_from",
+  "featured_until",
+  "views_count"
  ],
  "fields": [
   {
@@ -255,6 +258,14 @@
    "in_standard_filter": 1,
    "label": "Agent",
    "options": "Agent"
+  },
+  {
+   "fieldname": "agency",
+   "fieldtype": "Link",
+   "in_standard_filter": 1,
+   "label": "Agency",
+   "options": "Agency",
+   "read_only": 1
   },
   {
    "fieldname": "section_break_media",
@@ -452,13 +463,26 @@
    "in_list_view": 1,
    "in_standard_filter": 1,
    "label": "Quality Score",
-   "options": "\n1\n2\n3\n4\n5\n6\n7\n8\n9\n10",
-   "reqd": 1
+   "options": "\n1\n2\n3\n4\n5\n6\n7\n8\n9\n10"
   },
   {
+   "depends_on": "eval:doc.is_featured == 1",
    "fieldname": "featured_until",
    "fieldtype": "Datetime",
-   "label": "Featured Until"
+   "label": "Featured Until",
+   "mandatory_depends_on": "eval:doc.is_featured == 1"
+  },
+  {
+   "fieldname": "featured_details_tab",
+   "fieldtype": "Tab Break",
+   "label": "Featured Details"
+  },
+  {
+   "depends_on": "eval:doc.is_featured == 1",
+   "fieldname": "featured_from",
+   "fieldtype": "Datetime",
+   "label": "Featured From",
+   "mandatory_depends_on": "eval:doc.is_featured == 1"
   }
  ],
  "image_field": "primary_image",
@@ -471,7 +495,7 @@
   }
  ],
  "make_attachments_public": 1,
- "modified": "2026-04-27 23:16:13.618519",
+ "modified": "2026-05-01 16:10:59.994331",
  "modified_by": "Administrator",
  "module": "FCRM",
  "name": "Property",

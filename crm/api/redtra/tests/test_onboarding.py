@@ -44,6 +44,8 @@ class TestAgencyOnboardingRegistration(IntegrationTestCase):
 			"email": email,
 			"password": "TestPass123!",
 			"agency_name": f"Onboarding Agency {self.suffix}",
+			"brn_id": f"BRN-{self.suffix}",
+			"rera_id": f"RERA-{self.suffix}",
 			"challenge_id": ch["challenge_id"],
 			"challenge_answer": answer,
 			"idempotency_key": f"idem-{self.suffix}",
@@ -77,5 +79,21 @@ class TestAgencyOnboardingRegistration(IntegrationTestCase):
 					"agency_name": f"Bad Agency {self.suffix}",
 					"challenge_id": "invalid",
 					"challenge_answer": "99",
+				}
+			)
+
+	def test_registration_requires_brn_and_rera(self):
+		frappe.set_user("Guest")
+		ch = onboarding.get_registration_challenge()
+		answer = self._parse_sum_from_prompt(ch["prompt"])
+		with self.assertRaises(frappe.ValidationError):
+			onboarding.register_agency_admin(
+				data={
+					"full_name": "Test Admin",
+					"email": f"missing-ids-{self.suffix}@example.com",
+					"password": "TestPass123!",
+					"agency_name": f"Missing IDs Agency {self.suffix}",
+					"challenge_id": ch["challenge_id"],
+					"challenge_answer": answer,
 				}
 			)

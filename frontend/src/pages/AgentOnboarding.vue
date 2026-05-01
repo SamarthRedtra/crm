@@ -501,7 +501,31 @@ const mandatorySettingsResource = createResource({
     mandatoryDocTypes.value = data || []
   },
 })
-onMounted(() => mandatorySettingsResource.fetch())
+
+const onboardingContextResource = createResource({
+  url: 'crm.api.redtra.onboarding.get_agent_onboarding_context',
+  auto: true,
+  onSuccess(data) {
+    if (data?.agency_defaults) {
+      const defaults = data.agency_defaults
+      if (!formData.value.phone && defaults.phone) {
+        formData.value.phone = defaults.phone
+      }
+      if (!formData.value.whatsapp_number && defaults.whatsapp_number) {
+        formData.value.whatsapp_number = defaults.whatsapp_number
+      }
+      if (!formData.value.brn_id && defaults.brn_id) {
+        formData.value.brn_id = defaults.brn_id
+      }
+    }
+  },
+})
+
+onMounted(() => {
+  mandatorySettingsResource.fetch()
+  agentResource.reload()
+  onboardingContextResource.reload()
+})
 
 // — Navigation with validation —
 function goToCRM() { router.push({ name: 'Home' }) }

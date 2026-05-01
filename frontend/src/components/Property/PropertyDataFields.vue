@@ -34,7 +34,21 @@
       :tabs="tabs"
       :data="document.doc"
       doctype="Property"
-    />
+    >
+      <template #field="{ field }">
+        <div v-if="field.fieldname === 'trakheesi_qr_code'" class="space-y-2">
+          <label class="text-sm font-medium text-ink-gray-5">{{ __(field.label) }}</label>
+          <div v-if="document.doc.trakheesi_qr_code" class="relative group w-32 h-32 rounded border border-outline-gray-2 overflow-hidden bg-white p-1">
+            <img :src="document.doc.trakheesi_qr_code" class="w-full h-full object-contain" />
+          </div>
+          <ImageUploader
+            :image-url="document.doc.trakheesi_qr_code"
+            @upload="(url) => document.doc.trakheesi_qr_code = url"
+            @remove="document.doc.trakheesi_qr_code = ''"
+          />
+        </div>
+      </template>
+    </FieldLayout>
   </div>
 </template>
 

@@ -48,7 +48,7 @@ const PROPERTY_FIELD_GROUPS = {
       name: 'publishing',
       label: 'Publishing',
       opened: false,
-      fields: ['is_featured', 'featured_until', 'is_sold', 'is_rented', 'views_count'],
+      fields: ['is_featured', 'featured_from', 'featured_until', 'is_sold', 'is_rented', 'views_count'],
     },
   ],
   data: [
@@ -133,7 +133,18 @@ const PROPERTY_FIELD_GROUPS = {
         {
           name: 'media_section',
           label: 'Media',
-          columns: [['primary_image', 'gallery'], ['is_featured', 'featured_until', 'views_count']],
+          columns: [['primary_image', 'gallery'], ['views_count']],
+        },
+      ],
+    },
+    {
+      name: 'featured_tab',
+      label: 'Featured',
+      sections: [
+        {
+          name: 'featured_section',
+          label: 'Featured Details',
+          columns: [['is_featured'], ['featured_from', 'featured_until']],
         },
       ],
     },
@@ -151,21 +162,64 @@ const PROPERTY_FIELD_GROUPS = {
   ],
   quickEntry: [
     {
-      name: 'basics_tab',
-      label: 'Basics',
+      name: 'details_tab',
+      label: 'Details',
       sections: [
         {
-          name: 'basics_section',
+          name: 'details_section',
           label: 'Basic Information',
+          hideLabel: true,
           columns: [
-            ['title', 'agent', 'developer', 'property_category', 'trakheesi_permit_number'],
-            ['listing_type', 'property_type', 'completion_status', 'rent_type', 'property_code', 'trakheesi_qr_code'],
+            ['title', 'developer', 'agent', 'property_category', 'trakheesi_permit_number', 'is_featured'],
+            ['property_type', 'rent_type', 'property_code', 'trakheesi_qr_code', 'featured_from', 'featured_until'],
           ],
         },
         {
+          name: 'content_section',
+          label: 'Content',
+          columns: [['description']],
+        },
+      ],
+    },
+    {
+      name: 'pricing_tab',
+      label: 'Pricing',
+      sections: [
+        {
           name: 'pricing_section',
           label: 'Pricing & Specs',
-          columns: [['price', 'currency', 'bedrooms', 'bathrooms'], ['furnishing_status', 'area_sqft']],
+          hideLabel: true,
+          columns: [
+            ['price', 'currency', 'furnishing_status', 'is_studio'],
+            ['bedrooms', 'bathrooms', 'area_sqft']
+          ],
+        },
+      ],
+    },
+    {
+      name: 'offplan_details_tab',
+      label: 'Off-plan details',
+      sections: [
+        {
+          name: 'offplan_section',
+          label: 'Off-Plan Details',
+          hideLabel: true,
+          columns: [
+            ['handover_quarter', 'handover_year', 'payment_plan_type', 'completion_percentage'],
+            ['payment_plan_table', 'project_units_table'],
+          ],
+        },
+      ],
+    },
+    {
+      name: 'amenities_tab',
+      label: 'Amenities',
+      sections: [
+        {
+          name: 'amenities_section',
+          label: 'Amenities',
+          hideLabel: true,
+          columns: [['amenities']],
         },
       ],
     },
@@ -176,12 +230,11 @@ const PROPERTY_FIELD_GROUPS = {
         {
           name: 'location_section',
           label: 'Location',
-          columns: [['area', 'city', 'state'], ['country', 'pincode']],
-        },
-        {
-          name: 'content_section',
-          label: 'Content',
-          columns: [['description']],
+          hideLabel: true,
+          columns: [
+            ['area', 'address_line1', 'state', 'latitude'], 
+            ['city', 'address_line2', 'country', 'longitude']
+          ],
         },
       ],
     },
@@ -192,21 +245,8 @@ const PROPERTY_FIELD_GROUPS = {
         {
           name: 'media_section',
           label: 'Media',
+          hideLabel: true,
           columns: [['primary_image', 'gallery']],
-        },
-      ],
-    },
-    {
-      name: 'offplan_tab',
-      label: 'Off-Plan',
-      sections: [
-        {
-          name: 'offplan_section',
-          label: 'Off-Plan Details',
-          columns: [
-            ['handover_quarter', 'handover_year', 'payment_plan_type', 'completion_percentage'],
-            ['payment_plan_table'],
-          ],
         },
       ],
     },
@@ -240,6 +280,17 @@ export const PROPERTY_COMMERCIAL_TYPES = [
   'Mixed Use Land',
   'Showroom',
   'Other Commercial',
+]
+
+export const STANDARD_AMENITIES = [
+  'Pool',
+  'Gym',
+  'Parking',
+  'Balcony',
+  'Sea view',
+  '24/7 security',
+  'Concierge',
+  'Kids area'
 ]
 
 export const PROPERTY_SIDEBAR_SETTINGS_KEY = 'PropertySidebar'
@@ -408,6 +459,10 @@ export function buildPropertySidebarSections(metaFields, options = {}) {
                 overrides.search_fields = 'full_name'
               }
 
+              if (fieldname === 'description') {
+                overrides.fieldtype = 'Small Text'
+              }
+
               return getField(fieldMap, fieldname, overrides)
             })
             .filter(Boolean),
@@ -492,9 +547,21 @@ export function buildPropertyQuickEntryTabs(metaFields, doc = {}) {
     fieldMap.trakheesi_qr_code.reqd = 1
   }
 
+  if (fieldMap.featured_from) {
+    fieldMap.featured_from.depends_on = 'eval:doc.is_featured == 1'
+  }
+
+  if (fieldMap.featured_until) {
+    fieldMap.featured_until.depends_on = 'eval:doc.is_featured == 1'
+  }
+
+  if (fieldMap.description) {
+    fieldMap.description.fieldtype = 'Small Text'
+  }
+
   return PROPERTY_FIELD_GROUPS.quickEntry
     .filter((tab) => {
-      if (tab.name === 'offplan_tab' && doc.completion_status !== 'Off-Plan') {
+      if (tab.name === 'offplan_details_tab' && doc.completion_status !== 'Off-Plan') {
         return false
       }
       return true
@@ -534,21 +601,20 @@ export function validatePropertyDoc(doc) {
 
   // Enforce title words if not overridden by backend or in addition to
   const titleWords = doc.title.trim().split(/\s+/).filter(Boolean)
-  if (titleWords.length < 50) {
-    return 'Title must be at least 50 words'
+  if (titleWords.length < 5) {
+    return 'Title must be at least 5 words'
   }
   if (titleWords.length > 200) {
     return 'Title must not exceed 200 words'
   }
 
   // C-07: Trakheesi fields mandatory — admin (session.user === 'Administrator') can bypass
-  const session = sessionStore()
-  const isAdmin = session.user === 'Administrator'
   const { agentResource } = agentStore()
   const isAgent = !!(agentResource.data && agentResource.data.name)
 
-  if (!isAgent && !doc.quality_score) {
-    return 'Quality Score is mandatory for Admin review'
+  if (doc.is_featured) {
+    if (!doc.featured_from) return 'Featured From is mandatory'
+    if (!doc.featured_until) return 'Featured Until is mandatory'
   }
 
   // Force Trakheesi fields mandatory in Vue CRM
@@ -601,6 +667,11 @@ export function validatePropertyDoc(doc) {
     }
   }
 
+  if (doc.is_featured) {
+    if (!doc.featured_from) return 'Featured From is mandatory'
+    if (!doc.featured_until) return 'Featured Until is mandatory'
+  }
+
   return null
 }
 
@@ -611,7 +682,8 @@ export function normalizePropertyDoc(doc) {
     doc.rent_type = ''
   }
 
-  if (!doc.is_featured && doc.featured_until) {
+  if (!doc.is_featured) {
+    doc.featured_from = ''
     doc.featured_until = ''
   }
 
@@ -622,4 +694,6 @@ export function normalizePropertyDoc(doc) {
   ) {
     doc.property_type = ''
   }
+
+  return doc
 }

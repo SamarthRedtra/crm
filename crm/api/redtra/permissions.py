@@ -23,10 +23,10 @@ def apply_agency_isolation(doctype, user=None):
 	
 	# Agency Admin and Agency Manager can see everything in the agency
 	if "Agency Admin" in roles or "Agency Manager" in roles:
-		return f"`agency` = '{agency}'"
+		return f"`tab{doctype}`.`agency` = '{agency}'"
 	
 	# Agent can only see what they created within their agency
-	return f"`agency` = '{agency}' AND `owner` = '{user}'"
+	return f"`tab{doctype}`.`agency` = '{agency}' AND `tab{doctype}`.`owner` = '{user}'"
 
 def has_agency_permission(doc, ptype, user=None):
 	if not user:
@@ -39,7 +39,11 @@ def has_agency_permission(doc, ptype, user=None):
 	if not agency:
 		return False
 	
-	if doc.agency != agency:
+	agency_id = getattr(doc, "agency", None)
+	if not agency_id and doc.doctype == "Property" and getattr(doc, "agent", None):
+		agency_id = frappe.db.get_value("Agent", doc.agent, "agency")
+	
+	if not agency_id or agency_id != agency:
 		return False
 	
 	roles = frappe.get_roles(user)
@@ -127,3 +131,8 @@ def has_agency_billing_invoice_permission(doc, ptype, user):
 
 def has_agency_billing_accrual_permission(doc, ptype, user):
 	return has_agency_permission(doc, ptype, user)
+
+def _is_internal_manager(user: str | None = None) -> bool:
+	user = user or frappe.session.user
+	roles = set(frappe.get_roles(user))
+	return user == "Administrator" or bool({"System Manager", "Sales Manager", "Agency Admin", "Agency Manager"} & roles)

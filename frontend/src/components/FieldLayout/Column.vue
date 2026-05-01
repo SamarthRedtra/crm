@@ -7,7 +7,9 @@
       {{ column.label }}
     </div>
     <template v-for="field in column.fields" :key="field.fieldname">
-      <Field :field="field" :data-name="field.fieldname" />
+      <slot name="field" v-bind="{ field }">
+        <Field :field="field" :data-name="field.fieldname" />
+      </slot>
     </template>
   </div>
 </template>

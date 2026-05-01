@@ -309,13 +309,13 @@ router.beforeEach(async (to, from, next) => {
 
     // Manager dashboard: agency Admin/Manager must match API (`dashboard_user_only`), not plain Sales User.
     if (to.name === 'Dashboard') {
-      const { users } = usersStore()
+      const { users, getUser } = usersStore()
       await users.promise
       if (!agentResource.data) {
         await agentResource.reload()
       }
       const session = sessionStore()
-      const udoc = users.getUser(session.user)
+      const udoc = getUser(session.user)
       if (!userCanAccessDashboard(session.user, udoc, agentResource.data)) {
         next({ name: 'Leads' })
         return
@@ -330,13 +330,13 @@ router.beforeEach(async (to, from, next) => {
     let defaultView = getDefaultView()
     if (!defaultView) {
       const { agentResource } = agentStore()
-      const { users } = usersStore()
+      const { users, getUser } = usersStore()
       await users.promise
       if (!agentResource.data) {
         await agentResource.reload()
       }
       const session = sessionStore()
-      const udoc = users.getUser(session.user)
+      const udoc = getUser(session.user)
       if (userCanAccessDashboard(session.user, udoc, agentResource.data)) {
         next({ name: 'Dashboard' })
       } else {

@@ -197,18 +197,28 @@ const { toggle: toggleNotificationPanel } = notificationsStore()
 const isSidebarCollapsed = useStorage('isSidebarCollapsed', false)
 
 const session = sessionStore()
-const { users, isManager } = usersStore()
+const { users, isManager, getUser } = usersStore()
 const { agentResource } = agentStore()
 
 const canSeeDashboard = computed(() =>
-  userCanAccessDashboard(session.user, users.getUser(session.user), agentResource.data),
+  userCanAccessDashboard(session.user, getUser(session.user), agentResource.data),
 )
 
 const isAgentVerified = computed(() => {
+  const userRoles = window.frappe?.boot?.user?.roles || []
+  if (userRoles.includes('System Manager')) return true
+  
   if (!agentResource.data?.name) return true
   
   const isAgentStatusVerified = agentResource.data?.status === 'Verified'
   const isAgencyOnboarded = agentResource.data?.agency_onboarding_status === 'Completed'
+  
+  // Failsafe: if they are somehow unverified but the router didn't block them,
+  // we still want to show the sidebar if they are accessing dashboard/leads safely.
+  // We'll trust the router and just match router's isUnverifiedAgent logic here:
+  const isUnverifiedAgent = agentResource.data && agentResource.data.name && agentResource.data.status !== 'Verified'
+  
+  if (!isUnverifiedAgent) return true
   
   return isAgentStatusVerified && isAgencyOnboarded
 })

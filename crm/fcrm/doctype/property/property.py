@@ -25,6 +25,7 @@ class Property(Document):
 
 		address_line1: DF.Data | None
 		address_line2: DF.Data | None
+		agency: DF.Link | None
 		agent: DF.Link | None
 		amenities: DF.Table[PropertyAmenity]
 		area: DF.Link | None
@@ -38,6 +39,7 @@ class Property(Document):
 		currency: DF.Link
 		description: DF.TextEditor | None
 		developer: DF.Link | None
+		featured_from: DF.Datetime | None
 		featured_until: DF.Datetime | None
 		furnishing_status: DF.Literal["Furnished", "Semi-Furnished", "Unfurnished"]
 		gallery: DF.Table[PropertyImage]
@@ -87,6 +89,9 @@ class Property(Document):
 			self.is_rented = 0
 		elif self.listing_type == "Rent":
 			self.is_sold = 0
+		
+		if self.agent and not self.agency:
+			self.agency = frappe.db.get_value("Agent", self.agent, "agency")
 
 	RESIDENTIAL_TYPES = frozenset(
 		{
@@ -103,6 +108,7 @@ class Property(Document):
 	)
 
 	def validate(self):
+		# self._validate_quality_score()
 		self._validate_price()
 		self._validate_coordinates()
 		self._validate_property_type_for_category()
@@ -110,10 +116,12 @@ class Property(Document):
 		self._ensure_active_developer()
 		self._ensure_verified_agent()
 		self._enforce_property_code_rules()
-		self._validate_quality_score()
 
 	def _validate_quality_score(self):
 		"""Quality Score is mandatory for Admins/Managers."""
+		if frappe.flags.in_import:
+			return
+
 		from crm.api.redtra.permissions import _is_internal_manager
 
 		if _is_internal_manager(frappe.session.user):

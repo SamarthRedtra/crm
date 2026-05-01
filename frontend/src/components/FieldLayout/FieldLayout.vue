@@ -13,7 +13,11 @@
           :class="{ 'my-4 sm:my-5': hasTabs }"
         >
           <template v-for="section in tab.sections" :key="section.name">
-            <Section :section="section" :data-name="section.name" />
+            <Section :section="section" :data-name="section.name">
+              <template #field="{ field }">
+                <slot name="field" v-bind="{ field }" />
+              </template>
+            </Section>
           </template>
         </div>
       </template>

@@ -23,7 +23,11 @@
           :class="{ 'mt-6': section.label && !section.hideLabel }"
           :column="column"
           :data-name="column.name"
-        />
+        >
+          <template #field="{ field }">
+            <slot name="field" v-bind="{ field }" />
+          </template>
+        </Column>
       </template>
     </Section>
   </div>

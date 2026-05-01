@@ -47,6 +47,8 @@ SUMMARY_FIELDS = [
 	"trakheesi_permit_number",
 	"trakheesi_qr_code",
 	"zone_name",
+	"handover_quarter",
+	"handover_year",
 ]
 
 
@@ -245,6 +247,8 @@ def list_properties() -> dict[str, Any]:
 				property_dt.trakheesi_permit_number.as_("trakheesi_permit_number"),
 				property_dt.trakheesi_qr_code.as_("trakheesi_qr_code"),
 				property_dt.zone_name.as_("zone_name"),
+				property_dt.handover_quarter.as_("handover_quarter"),
+				property_dt.handover_year.as_("handover_year"),
 				area_dt.area_name.as_("area_name"),
 				developer_dt.developer_name.as_("developer_name"),
 			)
@@ -682,6 +686,8 @@ def serialize_property_summary(row: dict[str, Any]) -> dict[str, Any]:
 		"project_units_table": project_units,
 		"description": row.get("description"),
 		"description_not_formatted": strip_html(row.get("description")) if row.get("description") else None,
+		"handover_quarter": row.get("handover_quarter"),
+		"handover_year": row.get("handover_year"),
 	}
 
 
@@ -786,6 +792,8 @@ def serialize_property_detail(doc) -> dict[str, Any]:
 		"agent": agent_payload,
 		"agency": agency_details,
 		"whatsapp_chat_link": link,
+		"handover_quarter": doc.handover_quarter,
+		"handover_year": doc.handover_year,
 	}
 
 

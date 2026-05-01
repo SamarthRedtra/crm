@@ -1567,6 +1567,7 @@ def _get_stripe_sdk():
 		frappe.throw(_("Stripe SDK is not installed in this bench."), exc=exc)
 
 	stripe.api_key = secret_key
+	stripe.api_version = "2023-10-16"
 	stripe.default_http_client = stripe.http_client.RequestsClient()
 	return stripe, settings
 
@@ -2043,6 +2044,7 @@ def create_billing_setup_session(
 		currency=currency,
 		success_url=success_url,
 		cancel_url=cancel_url,
+		payment_method_types=["card"],
 		metadata={"agency": agency_doc.name, "intent": "billing_setup"},
 	)
 
@@ -2081,6 +2083,7 @@ def create_add_card_setup_session(
 		currency=currency,
 		success_url=success_url,
 		cancel_url=cancel_url,
+		payment_method_types=["card"],
 		metadata={"agency": agency_doc.name, "intent": "add_card"},
 	)
 	return {"url": session.url, "customer_id": customer_id}
@@ -2510,6 +2513,7 @@ def purchase_addon(
 		],
 		success_url=success_url,
 		cancel_url=cancel_url,
+		payment_method_types=["card"],
 		metadata={
 			"agency": agency_doc.name,
 			"intent": "addon_purchase",

@@ -182,8 +182,8 @@ function attachFile(file, i) {
     private: file.private,
     fileUrl: file.fileUrl,
     folder: props.options.folder,
-    doctype: props.doctype,
-    docname: props.docname,
+    doctype: (props.docname && !props.docname.startsWith('new-')) ? props.doctype : null,
+    docname: (props.docname && !props.docname.startsWith('new-')) ? props.docname : null,
   }
 
   uploader.value = new FilesUploadHandler()

@@ -164,23 +164,23 @@
 
         <div class="flex flex-col gap-1.5">
           <label class="text-p-sm font-medium text-ink-gray-7">
-            {{ __('Website') }} <span class="text-red-600">*</span>
+            {{ __('Website') }}
           </label>
-          <input v-model.trim="form.website" type="url" required :class="inputClass" placeholder="https://agency.ae" />
+          <input v-model.trim="form.website" type="url" :class="inputClass" placeholder="https://agency.ae" />
         </div>
 
         <div class="flex flex-col gap-1.5">
           <label class="text-p-sm font-medium text-ink-gray-7">
-            {{ __('BRN/BLN ID') }}
+            {{ __('BRN/BLN ID') }} <span class="text-red-600">*</span>
           </label>
-          <input v-model.trim="form.brn_id" :class="inputClass" placeholder="BRN-12345" />
+          <input v-model.trim="form.brn_id" required :class="inputClass" placeholder="BRN-12345" />
         </div>
 
         <div class="flex flex-col gap-1.5">
           <label class="text-p-sm font-medium text-ink-gray-7">
-            {{ __('RERA ID') }}
+            {{ __('RERA ID') }} <span class="text-red-600">*</span>
           </label>
-          <input v-model.trim="form.rera_id" :class="inputClass" placeholder="RERA-12345" />
+          <input v-model.trim="form.rera_id" required :class="inputClass" placeholder="RERA-12345" />
         </div>
 
         <div class="flex flex-col gap-1.5">

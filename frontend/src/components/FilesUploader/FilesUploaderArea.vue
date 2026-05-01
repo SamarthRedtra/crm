@@ -130,6 +130,7 @@ import { formatDate, convertSize } from '@/utils'
 import {
   FormControl,
   CircularProgressBar,
+  ErrorMessage,
   createResource,
   toast,
 } from 'frappe-ui'
@@ -157,11 +158,11 @@ const showCamera = ref(false)
 const webLink = ref('')
 const cameraImage = ref(null)
 
-const allowMultiple = ref(props.options.allowMultiple == false ? false : true)
-const disableFileBrowser = ref(props.options.disableFileBrowser || true)
-const allowWebLink = ref(props.options.allowWebLink == false ? false : true)
-const allowTakePhoto = ref(
-  props.options.allowTakePhoto || window.navigator.mediaDevices || false,
+const allowMultiple = computed(() => props.options.allowMultiple !== false)
+const disableFileBrowser = computed(() => props.options.disableFileBrowser || true)
+const allowWebLink = computed(() => props.options.allowWebLink !== false)
+const allowTakePhoto = computed(
+  () => props.options.allowTakePhoto || window.navigator.mediaDevices || false,
 )
 const restrictions = ref(props.options.restrictions || {})
 const makeAttachmentsPublic = ref(props.options.makeAttachmentsPublic || false)
