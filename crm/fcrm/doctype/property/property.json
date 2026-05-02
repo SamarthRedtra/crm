@@ -361,6 +361,7 @@
    "depends_on": "eval:doc.completion_status == 'Off-Plan'",
    "fieldname": "off_plan_agencies",
    "fieldtype": "Table MultiSelect",
+   "ignore_user_permissions": 1,
    "label": "Agencies",
    "options": "Property Agency"
   },
@@ -495,7 +496,7 @@
   }
  ],
  "make_attachments_public": 1,
- "modified": "2026-05-01 16:10:59.994331",
+ "modified": "2026-05-02 14:23:13.646746",
  "modified_by": "Administrator",
  "module": "FCRM",
  "name": "Property",
@@ -520,6 +521,32 @@
    "print": 1,
    "read": 1,
    "role": "Agent",
+   "select": 1,
+   "share": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Agency Admin",
+   "select": 1,
+   "share": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Agency Manager",
    "select": 1,
    "share": 1,
    "write": 1

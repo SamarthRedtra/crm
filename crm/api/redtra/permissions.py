@@ -1,11 +1,12 @@
 import frappe
 from frappe.permissions import has_permission as frappe_has_permission
 
-def get_agency_context():
-	if frappe.session.user == "Administrator":
+def get_agency_context(user=None):
+	user = user or frappe.session.user
+	if user == "Administrator":
 		return None
 	
-	agency = frappe.db.get_value("Agent", {"user": frappe.session.user}, "agency")
+	agency = frappe.db.get_value("Agent", {"user": user}, "agency")
 	return agency
 
 def apply_agency_isolation(doctype, user=None):
@@ -15,7 +16,7 @@ def apply_agency_isolation(doctype, user=None):
 	if user == "Administrator" or "System Manager" in frappe.get_roles(user):
 		return ""
 
-	agency = get_agency_context()
+	agency = get_agency_context(user)
 	if not agency:
 		return "1=0" # No agency, no data
 
@@ -35,7 +36,7 @@ def has_agency_permission(doc, ptype, user=None):
 	if user == "Administrator" or "System Manager" in frappe.get_roles(user):
 		return True
 
-	agency = get_agency_context()
+	agency = get_agency_context(user)
 	if not agency:
 		return False
 	
@@ -97,23 +98,48 @@ def has_agency_leadership_role(user=None):
 	roles = frappe.get_roles(user)
 	return "Agency Admin" in roles or "Agency Manager" in roles
 
+def _property_agency_visibility_sql(agency: str, *, qualified: bool) -> str:
+	"""Rows tied to an agency via Property.agency OR via listing agent's Agent.agency."""
+	if qualified:
+		return (
+			f"(`tabProperty`.`agency` = '{agency}' OR "
+			f"`tabProperty`.`agent` IN (SELECT `name` FROM `tabAgent` WHERE `agency` = '{agency}'))"
+		)
+	return (
+		f"(agency = '{agency}' OR agent IN (SELECT name FROM `tabAgent` WHERE agency = '{agency}'))"
+	)
+
+
 def get_property_sql_scope_for_user(user):
 	"""Returns (sql_where_clause, params) for Property scoping."""
 	if user == "Administrator" or "System Manager" in frappe.get_roles(user):
 		return "", {}
 
-	agency = get_agency_context()
+	agency = get_agency_context(user)
 	if not agency:
 		return " AND 1=0", {}
 
 	roles = frappe.get_roles(user)
 	if "Agency Admin" in roles or "Agency Manager" in roles:
-		return f" AND agency = '{agency}'", {}
+		return f" AND {_property_agency_visibility_sql(agency, qualified=False)}", {}
 
 	return f" AND agency = '{agency}' AND owner = '{user}'", {}
 
 # Additional Permission Query Conditions
 def get_property_permission_query(user):
+	user = user or frappe.session.user
+
+	if user == "Administrator" or "System Manager" in frappe.get_roles(user):
+		return ""
+
+	agency = get_agency_context(user)
+	if not agency:
+		return "1=0"
+
+	roles = frappe.get_roles(user)
+	if "Agency Admin" in roles or "Agency Manager" in roles:
+		return _property_agency_visibility_sql(agency, qualified=True)
+
 	return apply_agency_isolation("Property", user)
 
 def get_agency_billing_invoice_permission_query(user):

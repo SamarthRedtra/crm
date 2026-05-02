@@ -1040,7 +1040,7 @@ def _resolve_agent_scope() -> tuple[bool, str | None]:
 		return False, None
 
 	user_roles = set(frappe.get_roles(user))
-	if "System Manager" in user_roles:
+	if "System Manager" in user_roles or "Agency Admin" in user_roles or "Agency Manager" in user_roles:
 		return False, None
 
 	if "Agent" in user_roles:
