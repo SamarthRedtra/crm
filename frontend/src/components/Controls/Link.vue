@@ -25,7 +25,7 @@
           @click="() => !attrs.disabled && togglePopover()"
         >
           <div v-if="value" class="flex text-base leading-5 items-center truncate">
-            <span class="truncate">{{ value }}</span>
+            <span class="truncate">{{ displayValue }}</span>
           </div>
           <div v-else class="absolute text-ink-gray-4 text-left truncate w-full pr-7">
             {{ attrs.placeholder || '' }}
@@ -90,8 +90,8 @@
 <script setup>
 import Autocomplete from '@/components/frappe-ui/Autocomplete.vue'
 import { watchDebounced } from '@vueuse/core'
-import { createResource } from 'frappe-ui'
-import { useAttrs, computed, ref } from 'vue'
+import { call, createResource } from 'frappe-ui'
+import { useAttrs, computed, ref, watch } from 'vue'
 
 const props = defineProps({
   doctype: {
@@ -125,6 +125,65 @@ const value = computed({
     emit(valuePropPassed.value ? 'change' : 'update:modelValue', newValue)
   },
 })
+
+const normalizedStr = computed(() => {
+  let v = value.value
+  if (v && typeof v === 'object' && 'value' in v) {
+    v = v.value
+  }
+  if (v === null || v === undefined || v === '') return ''
+  return String(v)
+})
+
+const selectedOptionLabel = computed(() => {
+  const key = normalizedStr.value
+  if (!key) return ''
+  const selected = (options.data || []).find(
+    (option) => String(option?.value ?? '') === key,
+  )
+  const label = selected?.label != null ? String(selected.label) : ''
+  // Dropdown often echoes the raw name as label until we resolve the real title
+  if (label && label !== key) return label
+  return ''
+})
+
+const linkTitle = ref('')
+let linkTitleRequestSeq = 0
+
+watch(
+  () => [props.doctype, normalizedStr.value],
+  async ([doctype, val]) => {
+    if (!doctype || !val || val === '@me') {
+      linkTitleRequestSeq++
+      linkTitle.value = ''
+      return
+    }
+
+    linkTitleRequestSeq++
+    const seq = linkTitleRequestSeq
+    linkTitle.value = ''
+
+    try {
+      const title = await call('frappe.desk.search.get_link_title', {
+        doctype,
+        docname: val,
+      })
+      if (seq !== linkTitleRequestSeq) return
+      linkTitle.value =
+        title !== null && title !== undefined && title !== ''
+          ? String(title)
+          : ''
+    } catch {
+      if (seq !== linkTitleRequestSeq) return
+      linkTitle.value = ''
+    }
+  },
+  { immediate: true },
+)
+
+const displayValue = computed(
+  () => linkTitle.value || selectedOptionLabel.value || normalizedStr.value,
+)
 
 const autocomplete = ref(null)
 const text = ref('')
@@ -167,7 +226,6 @@ const options = createResource({
     filters: props.filters,
   },
   transform: (data) => {
-    console.log('[Link.vue] transform data:', data)
     if (data && data.message && Array.isArray(data.message)) {
       data = data.message
     }

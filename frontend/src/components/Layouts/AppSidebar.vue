@@ -66,6 +66,7 @@
               :to="link.to"
               :isCollapsed="isSidebarCollapsed"
               class="mx-2 my-0.5"
+              @click="() => link.onClick?.()"
             />
           </nav>
         </Section>
@@ -172,6 +173,7 @@ import {
 import { usersStore } from '@/stores/users'
 import { sessionStore } from '@/stores/session'
 import { agentStore } from '@/stores/agent'
+import { agencyStore } from '@/stores/agency'
 import { userCanAccessDashboard } from '@/utils/dashboardAccess'
 import { showSettings, activeSettingsPage } from '@/composables/settings'
 import { showChangePasswordModal } from '@/composables/modals'
@@ -189,6 +191,7 @@ import {
 import { capture } from '@/telemetry'
 import router from '@/router'
 import { useStorage } from '@vueuse/core'
+import { storeToRefs } from 'pinia'
 import { ref, reactive, computed, h, markRaw, onMounted } from 'vue'
 
 const { getPinnedViews, getPublicViews } = viewsStore()
@@ -199,10 +202,16 @@ const isSidebarCollapsed = useStorage('isSidebarCollapsed', false)
 const session = sessionStore()
 const { users, isManager, getUser } = usersStore()
 const { agentResource } = agentStore()
+const agency = agencyStore()
+const { context: agencyContext } = storeToRefs(agency)
 
 const canSeeDashboard = computed(() =>
   userCanAccessDashboard(session.user, getUser(session.user), agentResource.data),
 )
+const canOpenAgencyTeamSettings = computed(
+  () => Boolean(agencyContext.value?.agency) && Boolean(agencyContext.value?.can_manage_team),
+)
+const canOpenAppointmentAvailability = computed(() => Boolean(agentResource.data?.name))
 
 const isAgentVerified = computed(() => {
   const userRoles = window.frappe?.boot?.user?.roles || []
@@ -277,6 +286,26 @@ const links = [
     label: 'Call Logs',
     icon: PhoneIcon,
     to: 'Call Logs',
+  },
+  {
+    label: 'Team members',
+    icon: InviteIcon,
+    condition: () => canOpenAgencyTeamSettings.value,
+    onClick: () => {
+      minimize.value = true
+      showSettings.value = true
+      activeSettingsPage.value = 'Users'
+    },
+  },
+  {
+    label: 'Appointments',
+    icon: CalendarIcon,
+    condition: () => canOpenAppointmentAvailability.value,
+    onClick: () => {
+      minimize.value = true
+      showSettings.value = true
+      activeSettingsPage.value = 'Appointment availability'
+    },
   },
   {
     label: 'Addons',

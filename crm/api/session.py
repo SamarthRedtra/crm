@@ -19,6 +19,18 @@ def get_users():
 		distinct=True,
 	).run(as_dict=1)
 
+	names = [u.name for u in users]
+	agent_rows = (
+		frappe.get_all(
+			"Agent",
+			filters={"user": ["in", names]},
+			fields=["user", "agency", "agency_role"],
+		)
+		if names
+		else []
+	)
+	agent_by_user = {row.user: row for row in agent_rows}
+
 	for user in users:
 		if frappe.session.user == user.name:
 			user.session_user = True
@@ -40,10 +52,11 @@ def get_users():
 		elif "Guest" in user.roles:
 			user.role = "Guest"
 
-		if frappe.session.user == user.name:
-			user.session_user = True
-
 		user.is_telephony_agent = frappe.db.exists("CRM Telephony Agent", {"user": user.name})
+
+		agent_row = agent_by_user.get(user.name)
+		user.agent_agency = agent_row.agency if agent_row else None
+		user.agency_role = agent_row.agency_role if agent_row else None
 
 	crm_users = []
 
@@ -52,7 +65,32 @@ def get_users():
 		if any(role in user.roles for role in ["Sales User", "Sales Manager", "Agency Admin", "Agency Manager"]):
 			crm_users.append(user)
 
-	return users, crm_users
+	session_user = frappe.session.user
+	session_roles = frappe.get_roles(session_user)
+
+	def _crm_users_full_scope() -> bool:
+		if session_user == "Administrator":
+			return True
+		if "System Manager" in session_roles or "Sales Manager" in session_roles:
+			return True
+		return False
+
+	viewer_agency = None
+	if not _crm_users_full_scope() and (
+		"Agency Admin" in session_roles or "Agency Manager" in session_roles
+	):
+		viewer_agency = frappe.db.get_value("Agent", {"user": session_user}, "agency")
+		if viewer_agency:
+			crm_users = [u for u in crm_users if u.get("agent_agency") == viewer_agency]
+		else:
+			crm_users = []
+
+	viewer_meta = {
+		"users_scope": "all" if _crm_users_full_scope() else "agency",
+		"agency": viewer_agency,
+	}
+
+	return users, crm_users, viewer_meta
 
 
 @frappe.whitelist()

@@ -454,11 +454,6 @@ export function buildPropertySidebarSections(metaFields, options = {}) {
                 overrides.read_only = 1
               }
 
-              // C-04: Per-form override — show only agent full_name in search results
-              if (fieldname === 'agent') {
-                overrides.search_fields = 'full_name'
-              }
-
               if (fieldname === 'description') {
                 overrides.fieldtype = 'Small Text'
               }
@@ -673,6 +668,52 @@ export function validatePropertyDoc(doc) {
   }
 
   return null
+}
+
+export function getFieldErrors(doc) {
+  const errors = {}
+
+  if (!doc.title) {
+    errors.title = 'Title is mandatory'
+  } else {
+    const titleWords = doc.title.trim().split(/\s+/).filter(Boolean)
+    if (titleWords.length < 5) {
+      errors.title = 'Title must be at least 5 words'
+    } else if (titleWords.length > 200) {
+      errors.title = 'Title must not exceed 200 words'
+    }
+  }
+
+  // Mandatory fields from configs
+  for (const fieldname in fieldConfigs.value) {
+    const config = fieldConfigs.value[fieldname]
+    const value = doc[fieldname]
+
+    if (config.is_mandatory && (!value || value === '')) {
+      errors[fieldname] = `${config.label || fieldname} is mandatory`
+    }
+  }
+
+  if (doc.listing_type === 'Rent' && !doc.rent_type) {
+    errors.rent_type = 'Rent Type is mandatory for rental properties'
+  }
+
+  if (doc.price === undefined || doc.price === null || doc.price === '') {
+    errors.price = 'Price is mandatory'
+  } else if (Number(doc.price) < 0) {
+    errors.price = 'Price must be greater than or equal to zero'
+  }
+
+  if (!doc.currency) {
+    errors.currency = 'Currency is mandatory'
+  }
+
+  if (doc.is_featured) {
+    if (!doc.featured_from) errors.featured_from = 'Featured From is mandatory'
+    if (!doc.featured_until) errors.featured_until = 'Featured Until is mandatory'
+  }
+
+  return errors
 }
 
 export function normalizePropertyDoc(doc) {

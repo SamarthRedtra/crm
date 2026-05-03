@@ -178,10 +178,10 @@
                           class="form-control"
                         >
                           <TimePicker
-                            :value="doc[field.fieldname]"
+                            :modelValue="doc[field.fieldname]"
                             :format="getFormat('', '', false, true, false)"
                             :placeholder="field.placeholder"
-                            @change="(v) => fieldChange(v, field)"
+                            @update:modelValue="(v) => fieldChange(v, field)"
                           />
                         </div>
                         <div
@@ -189,11 +189,11 @@
                           class="form-control"
                         >
                           <DateTimePicker
-                            :value="doc[field.fieldname]"
+                            :modelValue="doc[field.fieldname]"
                             :format="getFormat('', '', true, true, false)"
                             :placeholder="field.placeholder"
                             placement="left-start"
-                            @change="(v) => fieldChange(v, field)"
+                            @update:modelValue="(v) => fieldChange(v, field)"
                           />
                         </div>
                         <div
@@ -201,11 +201,11 @@
                           class="form-control"
                         >
                           <DatePicker
-                            :value="doc[field.fieldname]"
+                            :modelValue="doc[field.fieldname]"
                             :format="getFormat('', '', true, false, false)"
                             :placeholder="field.placeholder"
                             placement="left-start"
-                            @change="(v) => fieldChange(v, field)"
+                            @update:modelValue="(v) => fieldChange(v, field)"
                           />
                         </div>
                         <FormattedInput

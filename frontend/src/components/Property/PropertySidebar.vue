@@ -11,6 +11,16 @@
         @click="draftVisibleSections = [...visibleSections]; showCustomizer = true"
       />
     </div>
+    <div
+      v-if="doc?.is_featured"
+      class="mx-4 mt-3 rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-800"
+    >
+      {{
+        __(
+          'Featured listing is enabled. Additional charges apply for featured properties.',
+        )
+      }}
+    </div>
     <div class="min-h-0 flex-1 overflow-y-auto">
       <SidePanelLayout
         class="h-full"

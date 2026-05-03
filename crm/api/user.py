@@ -49,6 +49,75 @@ def update_user_role(user, new_role):
 	user_doc.save(ignore_permissions=True)
 
 
+def _sync_frappe_roles_from_agency_role(user: str, agency_role: str) -> None:
+	"""Align User roles with Agent.agency_role (Agent / Manager / Admin team roles).
+
+	Does not grant System Manager / Sales Manager (CRM-wide roles). Those stay unchanged unless removed explicitly elsewhere.
+	"""
+	ar = (agency_role or "Agent").strip()
+	if ar not in {"Agent", "Manager", "Admin"}:
+		frappe.throw(frappe._("Invalid agency role."))
+
+	user_doc = frappe.get_doc("User", user)
+	user_doc.flags.ignore_permissions = True
+
+	if ar == "Admin":
+		user_doc.add_roles("Agency Admin", "Agency Manager", "Agent", "Sales User")
+	elif ar == "Manager":
+		user_doc.add_roles("Agency Manager", "Agent", "Sales User")
+		user_doc.remove_roles("Agency Admin")
+	elif ar == "Agent":
+		user_doc.add_roles("Agent", "Sales User")
+		user_doc.remove_roles("Agency Admin", "Agency Manager")
+
+	update_module_in_user(user_doc, "FCRM")
+	user_doc.save(ignore_permissions=True)
+
+
+@frappe.whitelist()
+def update_agency_team_member_role(user, agency_role):
+	"""Update Agent.agency_role (Agent / Manager / Admin) and sync CRM roles for that team member."""
+	frappe.only_for(["System Manager", "Sales Manager", "Agency Admin", "Agency Manager"])
+
+	ar = (agency_role or "").strip()
+	if ar not in {"Agent", "Manager", "Admin"}:
+		frappe.throw(frappe._("Invalid agency role."))
+
+	session_roles = frappe.get_roles(frappe.session.user)
+	elevated = frappe.session.user == "Administrator" or (
+		"System Manager" in session_roles or "Sales Manager" in session_roles
+	)
+
+	agent_name = frappe.db.get_value("Agent", {"user": user}, "name")
+	if not agent_name:
+		frappe.throw(frappe._("User is not linked to an agency profile."))
+
+	agent_doc = frappe.get_doc("Agent", agent_name)
+
+	if not elevated:
+		viewer_agency = frappe.db.get_value("Agent", {"user": frappe.session.user}, "agency")
+		if not viewer_agency or agent_doc.agency != viewer_agency:
+			frappe.throw(frappe._("Not permitted"), frappe.PermissionError)
+
+	target_roles = frappe.get_roles(user)
+	if "System Manager" in target_roles and not elevated:
+		frappe.throw(frappe._("Cannot change agency role for this user."))
+
+	if agent_doc.agency_role == "Admin" and ar != "Admin":
+		other_admins = frappe.db.count(
+			"Agent",
+			filters={"agency": agent_doc.agency, "agency_role": "Admin", "name": ["!=", agent_doc.name]},
+		)
+		if other_admins < 1:
+			frappe.throw(frappe._("The agency must keep at least one Admin."))
+
+	agent_doc.agency_role = ar
+	agent_doc.flags.ignore_permissions = True
+	agent_doc.save()
+
+	_sync_frappe_roles_from_agency_role(user, ar)
+
+
 @frappe.whitelist()
 def add_user(user, role):
 	"""

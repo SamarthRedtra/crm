@@ -57,6 +57,17 @@
           </div>
         </div>
 
+        <div
+          v-if="property.doc?.is_featured"
+          class="mb-4 rounded-lg border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-800"
+        >
+          {{
+            __(
+              'Featured listing is enabled. Additional charges apply for featured properties.',
+            )
+          }}
+        </div>
+
         <div class="border border-outline-gray-modals rounded-lg bg-surface-modal overflow-hidden shadow-sm">
           <Tabs v-model="tabIndex" :tabs="tabs" as="div">
             <template #tab-panel="{ tab }">
@@ -193,6 +204,7 @@ import {
   buildPropertyQuickEntryTabs,
   normalizePropertyDoc,
   validatePropertyDoc,
+  getFieldErrors,
   STANDARD_AMENITIES
 } from '@/utils/propertyFields'
 import { agentStore } from '@/stores/agent'
@@ -201,6 +213,7 @@ import { useRouter } from 'vue-router'
 
 const props = defineProps({
   defaults: Object,
+  propertyId: String,
 })
 
 const { getUser } = usersStore()
@@ -209,6 +222,7 @@ const { getFields } = getMeta('Property')
 const show = defineModel()
 const router = useRouter()
 const error = ref(null)
+const fieldErrors = ref({})
 const isPropertyCreating = ref(false)
 const customAmenityInput = ref('')
 
@@ -223,6 +237,7 @@ const {
 } = useDocument('Property', props.propertyId)
 
 provide('data', computed(() => property.doc))
+provide('fieldErrors', fieldErrors)
 provide('hasTabs', hasTabs)
 provide('doctype', 'Property')
 provide('preview', ref(false))
@@ -344,6 +359,16 @@ watch(
     }
   },
   { immediate: true }
+)
+
+watch(
+  () => property.doc,
+  (doc) => {
+    if (doc) {
+      fieldErrors.value = getFieldErrors(doc)
+    }
+  },
+  { deep: true, immediate: true }
 )
 
 async function createNewProperty() {

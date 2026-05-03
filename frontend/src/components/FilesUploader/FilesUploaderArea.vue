@@ -134,7 +134,7 @@ import {
   createResource,
   toast,
 } from 'frappe-ui'
-import { ref, onMounted, watch, onUnmounted } from 'vue'
+import { computed, ref, onMounted, watch, onUnmounted } from 'vue'
 
 const props = defineProps({
   doctype: {
@@ -147,7 +147,7 @@ const props = defineProps({
   },
 })
 
-const files = defineModel()
+const files = defineModel({ default: [] })
 
 const fileInput = ref(null)
 const isDragging = ref(false)
@@ -159,7 +159,7 @@ const webLink = ref('')
 const cameraImage = ref(null)
 
 const allowMultiple = computed(() => props.options.allowMultiple !== false)
-const disableFileBrowser = computed(() => props.options.disableFileBrowser || true)
+const disableFileBrowser = computed(() => props.options.disableFileBrowser === true)
 const allowWebLink = computed(() => props.options.allowWebLink !== false)
 const allowTakePhoto = computed(
   () => props.options.allowTakePhoto || window.navigator.mediaDevices || false,

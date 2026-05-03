@@ -99,6 +99,13 @@ const isAgencyAdmin = computed(() => {
   const roles = agentResource.data?.roles || []
   return roles.includes('Agency Admin') || isManager()
 })
+
+/** Users settings tab: Agency Admin / Agency Manager / CRM managers */
+const canSeeAgencyUserManagement = computed(() => {
+  if (isManager()) return true
+  const roles = agentResource.data?.roles || []
+  return roles.includes('Agency Admin') || roles.includes('Agency Manager')
+})
 const hasLinkedAgency = computed(() => Boolean(agencyContext.value?.agency))
 const canOpenAgencyBilling = computed(() => Boolean(agencyContext.value?.can_manage_billing) && isAgencyAdmin.value)
 const canInviteAgencyTeam = computed(() => Boolean(agencyContext.value?.can_manage_team) && isAgencyAdmin.value)
@@ -191,7 +198,7 @@ const tabs = computed(() => {
           label: __('Users'),
           icon: 'user',
           component: markRaw(Users),
-          condition: () => isAgencyAdmin.value,
+          condition: () => canSeeAgencyUserManagement.value,
         },
         {
           label: __('Invite team'),
@@ -200,7 +207,8 @@ const tabs = computed(() => {
           condition: () => canInviteAgencyTeam.value,
         },
       ],
-      condition: () => isAgencyAdmin.value,
+      condition: () =>
+        canInviteAgencyTeam.value || canSeeAgencyUserManagement.value,
     },
     {
       label: __('Email Settings'),

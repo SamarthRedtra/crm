@@ -7,7 +7,7 @@
         ref="valuesRef"
         v-for="value in parsedValues"
         :key="value"
-        :label="value"
+        :label="chipLabel(value)"
         theme="gray"
         variant="subtle"
         class="rounded bg-surface-white hover:!bg-surface-gray-1 focus-visible:ring-outline-gray-4"
@@ -47,7 +47,8 @@
 <script setup>
 import Link from '@/components/Controls/Link.vue'
 import { getMeta } from '@/stores/meta'
-import { ref, computed, nextTick } from 'vue'
+import { call } from 'frappe-ui'
+import { ref, computed, nextTick, reactive, watch } from 'vue'
 
 const props = defineProps({
   doctype: {
@@ -97,6 +98,53 @@ const parsedValues = computed(() => {
   if (!linkField.value) return []
   return values.value.map((row) => row[linkField.value.fieldname])
 })
+
+/** Resolved desk-style titles for chip labels */
+const titleByKey = reactive({})
+let resolveSeq = 0
+
+const chipTitlesWatchKey = computed(() => {
+  const dt = linkField.value?.options ?? ''
+  const ids = [...parsedValues.value].map(String).sort().join('\x00')
+  return `${dt}\x1f${ids}`
+})
+
+watch(
+  chipTitlesWatchKey,
+  async () => {
+    const dt = linkField.value?.options
+    const names = parsedValues.value
+    if (!dt || !names?.length) return
+    resolveSeq++
+    const seq = resolveSeq
+    for (const name of names) {
+      const key = `${String(name)}:${dt}`
+      if (titleByKey[key]) continue
+      try {
+        const title = await call('frappe.desk.search.get_link_title', {
+          doctype: dt,
+          docname: name,
+        })
+        if (seq !== resolveSeq) return
+        titleByKey[key] =
+          title !== null && title !== undefined && title !== ''
+            ? String(title)
+            : String(name)
+      } catch {
+        if (seq !== resolveSeq) return
+        titleByKey[key] = String(name)
+      }
+    }
+  },
+  { immediate: true },
+)
+
+function chipLabel(name) {
+  const dt = linkField.value?.options
+  if (!dt) return String(name)
+  const key = `${String(name)}:${dt}`
+  return titleByKey[key] || String(name)
+}
 
 const addValue = (value) => {
   error.value = null

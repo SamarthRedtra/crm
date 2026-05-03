@@ -461,20 +461,27 @@ export function isImage(extention) {
   )
 }
 
-export async function validateIsImageFile(file) {
+export async function validateIsImageFile(file, options = {}) {
   const extn = file.name.split('.').pop().toLowerCase()
   if (!isImage(extn)) {
     return __('Only image files are allowed')
   }
 
-  // Dimension check: minimum 800x600
+  const { minWidth = 800, minHeight = 600, exactWidth, exactHeight } = options
+
   return new Promise((resolve) => {
     const img = new Image()
     img.src = URL.createObjectURL(file)
     img.onload = () => {
       URL.revokeObjectURL(img.src)
-      if (img.width < 800 || img.height < 600) {
-        resolve(__('Image must be at least 800x600 pixels and high-quality.'))
+      if (exactWidth && exactHeight) {
+        if (img.width !== exactWidth || img.height !== exactHeight) {
+          resolve(__('Image must be exactly {0}x{1} pixels.', [exactWidth, exactHeight]))
+          return
+        }
+      }
+      if (img.width < minWidth || img.height < minHeight) {
+        resolve(__('Image must be at least {0}x{1} pixels and high-quality.', [minWidth, minHeight]))
       } else {
         resolve(null)
       }

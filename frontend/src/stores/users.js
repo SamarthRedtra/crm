@@ -15,14 +15,18 @@ export const usersStore = defineStore('crm-users', () => {
     cache: 'crm-users',
     initialData: [],
     auto: true,
-    transform([allUsers, crmUsers]) {
+    transform(payload) {
+      const tuple = Array.isArray(payload) ? payload : []
+      const allUsers = tuple[0] || []
+      const crmUsers = tuple[1] || []
+      const viewerMeta = tuple[2] || { users_scope: 'all', agency: null }
       for (let user of allUsers) {
         usersByName[user.name] = user
         if (user.name === 'Administrator') {
           usersByName[user.email] = user
         }
       }
-      return { allUsers, crmUsers }
+      return { allUsers, crmUsers, viewerMeta }
     },
     onError(error) {
       if (error && error.exc_type === 'AuthenticationError') {

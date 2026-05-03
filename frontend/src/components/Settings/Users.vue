@@ -48,23 +48,20 @@
 
     <!-- Empty State -->
     <div
-      v-if="!users.loading && users.data?.crmUsers?.length == 1"
+      v-else-if="!hasRows"
       class="flex justify-between w-full h-full"
     >
       <div
-        class="text-ink-gray-4 border border-dashed rounded w-full flex items-center justify-center"
+        class="text-ink-gray-4 border border-dashed rounded w-full flex items-center justify-center min-h-[12rem]"
       >
         {{ __('No users found') }}
       </div>
     </div>
 
     <!-- Users List -->
-    <div
-      class="flex flex-col overflow-hidden"
-      v-if="!users.loading && users.data?.crmUsers?.length > 1"
-    >
+    <div v-else class="flex flex-col overflow-hidden">
       <div
-        v-if="users.data?.crmUsers?.length > 10"
+        v-if="crmUsersPool.length > 10"
         class="flex items-center justify-between mb-4 px-2 pt-0.5"
       >
         <TextInput
@@ -81,12 +78,7 @@
         <FormControl
           type="select"
           v-model="currentRole"
-          :options="[
-            { label: __('All'), value: 'All' },
-            { label: __('Admin'), value: 'System Manager' },
-            { label: __('Manager'), value: 'Sales Manager' },
-            { label: __('Sales User'), value: 'Sales User' },
-          ]"
+          :options="roleFilterOptions"
         />
       </div>
       <ul class="divide-y divide-outline-gray-modals overflow-y-auto px-2">
@@ -107,7 +99,17 @@
                 </div>
               </div>
             </div>
-            <div class="flex gap-2 items-center flex-row-reverse">
+            <div class="flex flex-wrap gap-2 items-center justify-end">
+              <Dropdown
+                v-if="showAgencyRoleControl(user)"
+                :options="getAgencyRoleOptions(user)"
+                :button="{
+                  label: agencyRoleLabel(user.agency_role),
+                  iconRight: 'chevron-down',
+                  iconLeft: 'users',
+                }"
+                placement="right"
+              />
               <Dropdown
                 :options="getMoreOptions(user)"
                 :button="{
@@ -120,16 +122,16 @@
                 placement="right"
               />
               <Tooltip
-                v-if="isManager() && user.role == 'System Manager'"
+                v-if="usersScopeAll && isManager() && user.role == 'System Manager'"
                 :text="__('Cannot change role of user with Admin access')"
               >
                 <Button :label="__('Admin')" icon-left="shield" />
               </Tooltip>
               <Dropdown
-                v-else
+                v-else-if="usersScopeAll && showCrmRoleControl(user)"
                 :options="getDropdownOptions(user)"
                 :button="{
-                  label: roleMap[user.role],
+                  label: roleMap[user.role] || user.role,
                   iconRight: 'chevron-down',
                   iconLeft:
                     user.role === 'System Manager'
@@ -168,6 +170,7 @@
 <script setup>
 import AddExistingUserModal from '@/components/Modals/AddExistingUserModal.vue'
 import { activeSettingsPage } from '@/composables/settings'
+import { sessionStore } from '@/stores/session'
 import { usersStore } from '@/stores/users'
 import { DropdownOption } from '@/utils'
 import {
@@ -178,25 +181,95 @@ import {
   call,
   FeatherIcon,
   Tooltip,
+  FormControl,
 } from 'frappe-ui'
+import { storeToRefs } from 'pinia'
 import { ref, computed, onMounted } from 'vue'
 
-const { users, isAdmin, isManager } = usersStore()
+const session = sessionStore()
+const { user: sessionUserId } = storeToRefs(session)
+const { users, isAdmin, isManager, getUser } = usersStore()
 
 const showAddExistingModal = ref(false)
 const searchRef = ref(null)
 const search = ref('')
 const currentRole = ref('All')
 
+const usersScopeAll = computed(
+  () => users.data?.viewerMeta?.users_scope === 'all',
+)
+
+const crmUsersPool = computed(() => {
+  const raw =
+    users.data?.crmUsers?.filter((user) => user.name !== 'Administrator') || []
+  return raw
+})
+
+const hasRows = computed(() => crmUsersPool.value.length > 0)
+
+const roleFilterOptions = computed(() => {
+  if (!usersScopeAll.value) {
+    return [
+      { label: __('All'), value: 'All' },
+      { label: __('Admin'), value: 'Admin' },
+      { label: __('Manager'), value: 'Manager' },
+      { label: __('Agent'), value: 'Agent' },
+    ]
+  }
+  return [
+    { label: __('All'), value: 'All' },
+    { label: __('CRM Admin'), value: 'System Manager' },
+    { label: __('CRM Manager'), value: 'Sales Manager' },
+    { label: __('Agency Admin'), value: 'Agency Admin' },
+    { label: __('Agency Manager'), value: 'Agency Manager' },
+    { label: __('Sales User'), value: 'Sales User' },
+  ]
+})
+
 const roleMap = {
-  'System Manager': __('Admin'),
-  'Sales Manager': __('Manager'),
+  'System Manager': __('CRM Admin'),
+  'Sales Manager': __('CRM Manager'),
+  'Agency Admin': __('Agency Admin'),
+  'Agency Manager': __('Agency Manager'),
   'Sales User': __('Sales User'),
 }
 
+const agencyRoleLabels = {
+  Admin: __('Admin'),
+  Manager: __('Manager'),
+  Agent: __('Agent'),
+}
+
+function agencyRoleLabel(role) {
+  if (!role) return __('Agency role')
+  return agencyRoleLabels[role] || role
+}
+
+const canEditAgencyTeamRole = computed(() => {
+  if (sessionUserId.value === 'Administrator') return true
+  const role = getUser().role
+  return (
+    role === 'System Manager' ||
+    role === 'Sales Manager' ||
+    role === 'Agency Admin' ||
+    role === 'Agency Manager'
+  )
+})
+
+function showAgencyRoleControl(user) {
+  return Boolean(user.agent_agency) && canEditAgencyTeamRole.value
+}
+
+function showCrmRoleControl(_user) {
+  if (!usersScopeAll.value) return false
+  if (sessionUserId.value !== 'Administrator' && !isAdmin() && !isManager()) {
+    return false
+  }
+  return true
+}
+
 const usersList = computed(() => {
-  let filteredUsers =
-    users.data?.crmUsers?.filter((user) => user.name !== 'Administrator') || []
+  let filteredUsers = [...crmUsersPool.value]
 
   return filteredUsers
     .filter(
@@ -206,6 +279,9 @@ const usersList = computed(() => {
     )
     .filter((user) => {
       if (currentRole.value === 'All') return true
+      if (!usersScopeAll.value) {
+        return user.agency_role === currentRole.value
+      }
       return user.role === currentRole.value
     })
 })
@@ -236,13 +312,44 @@ function getMoreOptions(user) {
   return options.filter((option) => option.condition?.() || true)
 }
 
+function getAgencyRoleOptions(user) {
+  const opts = ['Agent', 'Manager', 'Admin'].map((role) => ({
+    label: agencyRoleLabels[role],
+    component: () =>
+      DropdownOption({
+        option: agencyRoleLabels[role],
+        icon: 'users',
+        selected: user.agency_role === role,
+      }),
+    onClick: () => updateAgencyRole(user, role),
+  }))
+  return opts
+}
+
+function updateAgencyRole(user, newRole) {
+  if (user.agency_role === newRole) return
+
+  call('crm.api.user.update_agency_team_member_role', {
+    user: user.name,
+    agency_role: newRole,
+  }).then(() => {
+    toast.success(
+      __('{0} is now {1}', [
+        user.full_name,
+        agencyRoleLabels[newRole] || newRole,
+      ]),
+    )
+    users.reload()
+  })
+}
+
 function getDropdownOptions(user) {
   let options = [
     {
-      label: __('Admin'),
+      label: __('CRM Admin'),
       component: () =>
         DropdownOption({
-          option: __('Admin'),
+          option: __('CRM Admin'),
           icon: 'shield',
           selected: user.role === 'System Manager',
         }),
@@ -250,14 +357,36 @@ function getDropdownOptions(user) {
       condition: () => isAdmin(),
     },
     {
-      label: __('Manager'),
+      label: __('CRM Manager'),
       component: () =>
         DropdownOption({
-          option: __('Manager'),
+          option: __('CRM Manager'),
           icon: 'briefcase',
           selected: user.role === 'Sales Manager',
         }),
       onClick: () => updateRole(user, 'Sales Manager'),
+      condition: () => isManager(),
+    },
+    {
+      label: __('Agency Admin'),
+      component: () =>
+        DropdownOption({
+          option: __('Agency Admin'),
+          icon: 'shield',
+          selected: user.role === 'Agency Admin',
+        }),
+      onClick: () => updateRole(user, 'Agency Admin'),
+      condition: () => isManager(),
+    },
+    {
+      label: __('Agency Manager'),
+      component: () =>
+        DropdownOption({
+          option: __('Agency Manager'),
+          icon: 'briefcase',
+          selected: user.role === 'Agency Manager',
+        }),
+      onClick: () => updateRole(user, 'Agency Manager'),
       condition: () => isManager(),
     },
     {

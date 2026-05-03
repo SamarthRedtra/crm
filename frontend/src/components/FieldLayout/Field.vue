@@ -45,7 +45,7 @@
       </div>
       <ImageUploader
         :image_url="data[field.fieldname]"
-        :validateFile="validateIsImageFile"
+        :validateFile="(file) => validateIsImageFile(file, getValidationOptions(field))"
         @upload="(url) => fieldChange(url, field)"
         @remove="() => fieldChange('', field)"
       />
@@ -240,6 +240,9 @@
       :description="field.description"
       @change="fieldChange($event.target.value, field)"
     />
+    <div v-if="error" class="mt-1 text-xs text-red-500">
+      {{ __(error) }}
+    </div>
   </div>
 </template>
 <script setup>
@@ -254,13 +257,13 @@ import TableMultiselectInput from '@/components/Controls/TableMultiselectInput.v
 import Link from '@/components/Controls/Link.vue'
 import Grid from '@/components/Controls/Grid.vue'
 import { createDocument } from '@/composables/document'
-import { getFormat, evaluateDependsOnValue } from '@/utils'
+import { getFormat, evaluateDependsOnValue, validateIsImageFile } from '@/utils'
 import { flt } from '@/utils/numberFormat.js'
 import { getMeta } from '@/stores/meta'
 import { usersStore } from '@/stores/users'
 import { useDocument } from '@/data/document'
-import { Tooltip, DatePicker, DateTimePicker, TimePicker } from 'frappe-ui'
-import { computed, provide, inject } from 'vue'
+import { Tooltip, DatePicker, DateTimePicker, TimePicker, toast } from 'frappe-ui'
+import { computed, provide, inject, ref, watch } from 'vue'
 
 const props = defineProps({
   field: Object,
@@ -270,6 +273,9 @@ const data = inject('data')
 const doctype = inject('doctype')
 const preview = inject('preview')
 const isGridRow = inject('isGridRow')
+const fieldErrors = inject('fieldErrors', ref({}))
+
+const error = computed(() => fieldErrors.value[field.value.fieldname])
 
 const { getFormattedPercent, getFormattedFloat, getFormattedCurrency } =
   getMeta(doctype)
@@ -387,6 +393,13 @@ function getDataValue(value, field) {
     return value || 0
   }
   return value
+}
+
+function getValidationOptions(df) {
+  if (df.fieldname === 'primary_image') {
+    return { exactWidth: 1024, exactHeight: 1024 }
+  }
+  return {}
 }
 </script>
 <style scoped>
