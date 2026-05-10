@@ -7,6 +7,7 @@ from frappe import _
 from frappe.model.document import Document
 from frappe.utils import cint, today
 from crm.api.redtra.utils import get_mandate_agent_verification
+from crm.api.redtra import featured_logs
 
 
 class Property(Document):
@@ -64,7 +65,7 @@ class Property(Document):
 		quality_score: DF.Literal["", "1", "2", "3", "4", "5", "6", "7", "8", "9", "10"]
 		rent_type: DF.Literal["", "Daily", "Weekly", "Monthly", "Yearly"]
 		state: DF.Data | None
-		status: DF.Literal["Draft", "Under Verification", "Active", "Inactive"]
+		status: DF.Literal["Draft", "Under Verification", "Pending DLD", "Rejected DLD", "Active", "Inactive"]
 		title: DF.Data
 		trakheesi_permit_number: DF.Data | None
 		trakheesi_qr_code: DF.AttachImage | None
@@ -74,13 +75,40 @@ class Property(Document):
 
 	STATUS_FLOW = {
 		"Draft": {"Draft", "Under Verification"},
-		"Under Verification": {"Draft", "Under Verification", "Active", "Inactive"},
-		"Active": {"Active", "Inactive"},
-		"Inactive": {"Inactive", "Draft"},
+		"Under Verification": {"Draft", "Under Verification", "Pending DLD", "Rejected DLD", "Active", "Inactive"},
+		"Pending DLD": {"Pending DLD", "Rejected DLD", "Under Verification", "Active", "Inactive"},
+		"Rejected DLD": {"Rejected DLD", "Under Verification", "Pending DLD", "Active", "Inactive"},
+		"Active": {"Active", "Inactive", "Under Verification", "Pending DLD", "Rejected DLD"},
+		"Inactive": {"Inactive", "Draft", "Under Verification", "Pending DLD", "Rejected DLD"},
+	}
+
+	REVERIFICATION_TRIGGER_STATUSES = {"Active", "Inactive"}
+	REVERIFICATION_IGNORED_FIELDS = {
+		"is_featured",
+		"featured_from",
+		"featured_until",
+		"status",
+		"modified",
+		"modified_by",
+		"creation",
+		"owner",
+	}
+	NON_VALUE_FIELDTYPES = {
+		"Section Break",
+		"Column Break",
+		"Tab Break",
+		"Button",
+		"HTML",
+		"Image",
+		"Fold",
+		"Heading",
 	}
 
 	def before_insert(self):
 		self._set_property_code()
+
+	def after_insert(self):
+		self._log_featured_change(source=(getattr(self.flags, "featured_log_source", None) or "Desk"))
 
 	def before_validate(self):
 		self._set_property_code()
@@ -92,6 +120,11 @@ class Property(Document):
 		
 		if self.agent and not self.agency:
 			self.agency = frappe.db.get_value("Agent", self.agent, "agency")
+
+		self._apply_reverification_on_update()
+
+	def on_update(self):
+		self._log_featured_change(source=(getattr(self.flags, "featured_log_source", None) or "Desk"))
 
 	RESIDENTIAL_TYPES = frozenset(
 		{
@@ -171,6 +204,63 @@ class Property(Document):
 			frappe.throw(
 				_("Invalid status change from {0} to {1}.").format(previous_status, self.status)
 			)
+
+	def _apply_reverification_on_update(self):
+		"""Move edited Active/Inactive properties back to Under Verification."""
+		if self.is_new():
+			return
+
+		previous = self.get_doc_before_save()
+		if not previous:
+			return
+
+		if (previous.status or "").strip() not in self.REVERIFICATION_TRIGGER_STATUSES:
+			return
+
+		if self._has_non_featured_changes():
+			self.status = "Under Verification"
+
+	def _has_non_featured_changes(self) -> bool:
+		for field in self.meta.fields:
+			fieldname = (field.fieldname or "").strip()
+			if not fieldname:
+				continue
+			if field.fieldtype in self.NON_VALUE_FIELDTYPES:
+				continue
+			if fieldname in self.REVERIFICATION_IGNORED_FIELDS:
+				continue
+			if self.has_value_changed(fieldname):
+				return True
+		return False
+
+	def _log_featured_change(self, source: str):
+		previous = self.get_doc_before_save()
+		previous_state = (
+			{
+				"is_featured": cint(previous.get("is_featured")),
+				"featured_from": previous.get("featured_from"),
+				"featured_until": previous.get("featured_until"),
+			}
+			if previous
+			else None
+		)
+		current_state = {
+			"is_featured": cint(self.is_featured),
+			"featured_from": getattr(self, "featured_from", None),
+			"featured_until": getattr(self, "featured_until", None),
+		}
+		event_type = featured_logs.infer_featured_event_type(previous_state, current_state)
+		if not event_type:
+			return
+		featured_logs.create_property_featured_log(
+			self.name,
+			agent=self.agent,
+			event_type=event_type,
+			source=source,
+			featured_from=current_state["featured_from"],
+			featured_until=current_state["featured_until"],
+			notes="Featured settings changed from Property form.",
+		)
 
 	def _ensure_verified_agent(self):
 		if not get_mandate_agent_verification():

@@ -142,6 +142,8 @@ declare module 'vue' {
     FacebookIcon: typeof import('./src/components/Icons/FacebookIcon.vue')['default']
     FadedScrollableDiv: typeof import('./src/components/FadedScrollableDiv.vue')['default']
     FailureLogs: typeof import('./src/components/Settings/LeadSyncing/FailureLogs.vue')['default']
+    FeaturedPaymentsModal: typeof import('./src/components/Modals/FeaturedPaymentsModal.vue')['default']
+    FeatureListingsModal: typeof import('./src/components/Modals/FeatureListingsModal.vue')['default']
     Field: typeof import('./src/components/FieldLayout/Field.vue')['default']
     FieldLayout: typeof import('./src/components/FieldLayout/FieldLayout.vue')['default']
     FieldLayoutEditor: typeof import('./src/components/FieldLayoutEditor.vue')['default']

@@ -1,7 +1,8 @@
 
 import frappe
 from frappe.tests import IntegrationTestCase
-from crm.api.redtra import transactions, properties, utils
+from frappe.utils import add_to_date, now_datetime
+from crm.api.redtra import home, transactions, properties, utils
 from unittest.mock import patch
 
 class TestTransactions(IntegrationTestCase):
@@ -12,6 +13,7 @@ class TestTransactions(IntegrationTestCase):
 		# Ensure schema is up to date for modified/new doctypes
 		frappe.reload_doc("fcrm", "doctype", "property", force=True)
 		frappe.reload_doc("fcrm", "doctype", "property_transaction_log", force=True)
+		frappe.reload_doc("fcrm", "doctype", "property_featured_log", force=True)
 		frappe.reload_doc("fcrm", "doctype", "property_agency", force=True)
 
 		frappe.set_user("Administrator")
@@ -32,6 +34,8 @@ class TestTransactions(IntegrationTestCase):
 				"doctype": "Agent",
 				"user": self.agent_email,
 				"full_name": "Test Agent Txn",
+				"phone": "+971500000010",
+				"whatsapp_number": "+971500000010",
 				"status": "Verified",
 				"dfd_registration_id": "123456789",
 				"email": self.agent_email
@@ -246,3 +250,114 @@ class TestTransactions(IntegrationTestCase):
 				found = True
 				break
 		self.assertTrue(found)
+
+	def test_list_properties_featured_filter_excludes_expired_windows(self):
+		active_featured = frappe.get_doc(
+			{
+				"doctype": "Property",
+				"title": "Active Featured Property",
+				"listing_type": "Buy",
+				"property_type": "Apartment",
+				"price": 1500000,
+				"currency": "AED",
+				"agent": self.agent_doc.name,
+				"status": "Active",
+				"is_featured": 1,
+				"featured_from": add_to_date(now_datetime(), days=-1, as_string=True),
+				"featured_until": add_to_date(now_datetime(), days=2, as_string=True),
+			}
+		).insert(ignore_permissions=True)
+		expired_featured = frappe.get_doc(
+			{
+				"doctype": "Property",
+				"title": "Expired Featured Property",
+				"listing_type": "Buy",
+				"property_type": "Apartment",
+				"price": 1400000,
+				"currency": "AED",
+				"agent": self.agent_doc.name,
+				"status": "Active",
+				"is_featured": 1,
+				"featured_from": add_to_date(now_datetime(), days=-4, as_string=True),
+				"featured_until": add_to_date(now_datetime(), minutes=-10, as_string=True),
+			}
+		).insert(ignore_permissions=True)
+
+		frappe.form_dict = frappe._dict({"is_featured": "1", "page": 1, "page_size": 50})
+		rows = properties.list_properties()["items"]
+		property_ids = {item["id"] for item in rows}
+
+		self.assertIn(active_featured.name, property_ids)
+		self.assertNotIn(expired_featured.name, property_ids)
+
+	def test_home_featured_properties_exclude_expired_windows(self):
+		active_featured = frappe.get_doc(
+			{
+				"doctype": "Property",
+				"title": "Home Active Featured",
+				"listing_type": "Buy",
+				"property_type": "Apartment",
+				"price": 1200000,
+				"currency": "AED",
+				"agent": self.agent_doc.name,
+				"status": "Active",
+				"is_featured": 1,
+				"featured_from": add_to_date(now_datetime(), days=-1, as_string=True),
+				"featured_until": add_to_date(now_datetime(), days=1, as_string=True),
+			}
+		).insert(ignore_permissions=True)
+		expired_featured = frappe.get_doc(
+			{
+				"doctype": "Property",
+				"title": "Home Expired Featured",
+				"listing_type": "Buy",
+				"property_type": "Apartment",
+				"price": 1150000,
+				"currency": "AED",
+				"agent": self.agent_doc.name,
+				"status": "Active",
+				"is_featured": 1,
+				"featured_from": add_to_date(now_datetime(), days=-3, as_string=True),
+				"featured_until": add_to_date(now_datetime(), minutes=-15, as_string=True),
+			}
+		).insert(ignore_permissions=True)
+
+		rows = home._get_featured_properties()
+		property_ids = {item["id"] for item in rows}
+
+		self.assertIn(active_featured.name, property_ids)
+		self.assertNotIn(expired_featured.name, property_ids)
+
+	def test_update_property_api_creates_featured_log(self):
+		class MockRequest:
+			def __init__(self, data, headers=None):
+				self.json = data
+				self.method = "POST"
+				self.headers = headers or {}
+
+			def get_json(self):
+				return self.json
+
+		frappe.local.request = MockRequest(
+			{
+				"is_featured": 1,
+				"featured_until": add_to_date(now_datetime(), days=3, as_string=True),
+			},
+			{},
+		)
+		with patch("crm.api.redtra.utils.extract_bearer_token", return_value="fake"), patch(
+			"crm.api.redtra.utils.decode_jwt",
+			return_value={"user": self.agent_email},
+		):
+			properties.update_property(self.property_doc.name)
+
+		logs = frappe.get_all(
+			"Property Featured Log",
+			filters={
+				"property": self.property_doc.name,
+				"source": "API",
+				"event_type": "Activated",
+			},
+			pluck="name",
+		)
+		self.assertEqual(len(logs), 1)

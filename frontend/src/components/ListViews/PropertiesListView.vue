@@ -92,7 +92,7 @@
     <ListSelectBanner>
       <template #actions="{ selections, unselectAll }">
         <Dropdown
-          :options="listBulkActionsRef.bulkActions(selections, unselectAll)"
+          :options="getSelectionActions(selections, unselectAll)"
         >
           <Button icon="more-horizontal" variant="ghost" />
         </Dropdown>
@@ -129,7 +129,6 @@ import {
 } from 'frappe-ui'
 import { sessionStore } from '@/stores/session'
 import { ref, computed, watch } from 'vue'
-import { useRoute } from 'vue-router'
 
 const props = defineProps({
   rows: {
@@ -150,6 +149,10 @@ const props = defineProps({
       rowCount: 0,
     }),
   },
+  onFeaturePay: {
+    type: Function,
+    default: null,
+  },
 })
 const emit = defineEmits([
   'loadMore',
@@ -160,8 +163,6 @@ const emit = defineEmits([
   'likeDoc',
   'selectionsChanged',
 ])
-
-const route = useRoute()
 
 const pageLengthCount = defineModel()
 const list = defineModel('list')
@@ -185,6 +186,20 @@ watch(pageLengthCount, (val, old_value) => {
 })
 
 const listBulkActionsRef = ref(null)
+
+function getSelectionActions(selections, unselectAll) {
+  let actions = listBulkActionsRef.value?.bulkActions(selections, unselectAll) || []
+  if (props.onFeaturePay) {
+    actions = [
+      {
+        label: __('Feature / Pay Featured'),
+        onClick: () => props.onFeaturePay(selections, unselectAll),
+      },
+      ...actions,
+    ]
+  }
+  return actions
+}
 
 defineExpose({
   customListActions: computed(

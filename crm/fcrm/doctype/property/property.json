@@ -119,7 +119,7 @@
    "in_list_view": 1,
    "in_standard_filter": 1,
    "label": "Status",
-   "options": "Draft\nUnder Verification\nActive\nInactive",
+   "options": "Draft\nUnder Verification\nPending DLD\nRejected DLD\nActive\nInactive",
    "reqd": 1
   },
   {
@@ -492,6 +492,11 @@
   {
    "group": "Transactions",
    "link_doctype": "Property Transaction Log",
+   "link_fieldname": "property"
+  },
+  {
+   "group": "Featured",
+   "link_doctype": "Property Featured Log",
    "link_fieldname": "property"
   }
  ],

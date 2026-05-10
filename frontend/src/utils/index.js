@@ -64,6 +64,30 @@ export function getFormat(
   return format
 }
 
+export function normalizeDateValueForPicker(value) {
+  if (!value) return ''
+  const parsed = dayjsLocal(value)
+  return parsed.isValid() ? parsed.format('YYYY-MM-DD') : ''
+}
+
+export function normalizeDateTimeValueForPicker(value) {
+  if (!value) return ''
+  const parsed = dayjsLocal(value)
+  return parsed.isValid() ? parsed.format('YYYY-MM-DD HH:mm:ss') : ''
+}
+
+export function normalizeDateOutputFromPicker(value) {
+  if (!value) return ''
+  const parsed = dayjs(value)
+  return parsed.isValid() ? parsed.format('YYYY-MM-DD') : ''
+}
+
+export function normalizeDateTimeOutputFromPicker(value) {
+  if (!value) return ''
+  const parsed = dayjs(value)
+  return parsed.isValid() ? parsed.format('YYYY-MM-DD HH:mm:ss') : ''
+}
+
 export function timeAgo(date) {
   return prettyDate(date)
 }

@@ -19,6 +19,7 @@
         "source",
         "agent_id",
         "agency",
+        "custom_property",
         "lead_owner",
         "person_tab",
         "salutation",
@@ -188,6 +189,12 @@
             "fieldtype": "Link",
             "label": "Agency",
             "options": "Agency"
+        },
+        {
+            "fieldname": "custom_property",
+            "fieldtype": "Link",
+            "label": "Property",
+            "options": "Property"
         },
         {
             "fieldname": "image",

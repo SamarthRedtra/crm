@@ -164,19 +164,21 @@
     />
     <DateTimePicker
       v-else-if="field.fieldtype === 'Datetime'"
-      :modelValue="data[field.fieldname]"
+      :modelValue="normalizeDateTimeValueForPicker(data[field.fieldname])"
       :format="getFormat('', '', true, true, false)"
       :placeholder="getPlaceholder(field)"
       input-class="border-none"
-      @update:modelValue="(v) => fieldChange(v, field)"
+      @update:modelValue="
+        (v) => fieldChange(normalizeDateTimeOutputFromPicker(v), field)
+      "
     />
     <DatePicker
       v-else-if="field.fieldtype === 'Date'"
-      :modelValue="data[field.fieldname]"
+      :modelValue="normalizeDateValueForPicker(data[field.fieldname])"
       :format="getFormat('', '', true, false, false)"
       :placeholder="getPlaceholder(field)"
       input-class="border-none"
-      @update:modelValue="(v) => fieldChange(v, field)"
+      @update:modelValue="(v) => fieldChange(normalizeDateOutputFromPicker(v), field)"
     />
     <FormControl
       v-else-if="
@@ -257,7 +259,15 @@ import TableMultiselectInput from '@/components/Controls/TableMultiselectInput.v
 import Link from '@/components/Controls/Link.vue'
 import Grid from '@/components/Controls/Grid.vue'
 import { createDocument } from '@/composables/document'
-import { getFormat, evaluateDependsOnValue, validateIsImageFile } from '@/utils'
+import {
+  getFormat,
+  evaluateDependsOnValue,
+  normalizeDateOutputFromPicker,
+  normalizeDateTimeOutputFromPicker,
+  normalizeDateValueForPicker,
+  normalizeDateTimeValueForPicker,
+  validateIsImageFile,
+} from '@/utils'
 import { flt } from '@/utils/numberFormat.js'
 import { getMeta } from '@/stores/meta'
 import { usersStore } from '@/stores/users'

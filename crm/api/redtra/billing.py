@@ -12,6 +12,7 @@ from frappe.utils import (
 	add_months,
 	cint,
 	flt,
+	get_datetime,
 	get_first_day,
 	get_last_day,
 	get_url,
@@ -68,6 +69,9 @@ ZERO_DECIMAL_CURRENCIES = {
 	"xof",
 	"xpf",
 }
+
+FEATURED_ADDON_NAME = "Featured Listings"
+FEATURED_CHECKOUT_CACHE_PREFIX = "featured_checkout_payload"
 
 
 def _is_internal_manager(user: str | None = None) -> bool:
@@ -331,6 +335,87 @@ def _parse_payload(data: str | dict[str, Any] | None) -> dict[str, Any]:
 	if isinstance(data, dict):
 		return data
 	return frappe.parse_json(data) or {}
+
+
+def _parse_property_ids(value: Any) -> list[str]:
+	if value is None:
+		return []
+	if isinstance(value, list):
+		raw_items = value
+	elif isinstance(value, str):
+		text = value.strip()
+		if not text:
+			return []
+		try:
+			parsed = frappe.parse_json(text)
+		except Exception:
+			raw_items = [item.strip() for item in text.split(",") if item.strip()]
+		else:
+			raw_items = parsed if isinstance(parsed, list) else [parsed]
+	else:
+		raw_items = [value]
+
+	property_ids: list[str] = []
+	for item in raw_items:
+		name = (str(item).strip() if item is not None else "")
+		if name:
+			property_ids.append(name)
+	return list(dict.fromkeys(property_ids))
+
+
+def _normalize_featured_window(start_date: Any, end_date: Any) -> tuple[Any, Any, int]:
+	try:
+		start_dt = get_datetime(start_date)
+		end_dt = get_datetime(end_date)
+	except Exception:
+		frappe.throw(_("Invalid featured date range."), frappe.ValidationError)
+
+	if end_dt < start_dt:
+		frappe.throw(_("Featured end date cannot be before start date."), frappe.ValidationError)
+
+	featured_from = get_datetime(f"{getdate(start_dt)} 00:00:00")
+	featured_until = get_datetime(f"{getdate(end_dt)} 23:59:59")
+	days = (getdate(featured_until) - getdate(featured_from)).days + 1
+	if days <= 0:
+		frappe.throw(_("Featured duration must be at least 1 day."), frappe.ValidationError)
+	return featured_from, featured_until, days
+
+
+def _get_featured_addon():
+	addon_name = frappe.db.get_value(
+		"Billing Addon",
+		{"addon_name": FEATURED_ADDON_NAME, "active": 1, "pricing_model": "Daily Fixed"},
+		"name",
+	)
+	if not addon_name:
+		frappe.throw(
+			_("Active Billing Addon '{0}' (Daily Fixed) is required for featured purchases.").format(
+				FEATURED_ADDON_NAME
+			)
+		)
+	return frappe.get_doc("Billing Addon", addon_name)
+
+
+def _featured_checkout_cache_key() -> str:
+	return f"{FEATURED_CHECKOUT_CACHE_PREFIX}:{frappe.generate_hash(length=24)}"
+
+
+def _cache_featured_checkout_payload(cache_key: str, payload: dict[str, Any]):
+	frappe.cache().set_value(cache_key, frappe.as_json(payload), expires_in_sec=60 * 60 * 24)
+
+
+def _get_cached_featured_checkout_payload(cache_key: str) -> dict[str, Any] | None:
+	if not cache_key:
+		return None
+	cached = frappe.cache().get_value(cache_key)
+	if not cached:
+		return None
+	if isinstance(cached, dict):
+		return cached
+	try:
+		return frappe.parse_json(cached) or {}
+	except Exception:
+		return None
 
 
 def _serialize_agent_level(level: dict[str, Any]) -> dict[str, Any]:
@@ -2449,6 +2534,381 @@ def list_agency_addon_status(agency_id: str | None = None) -> dict[str, Any]:
 	}
 
 
+def _complete_featured_checkout_purchase(
+	*,
+	agency_doc,
+	session_data: Any,
+	metadata: dict[str, Any],
+) -> dict[str, Any]:
+	cache_key = (metadata.get("featured_checkout_key") or "").strip()
+	checkout_payload = _get_cached_featured_checkout_payload(cache_key)
+	if not checkout_payload:
+		frappe.throw(_("Featured checkout session is expired or invalid. Please retry purchase."))
+	if checkout_payload.get("agency") != agency_doc.name:
+		frappe.throw(_("Featured checkout payload does not belong to this agency."), frappe.PermissionError)
+
+	session_id = (
+		session_data.get("id")
+		if isinstance(session_data, dict)
+		else getattr(session_data, "id", None)
+	)
+	payment_intent_id = (
+		session_data.get("payment_intent")
+		if isinstance(session_data, dict)
+		else getattr(session_data, "payment_intent", None)
+	)
+	if not session_id:
+		frappe.throw(_("Checkout session ID is missing."))
+
+	accrual_key = f"featured_purchase::{agency_doc.name}::{session_id}"
+	existing_accrual_name = frappe.db.get_value(
+		"Agency Billing Accrual",
+		{"accrual_key": accrual_key},
+		"name",
+	)
+	if existing_accrual_name:
+		existing_accrual = frappe.get_doc("Agency Billing Accrual", existing_accrual_name)
+		existing_invoice = existing_accrual.invoice if existing_accrual.invoice else None
+		existing_invoice_doc = (
+			frappe.get_doc("Agency Billing Invoice", existing_invoice)
+			if existing_invoice and frappe.db.exists("Agency Billing Invoice", existing_invoice)
+			else None
+		)
+		return {
+			"ok": True,
+			"idempotent": True,
+			"session_id": session_id,
+			"invoice": _serialize_invoice(existing_invoice_doc) if existing_invoice_doc else None,
+			"activated_properties": checkout_payload.get("activated_properties") or [],
+		}
+
+	property_ids = _parse_property_ids(checkout_payload.get("property_ids"))
+	featured_from, featured_until, featured_days = _normalize_featured_window(
+		checkout_payload.get("start_date"),
+		checkout_payload.get("end_date"),
+	)
+	addon_doc = _get_featured_addon()
+	rate_snapshot = flt(checkout_payload.get("rate") or addon_doc.rate)
+	quantity = flt(checkout_payload.get("quantity") or (len(property_ids) * featured_days))
+	total_amount = flt(checkout_payload.get("total_amount") or (quantity * rate_snapshot))
+	effective_date = str(getdate(today()))
+
+	from . import properties as properties_api
+
+	activated_properties = properties_api.activate_featured_properties(
+		property_ids,
+		agency_name=agency_doc.name,
+		featured_from=featured_from,
+		featured_until=featured_until,
+	)
+	checkout_payload["activated_properties"] = activated_properties
+	_cache_featured_checkout_payload(cache_key, checkout_payload)
+
+	title_sample = ", ".join(
+		[(row.get("title") or row.get("property_id")) for row in activated_properties[:3]]
+	)
+	if len(activated_properties) > 3:
+		title_sample = f"{title_sample} +{len(activated_properties) - 3} more"
+	description = (
+		f"Featured listings purchase ({featured_days} day(s))"
+		f" {getdate(featured_from)} to {getdate(featured_until)}"
+	)
+	if title_sample:
+		description = f"{description} — {title_sample}"
+
+	accrual_doc = _ensure_accrual(
+		{
+			"agency": agency_doc.name,
+			"posting_date": effective_date,
+			"billing_period_start": effective_date,
+			"billing_period_end": effective_date,
+			"entry_type": "Addon",
+			"addon": addon_doc.name,
+			"quantity": quantity,
+			"rate": rate_snapshot,
+			"currency": addon_doc.currency or agency_doc.billing_currency or _get_default_currency(agency_doc),
+			"description": description,
+			"status": "Open",
+			"accrual_key": accrual_key,
+			"external_reference": session_id,
+		}
+	)
+	if not accrual_doc:
+		frappe.throw(_("Featured purchase already processed. Please refresh and verify invoices."))
+
+	invoice_doc = _create_upfront_addon_invoice(
+		agency_doc=agency_doc,
+		effective_date=effective_date,
+		delta={
+			"addon": addon_doc.name,
+			"currency": accrual_doc.currency,
+			"amount_delta": total_amount,
+			"description": description,
+		},
+		accrual_doc=accrual_doc,
+	)
+	_mark_invoice_paid(
+		invoice_doc.name,
+		stripe_status=(
+			session_data.get("status")
+			if isinstance(session_data, dict)
+			else getattr(session_data, "status", None)
+		)
+		or "paid",
+		payment_intent_id=payment_intent_id,
+	)
+	_create_agency_audit_comment(
+		agency_doc.name,
+		_("Featured purchase for {0} properties ({1} day(s)) completed by {2}.").format(
+			len(activated_properties),
+			featured_days,
+			frappe.session.user,
+		),
+	)
+
+	return {
+		"ok": True,
+		"idempotent": False,
+		"session_id": session_id,
+		"invoice": _serialize_invoice(invoice_doc),
+		"activated_properties": activated_properties,
+	}
+
+
+@frappe.whitelist(methods=["POST"])
+def create_featured_checkout_session(
+	agency_id: str | None = None,
+	property_ids: Any = None,
+	start_date: str | None = None,
+	end_date: str | None = None,
+	success_url: str | None = None,
+	cancel_url: str | None = None,
+) -> dict[str, Any]:
+	"""Create Stripe checkout for time-based featured purchase of multiple properties."""
+	_require_billing_enabled()
+	_context, agency_doc = _require_agency_access(agency_id=agency_id, require_billing=True)
+	if not _stripe_enabled():
+		frappe.throw(_("Stripe is not configured for billing."))
+
+	property_ids = _parse_property_ids(property_ids or frappe.form_dict.get("property_ids"))
+	start_date = start_date or frappe.form_dict.get("start_date")
+	end_date = end_date or frappe.form_dict.get("end_date")
+	if not start_date or not end_date:
+		frappe.throw(_("start_date and end_date are required."))
+
+	featured_from, featured_until, featured_days = _normalize_featured_window(start_date, end_date)
+	addon_doc = _get_featured_addon()
+	rate = flt(addon_doc.rate or 0)
+	if rate <= 0:
+		frappe.throw(_("Featured addon rate must be positive."))
+
+	from . import properties as properties_api
+
+	property_rows = properties_api.validate_featured_purchase_properties(
+		property_ids,
+		agency_name=agency_doc.name,
+		featured_from=featured_from,
+		featured_until=featured_until,
+	)
+	property_count = len(property_rows)
+	quantity = property_count * featured_days
+	total_amount = flt(quantity * rate)
+	currency = (addon_doc.currency or agency_doc.billing_currency or _get_default_currency(agency_doc) or "AED").lower()
+
+	cache_key = _featured_checkout_cache_key()
+	_cache_featured_checkout_payload(
+		cache_key,
+		{
+			"agency": agency_doc.name,
+			"property_ids": [row["name"] for row in property_rows],
+			"property_titles": [row.get("title") for row in property_rows],
+			"start_date": str(getdate(featured_from)),
+			"end_date": str(getdate(featured_until)),
+			"featured_from": str(featured_from),
+			"featured_until": str(featured_until),
+			"featured_days": featured_days,
+			"rate": rate,
+			"currency": currency.upper(),
+			"quantity": quantity,
+			"total_amount": total_amount,
+			"addon": addon_doc.name,
+		},
+	)
+
+	stripe, _settings = _get_stripe_sdk()
+	customer_id = _ensure_stripe_customer(agency_doc)
+	default_success = f"{get_url('/crm/properties')}?featured_purchase=success&session_id={{CHECKOUT_SESSION_ID}}"
+	default_cancel = f"{get_url('/crm/properties')}?featured_purchase=cancel"
+	success_url = _validate_redirect_url(success_url, default_success)
+	cancel_url = _validate_redirect_url(cancel_url, default_cancel)
+
+	description = _(
+		"{0} properties for {1} day(s) ({2} to {3})"
+	).format(
+		property_count,
+		featured_days,
+		getdate(featured_from),
+		getdate(featured_until),
+	)
+	session = stripe.checkout.Session.create(
+		mode="payment",
+		customer=customer_id,
+		currency=currency,
+		line_items=[
+			{
+				"price_data": {
+					"currency": currency,
+					"product_data": {
+						"name": f"{FEATURED_ADDON_NAME} - Bulk Purchase",
+						"description": description,
+					},
+					"unit_amount": _to_minor_units_for_currency(total_amount, currency),
+				},
+				"quantity": 1,
+			}
+		],
+		success_url=success_url,
+		cancel_url=cancel_url,
+		payment_method_types=["card"],
+		metadata={
+			"agency": agency_doc.name,
+			"intent": "featured_purchase",
+			"featured_checkout_key": cache_key,
+		},
+	)
+
+	return {
+		"url": session.url,
+		"session_id": session.id,
+		"pricing_breakdown": {
+			"property_count": property_count,
+			"featured_days": featured_days,
+			"daily_rate": rate,
+			"currency": currency.upper(),
+			"quantity": quantity,
+			"total_amount": total_amount,
+			"start_date": str(getdate(featured_from)),
+			"end_date": str(getdate(featured_until)),
+			"properties": [{"property_id": row["name"], "title": row.get("title")} for row in property_rows],
+		},
+	}
+
+
+@frappe.whitelist(methods=["POST"])
+def complete_featured_checkout(
+	session_id: str | None = None,
+	agency_id: str | None = None,
+) -> dict[str, Any]:
+	"""Finalize featured activation after Stripe checkout success redirect."""
+	_require_billing_enabled()
+	if not session_id:
+		frappe.throw(_("Session ID is required."))
+	_context, agency_doc = _require_agency_access(agency_id=agency_id, require_billing=True)
+	if not _stripe_enabled():
+		frappe.throw(_("Stripe is not configured."))
+
+	stripe, _settings = _get_stripe_sdk()
+	session = stripe.checkout.Session.retrieve(session_id)
+	metadata = getattr(session, "metadata", None) or (
+		session.get("metadata") if isinstance(session, dict) else {}
+	)
+	if not isinstance(metadata, dict):
+		metadata = dict(metadata) if metadata else {}
+
+	if metadata.get("agency") != agency_doc.name:
+		frappe.throw(_("Invalid or expired checkout session."), frappe.PermissionError)
+	if metadata.get("intent") != "featured_purchase":
+		frappe.throw(_("This checkout session is not for featured purchase."))
+
+	payment_status = (
+		session.get("payment_status")
+		if isinstance(session, dict)
+		else getattr(session, "payment_status", None)
+	)
+	if payment_status != "paid":
+		frappe.throw(_("Payment has not been completed. Please try again."))
+
+	return _complete_featured_checkout_purchase(
+		agency_doc=agency_doc,
+		session_data=session,
+		metadata=metadata,
+	)
+
+
+@frappe.whitelist()
+def list_featured_overdues(agency_id: str | None = None) -> dict[str, Any]:
+	"""Return overdue featured invoice totals for property-list banner."""
+	_context, agency_doc = _require_agency_access(agency_id=agency_id, require_billing=True)
+	addon_name = frappe.db.get_value("Billing Addon", {"addon_name": FEATURED_ADDON_NAME}, "name")
+	if not addon_name:
+		return {"currency": agency_doc.billing_currency or _get_default_currency(agency_doc), "count": 0, "total_overdue": 0, "items": []}
+
+	invoice_names = frappe.get_all(
+		"Agency Billing Invoice Item",
+		filters={"addon": addon_name},
+		pluck="parent",
+	)
+	invoice_names = list(dict.fromkeys(invoice_names))
+	if not invoice_names:
+		return {"currency": agency_doc.billing_currency or _get_default_currency(agency_doc), "count": 0, "total_overdue": 0, "items": []}
+
+	overdue_invoices = frappe.get_all(
+		"Agency Billing Invoice",
+		filters={
+			"agency": agency_doc.name,
+			"status": "Open",
+			"due_date": ["<", str(getdate(today()))],
+			"name": ["in", invoice_names],
+		},
+		fields=["name", "invoice_date", "due_date", "currency", "total", "stripe_hosted_invoice_url"],
+		order_by="due_date asc, creation asc",
+	)
+	if not overdue_invoices:
+		return {"currency": agency_doc.billing_currency or _get_default_currency(agency_doc), "count": 0, "total_overdue": 0, "items": []}
+
+	overdue_names = [row["name"] for row in overdue_invoices]
+	featured_items = frappe.get_all(
+		"Agency Billing Invoice Item",
+		filters={"parent": ["in", overdue_names], "addon": addon_name},
+		fields=["parent", "description", "amount"],
+	)
+	amounts_by_parent: dict[str, float] = defaultdict(float)
+	descriptions_by_parent: dict[str, list[str]] = defaultdict(list)
+	for row in featured_items:
+		parent = row.get("parent")
+		if not parent:
+			continue
+		amounts_by_parent[parent] += flt(row.get("amount") or 0)
+		if row.get("description"):
+			descriptions_by_parent[parent].append(row.get("description"))
+
+	items = []
+	total_overdue = 0.0
+	currency = None
+	for invoice in overdue_invoices:
+		amount = flt(amounts_by_parent.get(invoice["name"]) or invoice.get("total") or 0)
+		total_overdue += amount
+		currency = currency or invoice.get("currency")
+		items.append(
+			{
+				"invoice": invoice["name"],
+				"invoice_date": invoice.get("invoice_date"),
+				"due_date": invoice.get("due_date"),
+				"amount": amount,
+				"currency": invoice.get("currency"),
+				"description": "; ".join(descriptions_by_parent.get(invoice["name"], [])),
+				"stripe_hosted_invoice_url": invoice.get("stripe_hosted_invoice_url"),
+			}
+		)
+
+	return {
+		"currency": currency or agency_doc.billing_currency or _get_default_currency(agency_doc),
+		"count": len(items),
+		"total_overdue": flt(total_overdue),
+		"items": items,
+	}
+
+
 @frappe.whitelist(methods=["POST"])
 def purchase_addon(
 	agency_id: str | None = None,
@@ -2989,6 +3449,12 @@ def process_stripe_webhook_event(webhook_event_name: str):
 						stripe_status=data_object.get("status"),
 						payment_intent_id=data_object.get("payment_intent")
 					)
+			elif intent == "featured_purchase":
+				_complete_featured_checkout_purchase(
+					agency_doc=agency_doc,
+					session_data=data_object,
+					metadata=(data_object.get("metadata") or {}),
+				)
 			elif setup_intent_id:
 				setup_intent = stripe.SetupIntent.retrieve(setup_intent_id, expand=["payment_method"])
 				payment_method = setup_intent.get("payment_method")

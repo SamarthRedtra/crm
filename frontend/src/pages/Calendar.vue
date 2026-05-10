@@ -148,6 +148,7 @@ const calendar = ref(null)
 
 const events = createListResource({
   doctype: 'Event',
+  url: 'crm.api.events.get_calendar_events',
   cache: ['calendar', user],
   fields: [
     'name',
@@ -166,7 +167,6 @@ const events = createListResource({
     'appointment_customer',
     'property',
   ],
-  filters: { status: 'Open', owner: user },
   pageLength: 9999,
   auto: true,
   transform: (data) =>
@@ -351,9 +351,15 @@ function deleteEvent(eventID) {
         variant: 'solid',
         theme: 'red',
         onClick: (close) => {
-          events.delete.submit(eventID, {
-            onSuccess: () => events.reload(),
-          })
+          call('crm.api.events.delete_calendar_event', { name: eventID })
+            .then(() => events.reload())
+            .catch((err) =>
+              toast.error(
+                err?.messages?.[0] ||
+                  err?.message ||
+                  __('Could not delete this event.'),
+              ),
+            )
           showEventPanel.value = false
           event.value = {}
           activeEvent.value = ''

@@ -189,11 +189,19 @@
                           class="form-control"
                         >
                           <DateTimePicker
-                            :modelValue="doc[field.fieldname]"
+                            :modelValue="
+                              normalizeDateTimeValueForPicker(doc[field.fieldname])
+                            "
                             :format="getFormat('', '', true, true, false)"
                             :placeholder="field.placeholder"
                             placement="left-start"
-                            @update:modelValue="(v) => fieldChange(v, field)"
+                            @update:modelValue="
+                              (v) =>
+                                fieldChange(
+                                  normalizeDateTimeOutputFromPicker(v),
+                                  field,
+                                )
+                            "
                           />
                         </div>
                         <div
@@ -201,11 +209,19 @@
                           class="form-control"
                         >
                           <DatePicker
-                            :modelValue="doc[field.fieldname]"
+                            :modelValue="
+                              normalizeDateValueForPicker(doc[field.fieldname])
+                            "
                             :format="getFormat('', '', true, false, false)"
                             :placeholder="field.placeholder"
                             placement="left-start"
-                            @update:modelValue="(v) => fieldChange(v, field)"
+                            @update:modelValue="
+                              (v) =>
+                                fieldChange(
+                                  normalizeDateOutputFromPicker(v),
+                                  field,
+                                )
+                            "
                           />
                         </div>
                         <FormattedInput
@@ -325,7 +341,14 @@ import SidePanelModal from '@/components/Modals/SidePanelModal.vue'
 import { getMeta } from '@/stores/meta'
 import { usersStore } from '@/stores/users'
 import { isMobileView } from '@/composables/settings'
-import { getFormat, evaluateDependsOnValue } from '@/utils'
+import {
+  getFormat,
+  evaluateDependsOnValue,
+  normalizeDateOutputFromPicker,
+  normalizeDateTimeOutputFromPicker,
+  normalizeDateValueForPicker,
+  normalizeDateTimeValueForPicker,
+} from '@/utils'
 import { flt } from '@/utils/numberFormat.js'
 import { Tooltip, DateTimePicker, DatePicker, TimePicker } from 'frappe-ui'
 import { useDocument } from '@/data/document'

@@ -1,14 +1,16 @@
 import frappe
 from frappe.tests import IntegrationTestCase
-from frappe.utils import cint, today
+from frappe.utils import add_days, add_to_date, cint, now_datetime, today
 from unittest.mock import patch
 
-from crm.api.redtra import billing, permissions
+from crm.api.redtra import billing, permissions, properties as properties_api
 
 
 class TestAgencyBilling(IntegrationTestCase):
 	def setUp(self):
 		frappe.set_user("Administrator")
+		frappe.reload_doc("fcrm", "doctype", "property", force=True)
+		frappe.reload_doc("fcrm", "doctype", "property_featured_log", force=True)
 		self.suffix = frappe.generate_hash(length=8)
 		self._created_invoices: set[str] = set()
 
@@ -38,6 +40,9 @@ class TestAgencyBilling(IntegrationTestCase):
 				"doctype": "Agency",
 				"agency_name": f"Billing Agency {self.suffix}",
 				"status": "Active",
+				"email": f"agency-{self.suffix}@example.com",
+				"phone": "+971500000001",
+				"whatsapp_number": "+971500000001",
 				"billing_contact_name": "Billing Admin",
 				"billing_email": f"billing-{self.suffix}@example.com",
 			}
@@ -70,6 +75,28 @@ class TestAgencyBilling(IntegrationTestCase):
 			}
 		).insert(ignore_permissions=True)
 
+		self._featured_addon_created = False
+		featured_addon_name = frappe.db.get_value(
+			"Billing Addon",
+			{"addon_name": billing.FEATURED_ADDON_NAME},
+			"name",
+		)
+		if featured_addon_name:
+			self.featured_addon = frappe.get_doc("Billing Addon", featured_addon_name)
+		else:
+			self.featured_addon = frappe.get_doc(
+				{
+					"doctype": "Billing Addon",
+					"addon_name": billing.FEATURED_ADDON_NAME,
+					"pricing_model": "Daily Fixed",
+					"rate": 600,
+					"currency": "AED",
+					"active": 1,
+					"requires_upfront_payment": 1,
+				}
+			).insert(ignore_permissions=True)
+			self._featured_addon_created = True
+
 		self.agency.append(
 			"billing_addons",
 			{
@@ -85,6 +112,8 @@ class TestAgencyBilling(IntegrationTestCase):
 			{
 				"doctype": "Agent",
 				"user": self.user.name,
+				"phone": "+971500000003",
+				"whatsapp_number": "+971500000003",
 				"status": "Verified",
 				"dfd_registration_id": f"DFD-{self.suffix}",
 				"agency": self.agency.name,
@@ -93,6 +122,24 @@ class TestAgencyBilling(IntegrationTestCase):
 				"billable": 1,
 			}
 		).insert(ignore_permissions=True)
+
+		self.featured_properties = []
+		for idx in range(2):
+			doc = frappe.get_doc(
+				{
+					"doctype": "Property",
+					"title": f"Featured Property {idx + 1} {self.suffix}",
+					"listing_type": "Buy",
+					"property_type": "Apartment",
+					"price": 1000000 + (idx * 100000),
+					"currency": "AED",
+					"agent": self.agent.name,
+					"agency": self.agency.name,
+					"status": "Active",
+					"completion_status": "Ready",
+				}
+			).insert(ignore_permissions=True)
+			self.featured_properties.append(doc.name)
 
 		frappe.db.commit()
 
@@ -107,12 +154,28 @@ class TestAgencyBilling(IntegrationTestCase):
 		for accrual_name in frappe.get_all("Agency Billing Accrual", filters={"agency": self.agency.name}, pluck="name"):
 			if frappe.db.exists("Agency Billing Accrual", accrual_name):
 				frappe.delete_doc("Agency Billing Accrual", accrual_name, ignore_permissions=True, force=1)
+		for property_name in getattr(self, "featured_properties", []):
+			for log_name in frappe.get_all(
+				"Property Featured Log",
+				filters={"property": property_name},
+				pluck="name",
+			):
+				if frappe.db.exists("Property Featured Log", log_name):
+					frappe.delete_doc("Property Featured Log", log_name, ignore_permissions=True, force=1)
+			if frappe.db.exists("Property", property_name):
+				frappe.delete_doc("Property", property_name, ignore_permissions=True, force=1)
 		if frappe.db.exists("Agent", self.agent.name):
 			frappe.delete_doc("Agent", self.agent.name, ignore_permissions=True, force=1)
 		if frappe.db.exists("Agency", self.agency.name):
 			frappe.delete_doc("Agency", self.agency.name, ignore_permissions=True, force=1)
 		if frappe.db.exists("Billing Addon", self.addon.name):
 			frappe.delete_doc("Billing Addon", self.addon.name, ignore_permissions=True, force=1)
+		if (
+			getattr(self, "_featured_addon_created", False)
+			and getattr(self, "featured_addon", None)
+			and frappe.db.exists("Billing Addon", self.featured_addon.name)
+		):
+			frappe.delete_doc("Billing Addon", self.featured_addon.name, ignore_permissions=True, force=1)
 		if getattr(self, "_level_created", False) and frappe.db.exists("Agent Level", self.level.name):
 			frappe.delete_doc("Agent Level", self.level.name, ignore_permissions=True, force=1)
 		if frappe.db.exists("User", self.user.name):
@@ -559,6 +622,144 @@ class TestAgencyBilling(IntegrationTestCase):
 		self.assertEqual(detached_status.status, "Detached")
 		self.assertEqual(cint(detached_status.is_default), 0)
 
+	def test_featured_checkout_completion_is_idempotent(self):
+		frappe.set_user(self.user.name)
+		self.agency.reload()
+		self.agency.stripe_customer_id = "cus_featured_checkout"
+		self.agency.flags.ignore_permissions = True
+		self.agency.save()
+
+		class _StripeStub:
+			class checkout:
+				class Session:
+					metadata = {}
+
+					@staticmethod
+					def create(**kwargs):
+						_StripeStub.checkout.Session.metadata = kwargs.get("metadata") or {}
+						return frappe._dict(id="cs_featured_checkout", url="https://stripe.test/featured_checkout")
+
+					@staticmethod
+					def retrieve(session_id):
+						return frappe._dict(
+							id=session_id,
+							metadata=_StripeStub.checkout.Session.metadata,
+							payment_status="paid",
+							status="complete",
+							payment_intent="pi_featured_checkout",
+						)
+
+		with patch("crm.api.redtra.billing._stripe_enabled", return_value=True), patch(
+			"crm.api.redtra.billing._get_stripe_sdk",
+			return_value=(_StripeStub(), frappe.get_single("Agency Billing Settings")),
+		):
+			created = billing.create_featured_checkout_session(
+				agency_id=self.agency.name,
+				property_ids=self.featured_properties,
+				start_date="2026-05-01",
+				end_date="2026-05-07",
+			)
+			self.assertTrue(created.get("url"))
+			completed = billing.complete_featured_checkout(
+				session_id=created.get("session_id"),
+				agency_id=self.agency.name,
+			)
+			self.assertTrue(completed.get("ok"))
+			self.assertEqual(len(completed.get("activated_properties") or []), 2)
+
+			second = billing.complete_featured_checkout(
+				session_id=created.get("session_id"),
+				agency_id=self.agency.name,
+			)
+			self.assertTrue(second.get("ok"))
+			self.assertTrue(second.get("idempotent"))
+
+		for property_name in self.featured_properties:
+			doc = frappe.get_doc("Property", property_name)
+			self.assertEqual(cint(doc.is_featured), 1)
+			self.assertTrue(doc.featured_until)
+			log_rows = frappe.get_all(
+				"Property Featured Log",
+				filters={
+					"property": property_name,
+					"event_type": "Activated",
+					"source": "Billing",
+				},
+				pluck="name",
+			)
+			self.assertEqual(len(log_rows), 1)
+
+	def test_expire_featured_properties_clears_window_and_logs(self):
+		property_doc = frappe.get_doc(
+			{
+				"doctype": "Property",
+				"title": f"Featured Expiry {self.suffix}",
+				"listing_type": "Buy",
+				"property_type": "Apartment",
+				"price": 950000,
+				"currency": "AED",
+				"agent": self.agent.name,
+				"agency": self.agency.name,
+				"status": "Active",
+				"completion_status": "Ready",
+				"is_featured": 1,
+				"featured_from": add_to_date(now_datetime(), days=-5, as_string=True),
+				"featured_until": add_to_date(now_datetime(), minutes=-30, as_string=True),
+			}
+		).insert(ignore_permissions=True)
+		self.featured_properties.append(property_doc.name)
+
+		result = properties_api.expire_featured_properties()
+		self.assertGreaterEqual(result.get("expired_count", 0), 1)
+
+		property_doc.reload()
+		self.assertEqual(cint(property_doc.is_featured), 0)
+		self.assertFalse(property_doc.featured_from)
+		self.assertFalse(property_doc.featured_until)
+
+		logs = frappe.get_all(
+			"Property Featured Log",
+			filters={
+				"property": property_doc.name,
+				"event_type": "Expired",
+				"source": "Scheduler",
+			},
+			pluck="name",
+		)
+		self.assertEqual(len(logs), 1)
+
+	def test_list_featured_overdues_returns_amounts(self):
+		frappe.set_user(self.user.name)
+		due_date = add_days(today(), -5)
+		invoice = frappe.get_doc(
+			{
+				"doctype": "Agency Billing Invoice",
+				"agency": self.agency.name,
+				"status": "Open",
+				"currency": "AED",
+				"invoice_date": add_days(today(), -10),
+				"due_date": due_date,
+				"billing_period_start": add_days(today(), -10),
+				"billing_period_end": add_days(today(), -5),
+				"items": [
+					{
+						"entry_type": "Addon",
+						"addon": self.featured_addon.name,
+						"description": "Featured dues",
+						"quantity": 2,
+						"rate": 600,
+						"amount": 1200,
+						"currency": "AED",
+					}
+				],
+			}
+		).insert(ignore_permissions=True)
+
+		result = billing.list_featured_overdues(agency_id=self.agency.name)
+		self.assertEqual(result.get("count"), 1)
+		self.assertEqual(cint(result.get("total_overdue")), 1200)
+		self.assertEqual((result.get("items") or [])[0].get("invoice"), invoice.name)
+
 
 class TestAgencyTrialMaintenance(IntegrationTestCase):
 	def setUp(self):
@@ -569,6 +770,9 @@ class TestAgencyTrialMaintenance(IntegrationTestCase):
 				"doctype": "Agency",
 				"agency_name": f"Trial Agency {self.suffix}",
 				"status": "Active",
+				"email": f"trial-{self.suffix}@example.com",
+				"phone": "+971500000002",
+				"whatsapp_number": "+971500000002",
 				"billing_status": "Not Configured",
 				"trial_status": "Active",
 				"is_on_trial": 1,

@@ -9,10 +9,10 @@ from urllib.parse import quote
 import frappe
 from frappe import _
 from frappe.query_builder import DocType, functions as fn
-from frappe.utils import cint, get_datetime, now_datetime, strip_html
+from frappe.utils import cint, get_datetime, getdate, now_datetime, strip_html
 from pypika import Order
 
-from . import reviews, utils
+from . import featured_logs, reviews, utils
 
 # Agent review rows embedded under agent.ratings.recent_reviews in list responses
 LIST_PROPERTY_AGENT_REVIEW_LIMIT = 25
@@ -50,6 +50,9 @@ SUMMARY_FIELDS = [
 	"handover_quarter",
 	"handover_year",
 ]
+
+TITLE_MIN_WORDS = 15
+TITLE_MAX_WORDS = 30
 
 
 @frappe.whitelist(allow_guest=True)
@@ -182,7 +185,10 @@ def list_properties() -> dict[str, Any]:
 			conditions.append(property_dt.name.isin(list(property_ids_with_amenities)))
 
 		if (is_featured := frappe.form_dict.get("is_featured")) is not None:
-			conditions.append(property_dt.is_featured == int(_coerce_bool(is_featured)))
+			is_featured_flag = int(_coerce_bool(is_featured))
+			conditions.append(property_dt.is_featured == is_featured_flag)
+			if is_featured_flag:
+				conditions.append(property_dt.featured_until >= now_datetime())
 
 		location = (frappe.form_dict.get("location") or "").strip()
 		if location:
@@ -300,10 +306,9 @@ def create_property() -> dict[str, Any]:
 	current_user = utils.get_current_user()
 	user_roles = set(frappe.get_roles(current_user))
 
-	# C-13: Title length validation
+	# C-13: Title word-count validation
 	title = data.get("title", "").strip()
-	if len(title) < 10 or len(title) > 200:
-		frappe.throw(_("Title must be between 10 and 200 characters."), frappe.ValidationError)
+	_validate_title_word_count(title)
 
 	# C-07: Role-aware Trakheesi validation
 	if "System Manager" not in user_roles:
@@ -354,6 +359,7 @@ def create_property() -> dict[str, Any]:
 			"featured_until": featured_until,
 		}
 	)
+	doc.flags.featured_log_source = "API"
 
 	for amenity in data.get("amenities") or []:
 		if isinstance(amenity, dict):
@@ -394,11 +400,10 @@ def update_property(property_id: str) -> dict[str, Any]:
 	)
 	if data.get("featured_until") and "is_featured" not in data:
 		is_featured_value = 1
-	# C-13: Title length validation (if updated)
+	# C-13: Title word-count validation (if updated)
 	if "title" in data:
 		title = data.get("title", "").strip()
-		if len(title) < 10 or len(title) > 200:
-			frappe.throw(_("Title must be between 10 and 200 characters."), frappe.ValidationError)
+		_validate_title_word_count(title)
 
 	# C-07: Role-aware Trakheesi validation for update
 	current_user = utils.get_current_user()
@@ -454,6 +459,7 @@ def update_property(property_id: str) -> dict[str, Any]:
 			"status": data.get("status", doc.status),
 		}
 	)
+	doc.flags.featured_log_source = "API"
 
 	if "amenities" in data:
 		doc.set("amenities", [])
@@ -1034,6 +1040,18 @@ def _clean_str(value: Any) -> str | None:
 	return text or None
 
 
+def _validate_title_word_count(title: str) -> None:
+	word_count = len([word for word in title.split() if word.strip()])
+	if word_count < TITLE_MIN_WORDS or word_count > TITLE_MAX_WORDS:
+		frappe.throw(
+			_("Title must be between {0} and {1} words.").format(
+				TITLE_MIN_WORDS,
+				TITLE_MAX_WORDS,
+			),
+			frappe.ValidationError,
+		)
+
+
 def _resolve_agent_scope() -> tuple[bool, str | None]:
 	user = utils.get_current_user()
 	if user == "Administrator":
@@ -1144,21 +1162,38 @@ def _get_featured_timer(featured_until: Any) -> tuple[str | None, int]:
 def expire_featured_properties():
 	"""Scheduled job to auto-expire featured properties."""
 	now = now_datetime()
+	has_featured_from_column = frappe.db.has_column("Property", "featured_from")
+	expired_fields = ["name", "agent", "featured_until"]
+	if has_featured_from_column:
+		expired_fields.append("featured_from")
 	expired = frappe.db.get_all(
 		"Property",
 		filters={"is_featured": 1, "featured_until": ["<", now]},
-		pluck="name",
+		fields=expired_fields,
 	)
 	if not expired:
 		return {"expired_count": 0}
 
+	for row in expired:
+		featured_logs.create_property_featured_log(
+			row["name"],
+			agent=row.get("agent"),
+			event_type="Expired",
+			source="Scheduler",
+			featured_from=row.get("featured_from"),
+			featured_until=row.get("featured_until"),
+			notes="Featured window expired by scheduler.",
+		)
+
 	frappe.db.sql(
 		"""
 		UPDATE `tabProperty`
-		SET is_featured = 0, featured_until = NULL
+		SET is_featured = 0, featured_until = NULL {featured_from_clause}
 		WHERE name IN %(names)s
-		""",
-		{"names": tuple(expired)},
+		""".format(
+			featured_from_clause=", featured_from = NULL" if has_featured_from_column else ""
+		),
+		{"names": tuple(row["name"] for row in expired)},
 	)
 	frappe.db.commit()
 	return {"expired_count": len(expired)}
@@ -1171,5 +1206,113 @@ def _find_existing_amenity(value: Any) -> str | None:
 	return frappe.db.exists("Amenity", {"name": name}) or frappe.db.exists(
 		"Amenity", {"amenity_name": name}
 	)
+
+
+def validate_featured_purchase_properties(
+	property_ids: list[str],
+	*,
+	agency_name: str,
+	featured_from: Any,
+	featured_until: Any,
+) -> list[dict[str, Any]]:
+	"""Validate selected properties for paid featured activation."""
+	if not property_ids:
+		frappe.throw(_("Please select at least one property."))
+	if not agency_name:
+		frappe.throw(_("Agency is required for featured purchase validation."))
+
+	try:
+		featured_from_dt = get_datetime(featured_from)
+		featured_until_dt = get_datetime(featured_until)
+	except Exception:
+		frappe.throw(_("Invalid featured date range."), frappe.ValidationError)
+
+	if featured_until_dt <= featured_from_dt:
+		frappe.throw(_("Featured end date must be after start date."), frappe.ValidationError)
+
+	normalized_ids = [str(p).strip() for p in property_ids if str(p).strip()]
+	unique_ids = list(dict.fromkeys(normalized_ids))
+	rows = frappe.get_all(
+		"Property",
+		filters={"name": ["in", unique_ids]},
+		fields=["name", "title", "agency", "status", "is_featured", "featured_from", "featured_until"],
+	)
+	rows_by_name = {row["name"]: row for row in rows}
+
+	missing = [name for name in unique_ids if name not in rows_by_name]
+	if missing:
+		frappe.throw(_("Some selected properties were not found: {0}").format(", ".join(missing)))
+
+	for name in unique_ids:
+		row = rows_by_name[name]
+		if (row.get("agency") or "") != agency_name:
+			frappe.throw(_("Property {0} does not belong to your agency.").format(name), frappe.PermissionError)
+		if (row.get("status") or "") != "Active":
+			frappe.throw(_("Only Active properties can be featured. Property: {0}").format(name), frappe.ValidationError)
+		if cint(row.get("is_featured")) and row.get("featured_until"):
+			current_until = get_datetime(row.get("featured_until"))
+			if current_until >= featured_from_dt:
+				frappe.throw(
+					_("Property {0} already has an overlapping featured period.").format(name),
+					frappe.ValidationError,
+				)
+
+	return [rows_by_name[name] for name in unique_ids]
+
+
+def activate_featured_properties(
+	property_ids: list[str],
+	*,
+	agency_name: str,
+	featured_from: Any,
+	featured_until: Any,
+	source: str = "Billing",
+) -> list[dict[str, Any]]:
+	"""Activate featured dates after successful payment."""
+	valid_rows = validate_featured_purchase_properties(
+		property_ids,
+		agency_name=agency_name,
+		featured_from=featured_from,
+		featured_until=featured_until,
+	)
+	featured_from_dt = get_datetime(featured_from)
+	featured_until_dt = get_datetime(featured_until)
+	has_featured_from_column = frappe.db.has_column("Property", "featured_from")
+
+	for row in valid_rows:
+		update_values = {
+			"is_featured": 1,
+			"featured_until": featured_until_dt,
+		}
+		if has_featured_from_column:
+			update_values["featured_from"] = featured_from_dt
+
+		frappe.db.set_value(
+			"Property",
+			row["name"],
+			update_values,
+		)
+		featured_logs.create_property_featured_log(
+			row["name"],
+			agent=frappe.db.get_value("Property", row["name"], "agent"),
+			event_type="Activated",
+			source=source,
+			featured_from=featured_from_dt,
+			featured_until=featured_until_dt,
+			notes="Featured window activated after successful payment.",
+		)
+
+	return [
+		{
+			"property_id": row["name"],
+			"title": row.get("title"),
+			"featured_from": str(featured_from_dt),
+			"featured_until": str(featured_until_dt),
+			"featured_days": (getdate(featured_until_dt) - getdate(featured_from_dt)).days + 1,
+		}
+		for row in valid_rows
+	]
+
+
 
 

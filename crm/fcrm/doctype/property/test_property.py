@@ -4,12 +4,20 @@
 import frappe
 from frappe.model.document import get_controller
 from frappe.tests import UnitTestCase
+from unittest.mock import patch
 
 from crm.api.doc import get_data
 from crm.fcrm.doctype.crm_view_settings.crm_view_settings import create_or_update_standard_view
 
 
 class TestProperty(UnitTestCase):
+	def test_status_options_include_dld_statuses(self):
+		controller = get_controller("Property")
+		self.assertIn("Pending DLD", controller.STATUS_FLOW)
+		self.assertIn("Rejected DLD", controller.STATUS_FLOW)
+		self.assertIn("Pending DLD", controller.STATUS_FLOW["Under Verification"])
+		self.assertIn("Rejected DLD", controller.STATUS_FLOW["Under Verification"])
+
 	def test_default_list_data_is_available_on_controller(self):
 		controller = get_controller("Property")
 
@@ -113,3 +121,62 @@ class TestProperty(UnitTestCase):
 		# but validate() should pass now that 'Shop' is in property.json options
 		# and COMMERCIAL_TYPES.
 		doc.run_method("validate")
+
+	def test_reverification_triggers_for_non_featured_updates(self):
+		doc = frappe.get_doc(
+			{
+				"doctype": "Property",
+				"status": "Active",
+				"title": "Updated Title",
+			}
+		)
+		doc.is_new = lambda: False
+		doc.get_doc_before_save = lambda: frappe._dict(status="Active")
+		doc.has_value_changed = lambda fieldname: fieldname == "title"
+
+		doc.run_method("before_validate")
+
+		self.assertEqual("Under Verification", doc.status)
+
+	def test_reverification_ignores_featured_only_changes(self):
+		doc = frappe.get_doc(
+			{
+				"doctype": "Property",
+				"status": "Active",
+				"is_featured": 1,
+			}
+		)
+		doc.is_new = lambda: False
+		doc.get_doc_before_save = lambda: frappe._dict(status="Active")
+		doc.has_value_changed = lambda fieldname: fieldname == "is_featured"
+
+		doc.run_method("before_validate")
+
+		self.assertEqual("Active", doc.status)
+
+	def test_on_update_logs_featured_changes_from_desk(self):
+		doc = frappe.get_doc(
+			{
+				"doctype": "Property",
+				"name": "PROP-UNIT-TEST",
+				"agent": "AGENT-UNIT-TEST",
+				"is_featured": 1,
+				"featured_from": "2026-05-10 00:00:00",
+				"featured_until": "2026-05-20 23:59:59",
+			}
+		)
+		doc.get_doc_before_save = lambda: frappe._dict(
+			is_featured=0,
+			featured_from=None,
+			featured_until=None,
+		)
+
+		with patch(
+			"crm.fcrm.doctype.property.property.featured_logs.create_property_featured_log"
+		) as mocked_log:
+			doc.run_method("on_update")
+
+		mocked_log.assert_called_once()
+		call_kwargs = mocked_log.call_args.kwargs
+		self.assertEqual(call_kwargs.get("event_type"), "Activated")
+		self.assertEqual(call_kwargs.get("source"), "Desk")

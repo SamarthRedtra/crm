@@ -31,45 +31,53 @@ class PropertyAppointment(Document):
 
 	def on_update(self):
 		"""Handle rescheduling, status changes, and calendar sync"""
-		# Always sync to event on update to reflect changes
-		self.sync_to_event()
+		if not getattr(self.flags, "skip_sync_to_event", False):
+			self.sync_to_event()
 
-		# Check if datetime was changed (reschedule)
-		datetime_changed = (
-			self.has_value_changed("start_datetime") or 
-			self.has_value_changed("end_datetime")
-		)
-		
-		# Check if status changed
+		datetime_changed = self.has_value_changed("start_datetime") or self.has_value_changed("end_datetime")
 		status_changed = self.has_value_changed("status")
-		
-		# Handle reschedule
+
 		if datetime_changed and self.status == "Scheduled" and not self.flags.just_created:
 			if hasattr(self, "reminder_sent") and self.reminder_sent:
 				self.reminder_sent = 0
 			self._send_appointment_notifications(is_new=False, is_reschedule=True)
-		
-		# Handle status changes
+
 		if status_changed and self.status in ["Cancelled", "Completed"]:
 			self._send_status_change_notification()
 
 	def sync_to_event(self):
-		"""Sync the appointment with standard Frappe Event for calendar view"""
+		"""Sync the appointment with standard Frappe Event for calendar view."""
+		if getattr(self.flags, "skip_sync_to_event", False):
+			return
 		try:
-			filters = {"reference_doctype": self.doctype, "reference_docname": self.name}
-			event_name = frappe.db.get_value("Event", filters, "name")
+			event_name = self.calendar_event
+			if not event_name:
+				event_name = frappe.db.get_value(
+					"Event",
+					{"reference_doctype": self.doctype, "reference_docname": self.name},
+					"name",
+				)
 
 			if self.status != "Scheduled":
-				if event_name:
-					frappe.delete_doc("Event", event_name, ignore_permissions=True)
+				if event_name and frappe.db.exists("Event", event_name):
+					ev = frappe.get_doc("Event", event_name)
+					if self.status == "Cancelled":
+						ev.status = "Cancelled"
+					elif self.status == "Completed":
+						ev.status = "Completed"
+					else:
+						ev.status = "Cancelled"
+					ev.flags.ignore_permissions = True
+					ev.flags.from_property_appointment_sync = True
+					ev.save(ignore_permissions=True)
 				return
 
 			agent_user = frappe.db.get_value("Agent", self.agent, "user") if self.agent else None
-			
+
 			property_title = frappe.db.get_value("Property", self.property, "title") or self.property
 			subject = _("Property Viewing: {0}").format(property_title)
-			
-			if event_name:
+
+			if event_name and frappe.db.exists("Event", event_name):
 				event_doc = frappe.get_doc("Event", event_name)
 			else:
 				event_doc = frappe.new_doc("Event")
@@ -77,24 +85,41 @@ class PropertyAppointment(Document):
 				event_doc.reference_docname = self.name
 				event_doc.owner = agent_user or frappe.session.user
 
-			event_doc.update({
-				"subject": subject,
-				"description": _("Appointment for {0} with customer {1}").format(property_title, self.customer),
-				"starts_on": self.start_datetime,
-				"ends_on": self.end_datetime,
-				"event_type": "Private" if agent_user else "Public",
-				"status": "Open",
-				"all_day": 0
-			})
-			
-			# Ensure participants
-			if agent_user and not event_doc.get("event_participants"):
-				event_doc.append("event_participants", {
-					"reference_doctype": "User",
-					"reference_docname": agent_user
-				})
-			
+			event_doc.update(
+				{
+					"subject": subject,
+					"description": _("Appointment for {0} with customer {1}").format(
+						property_title, self.customer
+					),
+					"starts_on": self.start_datetime,
+					"ends_on": self.end_datetime,
+					"event_type": "Private" if agent_user else "Public",
+					"status": "Open",
+					"all_day": 0,
+				}
+			)
+
+			if self.property and frappe.get_meta("Event").has_field("property"):
+				event_doc.update({"property": self.property})
+
+			existing_users = {
+				r.reference_docname
+				for r in event_doc.get("event_participants") or []
+				if getattr(r, "reference_doctype", None) == "User" and r.reference_docname
+			}
+			if agent_user and agent_user not in existing_users:
+				event_doc.append(
+					"event_participants",
+					{"reference_doctype": "User", "reference_docname": agent_user},
+				)
+
+			event_doc.flags.ignore_permissions = True
 			event_doc.save(ignore_permissions=True)
+
+			if not self.calendar_event or self.calendar_event != event_doc.name:
+				self.db_set("calendar_event", event_doc.name, update_modified=False)
+				self.calendar_event = event_doc.name
+
 		except Exception as e:
 			frappe.log_error(f"Failed to sync appointment to event: {str(e)}", "Appointment Sync Error")
 

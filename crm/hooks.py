@@ -192,6 +192,7 @@ doc_events = {
 	"Event": {
 		"after_insert": ["crm.api.events.sync_property_appointment_after_insert"],
 		"on_update": ["crm.api.events.sync_property_appointment_on_update"],
+		"on_trash": ["crm.api.events.cancel_property_appointment_on_event_delete"],
 	},
 }
 

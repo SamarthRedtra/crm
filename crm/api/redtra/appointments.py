@@ -176,9 +176,13 @@ def create_appointment() -> dict[str, Any]:
 	)
 	doc.insert(ignore_permissions=True)
 
-	event_name = _create_calendar_event(doc, prop, customer)
-	if event_name:
-		doc.db_set("calendar_event", event_name, update_modified=False)
+	doc.reload()
+	if not doc.calendar_event:
+		event_name = _create_calendar_event(doc, prop, customer)
+		if event_name:
+			doc.db_set("calendar_event", event_name, update_modified=False)
+	else:
+		_update_calendar_event(doc)
 
 	# Notifications are automatically created in Property Appointment doctype controller
 	# (after_insert method handles creation notifications)
@@ -223,10 +227,7 @@ def cancel_appointment(appointment_id: str) -> dict[str, Any]:
 	doc.status = "Cancelled"
 	doc.save(ignore_permissions=True)
 	_update_calendar_event(doc)
-	# Notifications for cancellation are automatically created in Property Appointment doctype controller
-	# (on_update method detects status changes and sends cancellation notifications)
-	frappe.response.http_status_code = 204
-	return {}
+	return serialize_appointment(doc.name)
 
 
 def serialize_appointment(name: str) -> dict[str, Any]:
@@ -319,6 +320,22 @@ def _ensure_appointment_access(appointment_id: str):
 
 
 def _create_calendar_event(appointment_doc, property_doc, customer_doc):
+	existing = frappe.db.get_value(
+		"Event",
+		{"reference_doctype": "Property Appointment", "reference_docname": appointment_doc.name},
+		"name",
+	)
+	if existing:
+		if not appointment_doc.calendar_event:
+			frappe.db.set_value(
+				"Property Appointment",
+				appointment_doc.name,
+				"calendar_event",
+				existing,
+				update_modified=False,
+			)
+		return existing
+
 	subject = _("Property Viewing: {0}").format(property_doc.title or property_doc.name)
 	description = _build_event_description(appointment_doc, property_doc, customer_doc)
 
@@ -331,11 +348,14 @@ def _create_calendar_event(appointment_doc, property_doc, customer_doc):
 			"starts_on": appointment_doc.start_datetime,
 			"ends_on": appointment_doc.end_datetime,
 			"status": "Open",
-			"reference_doctype": "Property",
-			"reference_docname": property_doc.name,
+			"reference_doctype": "Property Appointment",
+			"reference_docname": appointment_doc.name,
 			"description": description,
 		}
 	)
+
+	if frappe.get_meta("Event").has_field("property") and appointment_doc.property:
+		event_doc.update({"property": appointment_doc.property})
 
 	agent_user = frappe.db.get_value("Agent", appointment_doc.agent, "user")
 	if agent_user:

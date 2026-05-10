@@ -214,19 +214,37 @@
                   />
                   <DatePicker
                     v-else-if="field.fieldtype === 'Date'"
-                    :modelValue="row[field.fieldname]"
+                    :modelValue="
+                      normalizeDateValueForPicker(row[field.fieldname])
+                    "
                     variant="outline"
                     :format="getFormat('', '', true, false, false)"
                     input-class="border-none text-sm text-ink-gray-8"
-                    @update:modelValue="(v) => fieldChange(v, field, row)"
+                    @update:modelValue="
+                      (v) =>
+                        fieldChange(
+                          normalizeDateOutputFromPicker(v),
+                          field,
+                          row,
+                        )
+                    "
                   />
                   <DateTimePicker
                     v-else-if="field.fieldtype === 'Datetime'"
-                    :modelValue="row[field.fieldname]"
+                    :modelValue="
+                      normalizeDateTimeValueForPicker(row[field.fieldname])
+                    "
                     variant="outline"
                     :format="getFormat('', '', true, true, false)"
                     input-class="border-none text-sm text-ink-gray-8"
-                    @update:modelValue="(v) => fieldChange(v, field, row)"
+                    @update:modelValue="
+                      (v) =>
+                        fieldChange(
+                          normalizeDateTimeOutputFromPicker(v),
+                          field,
+                          row,
+                        )
+                    "
                   />
                   <FormControl
                     v-else-if="
@@ -457,7 +475,15 @@ import ImageUploader from '@/components/Controls/ImageUploader.vue'
 import EditIcon from '@/components/Icons/EditIcon.vue'
 import Link from '@/components/Controls/Link.vue'
 import UserAvatar from '@/components/UserAvatar.vue'
-import { getRandom, getFormat, isTouchScreenDevice } from '@/utils'
+import {
+  getRandom,
+  getFormat,
+  isTouchScreenDevice,
+  normalizeDateOutputFromPicker,
+  normalizeDateTimeOutputFromPicker,
+  normalizeDateValueForPicker,
+  normalizeDateTimeValueForPicker,
+} from '@/utils'
 import { flt } from '@/utils/numberFormat.js'
 import { usersStore } from '@/stores/users'
 import { getMeta } from '@/stores/meta'

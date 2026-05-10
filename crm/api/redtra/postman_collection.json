@@ -3781,6 +3781,45 @@
           "response": []
         },
         {
+          "name": "Sync Lead (API — Property link)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/method/crm.api.lead_sync_api.sync_lead",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "method",
+                "crm.api.lead_sync_api.sync_lead"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"property_name\": \"{{property_id}}\",\n  \"lead\": {\n    \"first_name\": \"Sara\",\n    \"last_name\": \"Ahmed\",\n    \"email\": \"sara@example.com\",\n    \"mobile_no\": \"+971500000000\",\n    \"status\": \"New\",\n    \"source\": \"API\"\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
           "name": "Retry Failed Sync",
           "request": {
             "method": "POST",

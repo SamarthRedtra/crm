@@ -3,6 +3,7 @@ from __future__ import annotations
 from typing import Any
 
 import frappe
+from frappe.utils import now_datetime
 
 from . import properties, reviews
 
@@ -28,7 +29,11 @@ def get_home() -> dict[str, Any]:
 def _get_featured_properties() -> list[dict[str, Any]]:
 	rows = frappe.get_all(
 		"Property",
-		filters={"status": "Active", "is_featured": 1},
+		filters={
+			"status": "Active",
+			"is_featured": 1,
+			"featured_until": [">=", now_datetime()],
+		},
 		fields=properties.SUMMARY_FIELDS,
 		order_by="modified desc",
 		limit=MAX_FEATURED_PROPERTIES,
@@ -39,6 +44,10 @@ def _get_featured_properties() -> list[dict[str, Any]]:
 		additional_rows = frappe.get_all(
 			"Property",
 			filters={"status": "Active", "name": ["not in", [row["name"] for row in rows]]},
+			or_filters={
+				"is_featured": 0,
+				"featured_until": [">=", now_datetime()],
+			},
 			fields=properties.SUMMARY_FIELDS,
 			order_by="modified desc",
 			limit=MAX_FEATURED_PROPERTIES - len(rows),

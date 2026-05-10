@@ -304,6 +304,14 @@ export const PROPERTY_STATUS_META = {
     name: 'Under Verification',
     color: 'text-orange-500',
   },
+  'Pending DLD': {
+    name: 'Pending DLD',
+    color: 'text-blue-500',
+  },
+  'Rejected DLD': {
+    name: 'Rejected DLD',
+    color: 'text-rose-500',
+  },
   Active: {
     name: 'Active',
     color: 'text-green-500',
@@ -596,11 +604,11 @@ export function validatePropertyDoc(doc) {
 
   // Enforce title words if not overridden by backend or in addition to
   const titleWords = doc.title.trim().split(/\s+/).filter(Boolean)
-  if (titleWords.length < 5) {
-    return 'Title must be at least 5 words'
+  if (titleWords.length < 15) {
+    return 'Title must be at least 15 words'
   }
-  if (titleWords.length > 200) {
-    return 'Title must not exceed 200 words'
+  if (titleWords.length > 30) {
+    return 'Title must not exceed 30 words'
   }
 
   // C-07: Trakheesi fields mandatory — admin (session.user === 'Administrator') can bypass
@@ -677,10 +685,10 @@ export function getFieldErrors(doc) {
     errors.title = 'Title is mandatory'
   } else {
     const titleWords = doc.title.trim().split(/\s+/).filter(Boolean)
-    if (titleWords.length < 5) {
-      errors.title = 'Title must be at least 5 words'
-    } else if (titleWords.length > 200) {
-      errors.title = 'Title must not exceed 200 words'
+    if (titleWords.length < 15) {
+      errors.title = 'Title must be at least 15 words'
+    } else if (titleWords.length > 30) {
+      errors.title = 'Title must not exceed 30 words'
     }
   }
 
