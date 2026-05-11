@@ -607,11 +607,8 @@ export function validatePropertyDoc(doc) {
 
   // Enforce title words if not overridden by backend or in addition to
   const titleLetters = doc.title.replace(/\s+/g, '').length
-  if (titleLetters < 15) {
-    return 'Title must be at least 15 letters'
-  }
-  if (titleLetters > 30) {
-    return 'Title must not exceed 30 letters'
+  if (titleLetters > 50) {
+    return 'Title must not exceed 50 letters'
   }
 
   // C-07: Trakheesi fields mandatory — admin (session.user === 'Administrator') can bypass
@@ -688,9 +685,7 @@ export function getFieldErrors(doc) {
     errors.title = 'Title is mandatory'
   } else {
     const titleLetters = doc.title.replace(/\s+/g, '').length
-    if (titleLetters < 15) {
-      errors.title = 'Title must be at least 15 letters'
-    } else if (titleLetters > 30) {
+    if (titleLetters > 50) {
       errors.title = 'Title must not exceed 30 letters'
     }
   }

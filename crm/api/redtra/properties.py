@@ -51,8 +51,7 @@ SUMMARY_FIELDS = [
 	"handover_year",
 ]
 
-TITLE_MIN_LETTERS = 15
-TITLE_MAX_LETTERS = 30
+TITLE_MAX_LETTERS = 50
 
 
 @frappe.whitelist(allow_guest=True)
@@ -1042,12 +1041,9 @@ def _clean_str(value: Any) -> str | None:
 
 def _validate_title_letter_count(title: str) -> None:
 	letter_count = len("".join(title.split()))
-	if letter_count < TITLE_MIN_LETTERS or letter_count > TITLE_MAX_LETTERS:
+	if letter_count > TITLE_MAX_LETTERS:
 		frappe.throw(
-			_("Title must be between {0} and {1} letters.").format(
-				TITLE_MIN_LETTERS,
-				TITLE_MAX_LETTERS,
-			),
+			_("Title must not exceed {0} letters.").format(TITLE_MAX_LETTERS),
 			frappe.ValidationError,
 		)
 
