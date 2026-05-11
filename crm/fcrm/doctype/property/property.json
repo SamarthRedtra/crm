@@ -460,7 +460,7 @@
   },
   {
    "fieldname": "quality_score",
-   "fieldtype": "Select",
+   "fieldtype": "Data",
    "in_list_view": 1,
    "in_standard_filter": 1,
    "label": "Quality Score",
@@ -501,7 +501,7 @@
   }
  ],
  "make_attachments_public": 1,
- "modified": "2026-05-02 14:23:13.646746",
+ "modified": "2026-05-11 16:03:52.199840",
  "modified_by": "Administrator",
  "module": "FCRM",
  "name": "Property",

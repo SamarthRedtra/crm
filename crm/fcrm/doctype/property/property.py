@@ -62,7 +62,7 @@ class Property(Document):
 		property_category: DF.Literal["Residential", "Commercial"]
 		property_code: DF.Data | None
 		property_type: DF.Literal["Apartment", "Villa", "Townhouse", "Penthouse", "Villa Compound", "Hotel Apartment", "Land", "Floor", "Building", "Office", "Shop", "Warehouse", "Labour Camp", "Bulk Unit", "Factory", "Industrial Land", "Mixed Use Land", "Showroom", "Other Commercial", "Plot", "Other"]
-		quality_score: DF.Literal["", "1", "2", "3", "4", "5", "6", "7", "8", "9", "10"]
+		quality_score: DF.Data | None
 		rent_type: DF.Literal["", "Daily", "Weekly", "Monthly", "Yearly"]
 		state: DF.Data | None
 		status: DF.Literal["Draft", "Under Verification", "Pending DLD", "Rejected DLD", "Active", "Inactive"]

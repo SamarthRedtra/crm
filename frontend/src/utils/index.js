@@ -65,27 +65,53 @@ export function getFormat(
 }
 
 export function normalizeDateValueForPicker(value) {
-  if (!value) return ''
-  const parsed = dayjsLocal(value)
+  const normalizedValue = extractPickerValue(value)
+  if (!normalizedValue) return ''
+  const parsed = dayjsLocal(normalizedValue)
   return parsed.isValid() ? parsed.format('YYYY-MM-DD') : ''
 }
 
 export function normalizeDateTimeValueForPicker(value) {
-  if (!value) return ''
-  const parsed = dayjsLocal(value)
+  const normalizedValue = extractPickerValue(value)
+  if (!normalizedValue) return ''
+  const parsed = dayjsLocal(normalizedValue)
   return parsed.isValid() ? parsed.format('YYYY-MM-DD HH:mm:ss') : ''
 }
 
 export function normalizeDateOutputFromPicker(value) {
-  if (!value) return ''
-  const parsed = dayjs(value)
+  const normalizedValue = extractPickerValue(value)
+  if (!normalizedValue) return ''
+  const parsed = dayjsLocal(normalizedValue)
   return parsed.isValid() ? parsed.format('YYYY-MM-DD') : ''
 }
 
 export function normalizeDateTimeOutputFromPicker(value) {
-  if (!value) return ''
-  const parsed = dayjs(value)
+  const normalizedValue = extractPickerValue(value)
+  if (!normalizedValue) return ''
+  const parsed = dayjsLocal(normalizedValue)
   return parsed.isValid() ? parsed.format('YYYY-MM-DD HH:mm:ss') : ''
+}
+
+function extractPickerValue(value) {
+  if (!value) return ''
+
+  if (Array.isArray(value)) {
+    return value.length ? extractPickerValue(value[0]) : ''
+  }
+
+  if (value instanceof Date) {
+    return value
+  }
+
+  if (typeof value === 'object') {
+    if ('date' in value) return extractPickerValue(value.date)
+    if ('value' in value) return extractPickerValue(value.value)
+    if ('startDate' in value) return extractPickerValue(value.startDate)
+    if ('from' in value) return extractPickerValue(value.from)
+    return ''
+  }
+
+  return value
 }
 
 export function timeAgo(date) {

@@ -51,8 +51,8 @@ SUMMARY_FIELDS = [
 	"handover_year",
 ]
 
-TITLE_MIN_WORDS = 15
-TITLE_MAX_WORDS = 30
+TITLE_MIN_LETTERS = 15
+TITLE_MAX_LETTERS = 30
 
 
 @frappe.whitelist(allow_guest=True)
@@ -306,9 +306,9 @@ def create_property() -> dict[str, Any]:
 	current_user = utils.get_current_user()
 	user_roles = set(frappe.get_roles(current_user))
 
-	# C-13: Title word-count validation
+	# C-13: Title letter-count validation
 	title = data.get("title", "").strip()
-	_validate_title_word_count(title)
+	_validate_title_letter_count(title)
 
 	# C-07: Role-aware Trakheesi validation
 	if "System Manager" not in user_roles:
@@ -400,10 +400,10 @@ def update_property(property_id: str) -> dict[str, Any]:
 	)
 	if data.get("featured_until") and "is_featured" not in data:
 		is_featured_value = 1
-	# C-13: Title word-count validation (if updated)
+	# C-13: Title letter-count validation (if updated)
 	if "title" in data:
 		title = data.get("title", "").strip()
-		_validate_title_word_count(title)
+		_validate_title_letter_count(title)
 
 	# C-07: Role-aware Trakheesi validation for update
 	current_user = utils.get_current_user()
@@ -1040,13 +1040,13 @@ def _clean_str(value: Any) -> str | None:
 	return text or None
 
 
-def _validate_title_word_count(title: str) -> None:
-	word_count = len([word for word in title.split() if word.strip()])
-	if word_count < TITLE_MIN_WORDS or word_count > TITLE_MAX_WORDS:
+def _validate_title_letter_count(title: str) -> None:
+	letter_count = len("".join(title.split()))
+	if letter_count < TITLE_MIN_LETTERS or letter_count > TITLE_MAX_LETTERS:
 		frappe.throw(
-			_("Title must be between {0} and {1} words.").format(
-				TITLE_MIN_WORDS,
-				TITLE_MAX_WORDS,
+			_("Title must be between {0} and {1} letters.").format(
+				TITLE_MIN_LETTERS,
+				TITLE_MAX_LETTERS,
 			),
 			frappe.ValidationError,
 		)

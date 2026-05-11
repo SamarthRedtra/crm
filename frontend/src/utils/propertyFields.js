@@ -482,6 +482,9 @@ export function buildPropertyDataTabs(metaFields, doc = {}) {
 
   return PROPERTY_FIELD_GROUPS.data
     .filter((tab) => {
+      if (tab.name === 'featured_tab') {
+        return false
+      }
       if (tab.name === 'admin_tab' && isAgent) {
         return false
       }
@@ -603,12 +606,12 @@ export function validatePropertyDoc(doc) {
   }
 
   // Enforce title words if not overridden by backend or in addition to
-  const titleWords = doc.title.trim().split(/\s+/).filter(Boolean)
-  if (titleWords.length < 15) {
-    return 'Title must be at least 15 words'
+  const titleLetters = doc.title.replace(/\s+/g, '').length
+  if (titleLetters < 15) {
+    return 'Title must be at least 15 letters'
   }
-  if (titleWords.length > 30) {
-    return 'Title must not exceed 30 words'
+  if (titleLetters > 30) {
+    return 'Title must not exceed 30 letters'
   }
 
   // C-07: Trakheesi fields mandatory — admin (session.user === 'Administrator') can bypass
@@ -684,11 +687,11 @@ export function getFieldErrors(doc) {
   if (!doc.title) {
     errors.title = 'Title is mandatory'
   } else {
-    const titleWords = doc.title.trim().split(/\s+/).filter(Boolean)
-    if (titleWords.length < 15) {
-      errors.title = 'Title must be at least 15 words'
-    } else if (titleWords.length > 30) {
-      errors.title = 'Title must not exceed 30 words'
+    const titleLetters = doc.title.replace(/\s+/g, '').length
+    if (titleLetters < 15) {
+      errors.title = 'Title must be at least 15 letters'
+    } else if (titleLetters > 30) {
+      errors.title = 'Title must not exceed 30 letters'
     }
   }
 

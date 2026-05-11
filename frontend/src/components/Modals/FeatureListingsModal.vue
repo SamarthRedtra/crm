@@ -26,8 +26,24 @@
           </div>
 
           <div class="grid grid-cols-1 gap-3 md:grid-cols-2">
-            <FormControl type="date" :label="__('Start date')" v-model="startDate" />
-            <FormControl type="date" :label="__('End date')" v-model="endDate" />
+            <div>
+              <div class="mb-1.5 text-sm text-ink-gray-7">{{ __('Start date') }}</div>
+              <DatePicker
+                :modelValue="startDate"
+                :format="'YYYY-MM-DD'"
+                :placeholder="__('Select start date')"
+                @update:modelValue="(v) => (startDate = normalizeDateOutputFromPicker(v))"
+              />
+            </div>
+            <div>
+              <div class="mb-1.5 text-sm text-ink-gray-7">{{ __('End date') }}</div>
+              <DatePicker
+                :modelValue="endDate"
+                :format="'YYYY-MM-DD'"
+                :placeholder="__('Select end date')"
+                @update:modelValue="(v) => (endDate = normalizeDateOutputFromPicker(v))"
+              />
+            </div>
           </div>
 
           <div class="rounded-lg border border-outline-gray-2 bg-surface-gray-2 p-4">
@@ -63,8 +79,9 @@
 </template>
 
 <script setup>
-import { Button, Dialog, ErrorMessage, FormControl, call } from 'frappe-ui'
+import { Button, DatePicker, Dialog, ErrorMessage, call } from 'frappe-ui'
 import { computed, onMounted, ref, watch } from 'vue'
+import { normalizeDateOutputFromPicker } from '@/utils'
 
 const props = defineProps({
   selectedProperties: {
