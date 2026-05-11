@@ -1,5 +1,91 @@
 <template>
   <div
+    v-if="document.doc?.is_featured"
+    class="mb-4 rounded-lg border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900"
+  >
+    <div class="font-medium">
+      {{ __('This property is currently featured.') }}
+    </div>
+    <div class="mt-1 text-amber-800">
+      {{
+        __(
+          'Featured window: {0} to {1}',
+          [
+            formatDate(document.doc?.featured_from) || __('Not set'),
+            formatDate(document.doc?.featured_until) || __('Not set'),
+          ],
+        )
+      }}
+    </div>
+  </div>
+
+  <div class="mb-5 rounded-lg border border-outline-gray-2 bg-surface-white p-4">
+    <div class="mb-3 flex items-center justify-between">
+      <div class="text-base font-semibold text-ink-gray-8">
+        {{ __('Featured Details') }}
+      </div>
+      <Button
+        :label="__('Refresh')"
+        size="sm"
+        variant="subtle"
+        iconLeft="refresh-cw"
+        :loading="featuredLogs.loading"
+        @click="featuredLogs.reload()"
+      />
+    </div>
+
+    <div v-if="featuredLogs.loading" class="py-3 text-sm text-ink-gray-5">
+      {{ __('Loading featured logs...') }}
+    </div>
+
+    <div
+      v-else-if="featuredLogRows.length"
+      class="max-h-64 space-y-2 overflow-y-auto pr-1"
+    >
+      <div
+        v-for="row in featuredLogRows"
+        :key="row.name"
+        class="rounded-md border border-outline-gray-2 px-3 py-2"
+      >
+        <div class="flex items-center justify-between gap-3">
+          <div class="flex items-center gap-2">
+            <span
+              class="rounded-full px-2 py-0.5 text-xs font-medium"
+              :class="eventTypeClass(row.event_type)"
+            >
+              {{ __(row.event_type || 'Updated') }}
+            </span>
+            <span class="text-xs text-ink-gray-6">
+              {{ __(row.source || 'Desk') }}
+            </span>
+          </div>
+          <span class="text-xs text-ink-gray-6">
+            {{ formatDate(row.changed_on) }}
+          </span>
+        </div>
+        <div class="mt-1 text-xs text-ink-gray-6">
+          {{
+            __(
+              'From: {0}  •  Until: {1}',
+              [formatDate(row.featured_from) || '-', formatDate(row.featured_until) || '-'],
+            )
+          }}
+        </div>
+        <div v-if="row.triggered_by" class="mt-1 text-xs text-ink-gray-6">
+          {{ __('By: {0}', [row.triggered_by]) }}
+        </div>
+        <div v-if="row.notes" class="mt-1 text-sm text-ink-gray-8">
+          {{ row.notes }}
+        </div>
+      </div>
+    </div>
+
+    <div v-else class="py-3 text-sm text-ink-gray-5">
+      {{ __('No featured log entries found for this property.') }}
+    </div>
+  </div>
+
+  <div
     class="my-3 flex items-center justify-between text-lg font-medium sm:mb-4 sm:mt-8"
   >
     <div class="flex h-8 items-center text-xl font-semibold text-ink-gray-8">
@@ -57,7 +143,8 @@ import FieldLayout from '@/components/FieldLayout/FieldLayout.vue'
 import LoadingIndicator from '@/components/Icons/LoadingIndicator.vue'
 import { useDocument } from '@/data/document'
 import { getMeta } from '@/stores/meta'
-import { Badge } from 'frappe-ui'
+import { formatDate } from '@/utils'
+import { Badge, createResource } from 'frappe-ui'
 import { buildPropertyDataTabs, normalizePropertyDoc } from '@/utils/propertyFields'
 import { computed, watch, getCurrentInstance } from 'vue'
 
@@ -77,6 +164,30 @@ const { getFields } = getMeta('Property')
 const { document } = useDocument('Property', props.docname)
 
 const tabs = computed(() => buildPropertyDataTabs(getFields(), document.doc || {}))
+const featuredLogRows = computed(() => featuredLogs.data || [])
+
+const featuredLogs = createResource({
+  url: 'frappe.client.get_list',
+  params: {
+    doctype: 'Property Featured Log',
+    fields: [
+      'name',
+      'event_type',
+      'source',
+      'changed_on',
+      'triggered_by',
+      'featured_from',
+      'featured_until',
+      'notes',
+    ],
+    filters: {
+      property: props.docname,
+    },
+    order_by: 'changed_on desc',
+    limit_page_length: 50,
+  },
+  auto: true,
+})
 
 watch(
   () => [
@@ -116,9 +227,17 @@ watch(
   (success) => {
     if (success) {
       document.isDirty = false
+      featuredLogs.reload()
     }
   }
 )
+
+function eventTypeClass(eventType) {
+  if (eventType === 'Activated') return 'bg-green-100 text-green-800'
+  if (eventType === 'Deactivated') return 'bg-red-100 text-red-800'
+  if (eventType === 'Expired') return 'bg-orange-100 text-orange-800'
+  return 'bg-blue-100 text-blue-800'
+}
 
 function saveChanges() {
   if (!document.isDirty) return
