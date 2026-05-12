@@ -476,6 +476,20 @@
  "owner": "Administrator",
  "permissions": [
   {
+  "create": 1,
+  "read": 1,
+  "role": "Agent",
+  "select": 1,
+  "write": 1
+ },
+ {
+  "create": 1,
+  "read": 1,
+  "role": "Agency Manager",
+  "select": 1,
+  "write": 1
+ },
+ {
    "create": 1,
    "delete": 1,
    "email": 1,

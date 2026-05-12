@@ -31,3 +31,4 @@ crm.patches.v1_0.migrate_appointments_to_events
 crm.patches.v1_0.add_event_sync_fields
 crm.patches.v1_0.add_event_appointment_customer_field
 crm.patches.v1_0.add_agency_manager_role
+crm.patches.v1_0.add_agent_permissions_for_contact
