@@ -249,7 +249,7 @@ def get_calendar_events(
 		pluck="name",
 	)
 
-	agent_linked = frappe.sql(
+	agent_linked = frappe.db.sql(
 		"""
 		select e.name
 		from `tabEvent` e
@@ -257,7 +257,7 @@ def get_calendar_events(
 		inner join `tabAgent` ag on ag.name = a.agent
 		where e.status = 'Open' and ag.`user` = %s
 		""",
-		user,
+		(user,),
 	)
 	agent_names = {row[0] for row in (agent_linked or [])}
 
