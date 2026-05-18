@@ -1,5 +1,5 @@
 import { usersStore } from '@/stores/users'
-import { dayjs, createListResource } from 'frappe-ui'
+import { dayjs, createListResource, createResource } from 'frappe-ui'
 import { sameArrayContents } from '@/utils'
 import { computed, ref } from 'vue'
 import { allTimeSlots } from '@/components/Calendar/utils'
@@ -9,35 +9,44 @@ export const activeEvent = ref(null)
 
 export function useEvent(doctype, docname) {
   const { getUser } = usersStore()
+  const isPropertyContext = doctype === 'Property'
 
-  const eventsResource = createListResource({
-    doctype: 'Event',
-    cache: ['calendar', docname],
-    fields: [
-      'name',
-      'status',
-      'subject',
-      'description',
-      'starts_on',
-      'ends_on',
-      'all_day',
-      'event_type',
-      'color',
-      'owner',
-      'reference_doctype',
-      'reference_docname',
-      'creation',
-    ],
-    filters: {
-      reference_doctype: doctype,
-      reference_docname: docname,
-    },
-    auto: true,
-    orderBy: 'creation desc',
-    onSuccess: (d) => {
-      console.log(d)
-    },
-  })
+  const eventsResource = isPropertyContext
+    ? createResource({
+        url: 'crm.api.events.get_reference_events',
+        cache: ['calendar', doctype, docname],
+        auto: true,
+        params: {
+          reference_doctype: doctype,
+          reference_docname: docname,
+        },
+        transform: (data) => data || [],
+      })
+    : createListResource({
+        doctype: 'Event',
+        cache: ['calendar', docname],
+        fields: [
+          'name',
+          'status',
+          'subject',
+          'description',
+          'starts_on',
+          'ends_on',
+          'all_day',
+          'event_type',
+          'color',
+          'owner',
+          'reference_doctype',
+          'reference_docname',
+          'creation',
+        ],
+        filters: {
+          reference_doctype: doctype,
+          reference_docname: docname,
+        },
+        auto: true,
+        orderBy: 'creation desc',
+      })
 
   const eventParticipantsResource = createListResource({
     doctype: 'Event Participants',
@@ -47,6 +56,29 @@ export function useEvent(doctype, docname) {
 
   const events = computed(() => {
     if (!eventsResource.data) return []
+    if (isPropertyContext) {
+      eventsResource.data.forEach((event) => {
+        if (typeof event.owner !== 'object') {
+          event.owner = {
+            label: getUser(event.owner).full_name,
+            image: getUser(event.owner).user_image,
+            name: event.owner,
+          }
+        }
+
+        event.event_participants = event.event_participants || []
+        event.participants = [
+          event.owner,
+          ...event.event_participants.map((participant) => ({
+            label: getUser(participant.email).full_name || participant.email,
+            image: getUser(participant.email).user_image || '',
+            name: participant.email,
+          })),
+        ]
+      })
+      return eventsResource.data
+    }
+
     const eventNames = eventsResource.data.map((e) => e.name)
     if (
       !eventParticipantsResource.data?.length ||

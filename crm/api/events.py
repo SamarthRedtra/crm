@@ -198,6 +198,75 @@ def _sync_linked_appointment_from_calendar_event(doc) -> None:
 	apt.save(ignore_permissions=True)
 
 
+@frappe.whitelist()
+def get_reference_events(reference_doctype: str, reference_docname: str) -> list[dict]:
+	"""Fetch events linked to a document while enforcing access on the referenced document.
+
+	Used by the Property Events tab so linked events remain visible even when Event owner differs.
+	"""
+	reference_doctype = (reference_doctype or "").strip()
+	reference_docname = (reference_docname or "").strip()
+	if not reference_doctype or not reference_docname:
+		return []
+
+	if not frappe.db.exists(reference_doctype, reference_docname):
+		return []
+
+	# Enforce access via referenced document permission, not Event owner permission.
+	if not frappe.has_permission(reference_doctype, "read", reference_docname):
+		frappe.throw(_("Not permitted to access linked events."), frappe.PermissionError)
+
+	events = frappe.get_all(
+		"Event",
+		filters={
+			"reference_doctype": reference_doctype,
+			"reference_docname": reference_docname,
+		},
+		fields=[
+			"name",
+			"status",
+			"subject",
+			"description",
+			"starts_on",
+			"ends_on",
+			"all_day",
+			"event_type",
+			"color",
+			"owner",
+			"reference_doctype",
+			"reference_docname",
+			"creation",
+			"sync_with_appointment",
+			"customer_email",
+			"appointment_customer",
+			"property",
+		],
+		order_by="creation desc",
+	)
+
+	event_names = [row.get("name") for row in events if row.get("name")]
+	participants_by_event = {name: [] for name in event_names}
+	if event_names:
+		participant_rows = frappe.get_all(
+			"Event Participants",
+			filters={
+				"parenttype": "Event",
+				"parentfield": "event_participants",
+				"parent": ["in", event_names],
+			},
+			fields=["name", "parent", "email", "reference_doctype", "reference_docname"],
+		)
+		for row in participant_rows:
+			parent = row.get("parent")
+			if parent in participants_by_event:
+				participants_by_event[parent].append(row)
+
+	for row in events:
+		row["event_participants"] = participants_by_event.get(row.get("name"), [])
+
+	return events
+
+
 CALENDAR_EVENT_FIELDS = [
 	"name",
 	"status",
@@ -261,7 +330,20 @@ def get_calendar_events(
 	)
 	agent_names = {row[0] for row in (agent_linked or [])}
 
-	all_names = list(set(owned) | agent_names)
+	# Include Property-linked events when the user can read the referenced Property.
+	property_linked = frappe.get_all(
+		"Event",
+		filters={"status": "Open", "reference_doctype": "Property"},
+		fields=["name", "reference_docname"],
+	)
+	property_names = {
+		row["name"]
+		for row in (property_linked or [])
+		if row.get("reference_docname")
+		and frappe.has_permission("Property", "read", doc=row.get("reference_docname"), user=user)
+	}
+
+	all_names = list(set(owned) | agent_names | property_names)
 	if not all_names:
 		return []
 

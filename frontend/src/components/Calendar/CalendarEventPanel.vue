@@ -725,14 +725,20 @@ const colors = Object.keys(colorMap).map((color) => ({
 
 function redirect() {
   if (_event.value.referenceDocname) {
-    let name = _event.value.referenceDoctype === 'CRM Lead' ? 'Lead' : 'Deal'
+    if (_event.value.referenceDoctype === 'CRM Lead') {
+      router.push({ name: 'Lead', params: { leadId: _event.value.referenceDocname } })
+      return
+    }
 
-    let params =
-      _event.value.referenceDoctype == 'CRM Lead'
-        ? { leadId: _event.value.referenceDocname }
-        : { dealId: _event.value.referenceDocname }
+    if (_event.value.referenceDoctype === 'Property Appointment') {
+      const propertyId = _event.value.property
+      if (propertyId) {
+        router.push({ name: 'Property', params: { propertyId } })
+      }
+      return
+    }
 
-    router.push({ name, params })
+    router.push({ name: 'Deal', params: { dealId: _event.value.referenceDocname } })
   }
 }
 
