@@ -468,7 +468,7 @@
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2025-11-10 21:26:42.554091",
+ "modified": "2026-05-18 21:56:11.774929",
  "modified_by": "Administrator",
  "module": "FCRM",
  "name": "CRM Deal",
@@ -476,28 +476,31 @@
  "owner": "Administrator",
  "permissions": [
   {
-  "create": 1,
-  "read": 1,
-  "role": "Agent",
-  "select": 1,
-  "write": 1
- },
- {
-  "create": 1,
-  "read": 1,
-  "role": "Agency Manager",
-  "select": 1,
-  "write": 1
- },
- {
+   "create": 1,
+   "if_owner": 1,
+   "read": 1,
+   "role": "Agent",
+   "select": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "read": 1,
+   "role": "Agency Manager",
+   "select": 1,
+   "write": 1
+  },
+  {
    "create": 1,
    "delete": 1,
    "email": 1,
    "export": 1,
+   "if_owner": 1,
    "print": 1,
    "read": 1,
    "report": 1,
    "role": "Sales User",
+   "select": 1,
    "share": 1,
    "write": 1
   },
@@ -510,6 +513,19 @@
    "read": 1,
    "report": 1,
    "role": "Sales Manager",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Agency Admin",
+   "select": 1,
    "share": 1,
    "write": 1
   }

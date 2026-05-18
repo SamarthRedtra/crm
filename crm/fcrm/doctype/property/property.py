@@ -50,6 +50,7 @@ class Property(Document):
 		is_rented: DF.Check
 		is_sold: DF.Check
 		latitude: DF.Float
+		license_number: DF.Data | None
 		listing_type: DF.Literal["Buy", "Rent"]
 		longitude: DF.Float
 		off_plan_agencies: DF.TableMultiSelect[PropertyAgency]
@@ -67,14 +68,13 @@ class Property(Document):
 		state: DF.Data | None
 		status: DF.Literal["Draft", "Under Verification", "Pending DLD", "Rejected DLD", "Active", "Inactive"]
 		title: DF.Data
-		trakheesi_permit_number: DF.Data | None
-		trakheesi_listing_number: DF.Data | None
-		license_number: DF.Data | None
-		trakheesi_listing_guid: DF.Data | None
-		trakheesi_validation_url: DF.Data | None
 		trakheesi_last_verified_on: DF.Datetime | None
-		trakheesi_verification_payload: DF.LongText | None
+		trakheesi_listing_guid: DF.Data | None
+		trakheesi_listing_number: DF.Data | None
+		trakheesi_permit_number: DF.Data | None
 		trakheesi_qr_code: DF.AttachImage | None
+		trakheesi_validation_url: DF.Data | None
+		trakheesi_verification_payload: DF.LongText | None
 		views_count: DF.Int
 		zone_name: DF.Data | None
 	# end: auto-generated types
