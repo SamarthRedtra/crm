@@ -15,6 +15,7 @@ from . import (
 	home,
 	media,
 	notifications,
+	push,
 	properties,
 	transactions,
 	amenties,
@@ -76,6 +77,10 @@ def register_routes():
 			endpoint=developers.list_developer_properties,
 		),
 		Rule("/notifications", methods=["GET"], endpoint=notifications.list_notifications),
+		Rule("/notifications/push/subscribe", methods=["POST"], endpoint=push.subscribe_push_token),
+		Rule("/notifications/push/unsubscribe", methods=["POST"], endpoint=push.unsubscribe_push_token),
+		Rule("/notifications/push/send", methods=["POST"], endpoint=push.send_push_notification),
+		Rule("/notifications/push/send-group", methods=["POST"], endpoint=push.send_group_push_notification),
 		Rule(
 			"/notifications/mark-read",
 			methods=["POST"],

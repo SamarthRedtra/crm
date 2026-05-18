@@ -499,12 +499,13 @@ def deactivate_property(property_id: str) -> dict[str, Any]:
 def get_whatsapp_link(property_id: str) -> dict[str, str]:
 	doc = frappe.get_doc("Property", property_id)
 	agent = frappe.get_doc("Agent", doc.agent)
-	number = agent.whatsapp_number or agent.phone
+	number = _get_alora_whatsapp_number() or agent.whatsapp_number or agent.phone
 	if not number:
-		frappe.throw(_("Agent does not have a WhatsApp number configured."))
+		frappe.throw(_("WhatsApp number is not configured."))
 
 	message = _("Hi, I am interested in {0}").format(doc.property_code or doc.name)
-	link = f"https://wa.me/{number.replace('+', '').replace(' ', '')}?text={quote(message)}"
+	clean_number = str(number).replace("+", "").replace(" ", "")
+	link = f"https://wa.me/{clean_number}?text={quote(message)}"
 	return {"whatsapp_chat_link": link}
 
 
@@ -548,14 +549,13 @@ def serialize_property_summary(row: dict[str, Any]) -> dict[str, Any]:
 						agency_details = agencies.get_agency_details(agency_id)
 					except Exception:
 						agency_details = None
-				whatsapp_link = _build_whatsapp_link(
-					agent_data.get("whatsapp_number") or agent_data.get("phone")
-				)
+				whatsapp_number_for_links = _get_alora_whatsapp_number() or agent_data.get("whatsapp_number") or agent_data.get("phone")
+				whatsapp_link = _build_whatsapp_link(whatsapp_number_for_links)
 				agent = {
 					"id": agent_data.get("name"),
 					"name": agent_data.get("full_name") or agent_data.get("user"),
 					"phone": agent_data.get("phone"),
-					"whatsapp_number": agent_data.get("whatsapp_number"),
+					"whatsapp_number": whatsapp_number_for_links,
 					"whatsapp_link": whatsapp_link,
 					"profile_image": agent_data.get("profile_image"),
 					"status": agent_data.get("status"),
@@ -706,8 +706,9 @@ def serialize_property_detail(doc) -> dict[str, Any]:
 	else:
 		agent_doc = frappe.get_doc("Agent", doc.agent)
 		link = None
-		if agent_doc.whatsapp_number or agent_doc.phone:
-			number = (agent_doc.whatsapp_number or agent_doc.phone).replace("+", "").replace(" ", "")
+		whatsapp_number_for_links = _get_alora_whatsapp_number() or agent_doc.whatsapp_number or agent_doc.phone
+		if whatsapp_number_for_links:
+			number = str(whatsapp_number_for_links).replace("+", "").replace(" ", "")
 			message = _("Hi, I am interested in {0}").format(doc.property_code or doc.name)
 			link = f"https://wa.me/{number}?text={quote(message)}"
 
@@ -733,8 +734,8 @@ def serialize_property_detail(doc) -> dict[str, Any]:
 			"id": agent_doc.name,
 			"name": agent_doc.full_name or agent_doc.user,
 			"phone": agent_doc.phone,
-			"whatsapp_number": agent_doc.whatsapp_number,
-			"whatsapp_link": _build_whatsapp_link(agent_doc.whatsapp_number or agent_doc.phone),
+			"whatsapp_number": whatsapp_number_for_links,
+			"whatsapp_link": _build_whatsapp_link(whatsapp_number_for_links),
 			"email": agent_doc.email,
 		}
 		try:
@@ -1128,6 +1129,14 @@ def _build_whatsapp_link(number: str | None) -> str | None:
 		return None
 	clean_number = str(number).replace("+", "").replace(" ", "")
 	return f"https://wa.me/{clean_number}" if clean_number else None
+
+
+def _get_alora_whatsapp_number() -> str | None:
+	number = frappe.db.get_single_value("FCRM Settings", "alora_whatsapp_number")
+	if not number:
+		return None
+	clean = str(number).strip()
+	return clean or None
 
 
 def _normalize_featured_until(value: Any, is_featured: int) -> datetime | None:

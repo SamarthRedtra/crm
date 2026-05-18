@@ -112,10 +112,6 @@
               <input v-model="form.website" :class="inputClass" />
             </div>
             <div class="flex flex-col gap-1.5">
-              <label class="text-p-sm font-medium text-ink-gray-7">{{ __('BRN/BLN ID') }}</label>
-              <input v-model="form.brn_id" :class="inputClass" />
-            </div>
-            <div class="flex flex-col gap-1.5">
               <label class="text-p-sm font-medium text-ink-gray-7">{{ __('RERA ID') }}</label>
               <input v-model="form.rera_id" :class="inputClass" />
             </div>

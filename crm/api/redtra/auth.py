@@ -170,6 +170,7 @@ def get_profile() -> dict[str, Any]:
 			"full_name": customer.full_name,
 			"email": customer.email,
 			"phone": customer.phone,
+			"profile_image": user_doc.user_image,
 			"whatsapp_number": customer.whatsapp_number,
 			"preferred_city": customer.preferred_city,
 			"favorites": favorites.list_favorites(),
@@ -181,6 +182,7 @@ def get_profile() -> dict[str, Any]:
 		"full_name": user_doc.full_name,
 		"email": user_doc.email or user_doc.user_email,
 		"phone": user_doc.mobile_no,
+		"profile_image": user_doc.user_image,
 	}
 
 

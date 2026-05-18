@@ -25,6 +25,7 @@
   "agent_settings_tab",
   "mandatory_kyc_documents",
   "property_settings_tab",
+  "alora_whatsapp_number",
   "field_configs"
  ],
  "fields": [
@@ -141,6 +142,12 @@
    "fieldname": "property_settings_tab",
    "fieldtype": "Tab Break",
    "label": "Property Settings"
+  },
+  {
+   "description": "Public WhatsApp number used in property APIs instead of agent direct number.",
+   "fieldname": "alora_whatsapp_number",
+   "fieldtype": "Data",
+   "label": "Alora WhatsApp Number"
   },
   {
    "fieldname": "field_configs",
