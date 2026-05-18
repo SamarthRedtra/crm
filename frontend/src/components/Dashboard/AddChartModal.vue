@@ -74,6 +74,8 @@ const chartTypes = [
 const numberChart = ref('')
 const numberCharts = [
   { label: __('Total leads'), value: 'total_leads' },
+  { label: __('Total properties'), value: 'total_properties' },
+  { label: __('Property events'), value: 'total_property_events' },
   { label: __('Ongoing deals'), value: 'ongoing_deals' },
   { label: __('Avg ongoing deal value'), value: 'average_ongoing_deal_value' },
   { label: __('Won deals'), value: 'won_deals' },
@@ -136,6 +138,7 @@ async function getChart(type: string) {
       from_date: fromDate.value,
       to_date: toDate.value,
       user: filters.user,
+      scope: filters.scope || 'agent',
     },
     auto: true,
     onSuccess: (data = {}) => {

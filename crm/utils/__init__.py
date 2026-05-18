@@ -272,7 +272,7 @@ def can_access_crm_dashboard(user: str | None = None) -> bool:
 	if user == "Administrator":
 		return True
 	roles = set(frappe.get_roles(user))
-	if any(role in roles for role in ["System Manager", "Sales Manager", "Agency Admin", "Agency Manager"]):
+	if any(role in roles for role in ["System Manager", "Sales Manager", "Agency Admin", "Agency Manager", "Agent", "Sales User"]):
 		return True
 	from crm.api.redtra.permissions import has_agency_leadership_role
 

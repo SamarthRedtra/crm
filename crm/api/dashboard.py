@@ -16,7 +16,7 @@ def reset_to_default():
 
 @frappe.whitelist()
 @dashboard_user_only
-def get_dashboard(from_date="", to_date="", user=""):
+def get_dashboard(from_date="", to_date="", user="", scope="agent"):
 	"""
 	Get the dashboard data for the CRM dashboard.
 	"""
@@ -24,6 +24,10 @@ def get_dashboard(from_date="", to_date="", user=""):
 	if not from_date or not to_date:
 		from_date = frappe.utils.get_first_day(from_date or frappe.utils.nowdate())
 		to_date = frappe.utils.get_last_day(to_date or frappe.utils.nowdate())
+
+	scope = _normalize_dashboard_scope(scope, frappe.session.user)
+	if scope == "agent":
+		user = frappe.session.user
 
 	roles = frappe.get_roles(frappe.session.user)
 	is_sales_manager = (
@@ -105,7 +109,10 @@ def get_dashboard(from_date="", to_date="", user=""):
 		method_name = f"get_{l['name']}"
 		if hasattr(frappe.get_attr("crm.api.dashboard"), method_name):
 			method = getattr(frappe.get_attr("crm.api.dashboard"), method_name)
-			l["data"] = method(from_date, to_date, user)
+			try:
+				l["data"] = method(from_date, to_date, user, scope=scope)
+			except TypeError:
+				l["data"] = method(from_date, to_date, user)
 		else:
 			l["data"] = None
 
@@ -114,13 +121,17 @@ def get_dashboard(from_date="", to_date="", user=""):
 
 @frappe.whitelist()
 @dashboard_user_only
-def get_chart(name, type, from_date="", to_date="", user=""):
+def get_chart(name, type, from_date="", to_date="", user="", scope="agent"):
 	"""
 	Get number chart data for the dashboard.
 	"""
 	if not from_date or not to_date:
 		from_date = frappe.utils.get_first_day(from_date or frappe.utils.nowdate())
 		to_date = frappe.utils.get_last_day(to_date or frappe.utils.nowdate())
+
+	scope = _normalize_dashboard_scope(scope, frappe.session.user)
+	if scope == "agent":
+		user = frappe.session.user
 
 	roles = frappe.get_roles(frappe.session.user)
 	is_sales_manager = (
@@ -134,9 +145,31 @@ def get_chart(name, type, from_date="", to_date="", user=""):
 	method_name = f"get_{name}"
 	if hasattr(frappe.get_attr("crm.api.dashboard"), method_name):
 		method = getattr(frappe.get_attr("crm.api.dashboard"), method_name)
-		return method(from_date, to_date, user)
+		try:
+			return method(from_date, to_date, user, scope=scope)
+		except TypeError:
+			return method(from_date, to_date, user)
 	else:
 		return {"error": _("Invalid chart name")}
+
+
+def _normalize_dashboard_scope(scope: str | None, user: str) -> str:
+	scope = (scope or "agent").strip().lower()
+	if scope not in {"agent", "agency"}:
+		scope = "agent"
+	if scope == "agency" and not _has_agency_scope_access(user):
+		scope = "agent"
+	return scope
+
+
+def _has_agency_scope_access(user: str) -> bool:
+	if user == "Administrator":
+		return True
+	roles = set(frappe.get_roles(user))
+	if {"System Manager", "Sales Manager", "Agency Admin", "Agency Manager"} & roles:
+		return True
+	agency_role = frappe.db.get_value("Agent", {"user": user}, "agency_role")
+	return agency_role in {"Admin", "Manager"}
 
 
 def get_total_leads(from_date, to_date, user=""):
@@ -196,13 +229,12 @@ def get_total_leads(from_date, to_date, user=""):
 	}
 
 
-def get_total_properties(from_date, to_date, user=""):
+def get_total_properties(from_date, to_date, user="", scope="agent"):
 	"""
 	Property listings created in the period, scoped like Property list permissions
 	(own agent vs agency-wide for Admin/Manager).
 	"""
-	del user
-	scope_sql, _params = get_property_sql_scope_for_user(frappe.session.user)
+	scope_sql, scope_params = _get_property_scope_sql(scope, user)
 
 	diff = frappe.utils.date_diff(to_date, from_date)
 	if diff == 0:
@@ -213,6 +245,7 @@ def get_total_properties(from_date, to_date, user=""):
 		"to_date": to_date,
 		"prev_from_date": frappe.utils.add_days(from_date, -diff),
 	}
+	params.update(scope_params)
 
 	result = frappe.db.sql(
 		f"""
@@ -246,6 +279,42 @@ def get_total_properties(from_date, to_date, user=""):
 		"delta": delta_in_percentage,
 		"deltaSuffix": "%",
 	}
+
+
+def get_total_property_events(from_date, to_date, user="", scope="agent"):
+	"""Count property-linked events created in the period for agent/agency scope."""
+	scope_sql, params = _get_property_scope_sql(scope, user)
+	params.update({"from_date": from_date, "to_date": to_date})
+	result = frappe.db.sql(
+		f"""
+		SELECT COUNT(e.name) AS total_events
+		FROM `tabEvent` e
+		INNER JOIN `tabProperty` ON `tabProperty`.name = e.reference_docname
+		WHERE e.reference_doctype = 'Property'
+		  AND e.creation >= %(from_date)s
+		  AND e.creation < DATE_ADD(%(to_date)s, INTERVAL 1 DAY)
+		  {scope_sql}
+		""",
+		params,
+		as_dict=1,
+	)
+	value = (result[0].total_events if result else 0) or 0
+	return {
+		"title": _("Property events"),
+		"tooltip": _("Events linked to properties in selected period"),
+		"value": value,
+		"delta": 0,
+	}
+
+
+def _get_property_scope_sql(scope: str, user: str, qualified: bool = False) -> tuple[str, dict]:
+	if scope == "agent":
+		agent_name = frappe.db.get_value("Agent", {"user": user}, "name")
+		if agent_name:
+			return " AND agent = %(agent_name)s", {"agent_name": agent_name}
+		return " AND 1=0", {}
+	scope_sql, params = get_property_sql_scope_for_user(user)
+	return scope_sql, params
 
 
 def get_ongoing_deals(from_date, to_date, user=""):

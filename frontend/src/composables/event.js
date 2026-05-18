@@ -48,6 +48,14 @@ export function useEvent(doctype, docname) {
         orderBy: 'creation desc',
       })
 
+  const eventsCrudResource = isPropertyContext
+    ? createListResource({
+        doctype: 'Event',
+        cache: ['event-crud', doctype, docname],
+        auto: false,
+      })
+    : eventsResource
+
   const eventParticipantsResource = createListResource({
     doctype: 'Event Participants',
     fields: ['*'],
@@ -163,6 +171,7 @@ export function useEvent(doctype, docname) {
 
   return {
     eventsResource,
+    eventsCrudResource,
     eventParticipantsResource,
     events,
     startEndTime,

@@ -112,6 +112,20 @@
           </Tooltip>
         </template>
       </Link>
+      <Dropdown
+        class="form-control"
+        :options="scopeOptions"
+        v-model="filters.scope"
+        :button="{
+          label: filters.scope === 'agency' ? __('Agency level') : __('Agent level'),
+          class:
+            '!w-full justify-start [&>span]:mr-auto [&>svg]:text-ink-gray-5 ',
+          variant: 'outline',
+          iconRight: 'chevron-down',
+          iconLeft: 'users',
+        }"
+        @change="dashboardItems.reload"
+      />
     </div>
 
     <div class="w-full overflow-y-scroll">
@@ -164,6 +178,7 @@ const showAddChartModal = ref(false)
 const filters = reactive({
   period: getLastXDays(),
   user: null,
+  scope: 'agent',
 })
 
 const fromDate = computed(() => {
@@ -232,6 +247,14 @@ const options = computed(() => [
   },
 ])
 
+const scopeOptions = computed(() => {
+  const opts = [{ label: __('Agent level'), value: 'agent' }]
+  if (isAdmin() || isManager()) {
+    opts.push({ label: __('Agency level'), value: 'agency' })
+  }
+  return opts
+})
+
 const dashboardItems = createResource({
   url: 'crm.api.dashboard.get_dashboard',
   makeParams() {
@@ -239,6 +262,7 @@ const dashboardItems = createResource({
       from_date: fromDate.value,
       to_date: toDate.value,
       user: filters.user,
+      scope: filters.scope,
     }
   },
   auto: true,

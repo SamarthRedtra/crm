@@ -147,7 +147,7 @@
       </div>
     </template>
     <template #actions>
-      <div v-if="eventsResource" class="flex gap-2 justify-end">
+      <div v-if="eventsCrudResource" class="flex gap-2 justify-end">
         <Button :label="__('Cancel')" @click="show = false" />
         <Button
           variant="solid"
@@ -161,8 +161,8 @@
           :disabled="!dirty"
           :loading="
             mode === 'edit'
-              ? eventsResource.setValue.loading
-              : eventsResource.insert.loading
+              ? eventsCrudResource.setValue?.loading
+              : eventsCrudResource.insert?.loading
           "
           @click="update"
         />
@@ -213,7 +213,10 @@ const { $dialog } = globalStore()
 
 const show = defineModel()
 
-const { eventsResource } = useEvent(props.doctype, props.docname)
+const { eventsResource, eventsCrudResource } = useEvent(
+  props.doctype,
+  props.docname,
+)
 
 const title = ref(null)
 const error = ref(null)
@@ -341,7 +344,7 @@ function update() {
 }
 
 function createEvent() {
-  eventsResource.insert.submit(
+  eventsCrudResource.insert.submit(
     {
       subject: _event.value.title,
       description: _event.value.description,
@@ -369,7 +372,7 @@ function updateEvent() {
     return
   }
 
-  eventsResource.setValue.submit(
+  eventsCrudResource.setValue.submit(
     {
       name: _event.value.id,
       subject: _event.value.title,
@@ -412,7 +415,7 @@ function deleteEvent() {
         variant: 'solid',
         theme: 'red',
         onClick: (close) => {
-          eventsResource.delete.submit(_event.value.id, {
+          eventsCrudResource.delete.submit(_event.value.id, {
             onSuccess: async () => {
               await eventsResource.reload()
               show.value = false

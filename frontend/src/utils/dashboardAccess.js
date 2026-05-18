@@ -15,6 +15,9 @@ export function userCanAccessDashboard(sessionUser, userDoc, agentDoc) {
   if (roles.includes('System Manager') || roles.includes('Sales Manager')) {
     return true
   }
+  if (roles.includes('Agent') || roles.includes('Sales User')) {
+    return true
+  }
   // Agency Admin/Manager (matches Property + dashboard API)
   const ar = agentDoc?.agency_role
   return ar === 'Admin' || ar === 'Manager'
