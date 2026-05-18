@@ -26,6 +26,10 @@
   "mandatory_kyc_documents",
   "property_settings_tab",
   "alora_whatsapp_number",
+  "trakheesi_validation_base_url",
+  "trakheesi_delist_base_url",
+  "trakheesi_authorization_key",
+  "trakheesi_request_timeout_seconds",
   "field_configs"
  ],
  "fields": [
@@ -148,6 +152,31 @@
    "fieldname": "alora_whatsapp_number",
    "fieldtype": "Data",
    "label": "Alora WhatsApp Number"
+  },
+  {
+   "description": "Base URL for Trakheesi listing validation API, without trailing slash.",
+   "fieldname": "trakheesi_validation_base_url",
+   "fieldtype": "Data",
+   "label": "Trakheesi Validation Base URL"
+  },
+  {
+   "description": "Base URL for Trakheesi delist API endpoint.",
+   "fieldname": "trakheesi_delist_base_url",
+   "fieldtype": "Data",
+   "label": "Trakheesi Delist Base URL"
+  },
+  {
+   "description": "Authorization key header value provided by Trakheesi.",
+   "fieldname": "trakheesi_authorization_key",
+   "fieldtype": "Password",
+   "label": "Trakheesi Authorization Key"
+  },
+  {
+   "default": "15",
+   "description": "HTTP timeout in seconds for Trakheesi requests.",
+   "fieldname": "trakheesi_request_timeout_seconds",
+   "fieldtype": "Int",
+   "label": "Trakheesi Request Timeout (Seconds)"
   },
   {
    "fieldname": "field_configs",

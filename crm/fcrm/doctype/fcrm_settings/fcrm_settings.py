@@ -29,6 +29,10 @@ class FCRMSettings(Document):
 		enable_forecasting: DF.Check
 		favicon: DF.Attach | None
 		alora_whatsapp_number: DF.Data | None
+		trakheesi_validation_base_url: DF.Data | None
+		trakheesi_delist_base_url: DF.Data | None
+		trakheesi_authorization_key: DF.Password | None
+		trakheesi_request_timeout_seconds: DF.Int
 		mandatory_kyc_documents: DF.Data | None
 		max_agents_per_property_code: DF.Int
 		service_provider: DF.Literal["frankfurter.app", "exchangerate.host"]

@@ -16,6 +16,12 @@
   "is_sold",
   "is_rented",
   "trakheesi_permit_number",
+  "trakheesi_listing_number",
+  "license_number",
+  "trakheesi_listing_guid",
+  "trakheesi_validation_url",
+  "trakheesi_last_verified_on",
+  "trakheesi_verification_payload",
   "zone_name",
   "trakheesi_qr_code",
   "column_break_aabd",
@@ -369,6 +375,40 @@
    "fieldname": "trakheesi_permit_number",
    "fieldtype": "Data",
    "label": "Trakheesi Permit Number"
+  },
+  {
+   "fieldname": "trakheesi_listing_number",
+   "fieldtype": "Data",
+   "label": "Trakheesi Listing Number"
+  },
+  {
+   "fieldname": "license_number",
+   "fieldtype": "Data",
+   "label": "License Number"
+  },
+  {
+   "fieldname": "trakheesi_listing_guid",
+   "fieldtype": "Data",
+   "label": "Trakheesi Listing GUID",
+   "read_only": 1
+  },
+  {
+   "fieldname": "trakheesi_validation_url",
+   "fieldtype": "Data",
+   "label": "Trakheesi Validation URL",
+   "read_only": 1
+  },
+  {
+   "fieldname": "trakheesi_last_verified_on",
+   "fieldtype": "Datetime",
+   "label": "Trakheesi Last Verified On",
+   "read_only": 1
+  },
+  {
+   "fieldname": "trakheesi_verification_payload",
+   "fieldtype": "Long Text",
+   "label": "Trakheesi Verification Payload",
+   "read_only": 1
   },
   {
    "fieldname": "trakheesi_qr_code",

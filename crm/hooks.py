@@ -204,6 +204,7 @@ scheduler_events = {
 		"crm.lead_syncing.background_sync.sync_leads_from_sources_daily",
 		"crm.api.redtra.billing.run_daily_agency_billing",
 		"crm.api.redtra.billing.run_daily_agency_trial_maintenance",
+		"crm.api.redtra.properties.sync_trakheesi_delisted_properties",
 	],
 	"hourly_long": [
 		"crm.lead_syncing.background_sync.sync_leads_from_sources_hourly"

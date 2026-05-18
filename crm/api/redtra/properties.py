@@ -12,7 +12,7 @@ from frappe.query_builder import DocType, functions as fn
 from frappe.utils import cint, get_datetime, getdate, now_datetime, strip_html
 from pypika import Order
 
-from . import featured_logs, reviews, utils
+from . import featured_logs, reviews, trakheesi, utils
 
 # Agent review rows embedded under agent.ratings.recent_reviews in list responses
 LIST_PROPERTY_AGENT_REVIEW_LIMIT = 25
@@ -45,6 +45,11 @@ SUMMARY_FIELDS = [
 	"featured_until",
 	"description",
 	"trakheesi_permit_number",
+	"trakheesi_listing_number",
+	"license_number",
+	"trakheesi_listing_guid",
+	"trakheesi_validation_url",
+	"trakheesi_last_verified_on",
 	"trakheesi_qr_code",
 	"zone_name",
 	"handover_quarter",
@@ -250,6 +255,11 @@ def list_properties() -> dict[str, Any]:
 				property_dt.featured_until.as_("featured_until"),
 				property_dt.description.as_("description"),
 				property_dt.trakheesi_permit_number.as_("trakheesi_permit_number"),
+				property_dt.trakheesi_listing_number.as_("trakheesi_listing_number"),
+				property_dt.license_number.as_("license_number"),
+				property_dt.trakheesi_listing_guid.as_("trakheesi_listing_guid"),
+				property_dt.trakheesi_validation_url.as_("trakheesi_validation_url"),
+				property_dt.trakheesi_last_verified_on.as_("trakheesi_last_verified_on"),
 				property_dt.trakheesi_qr_code.as_("trakheesi_qr_code"),
 				property_dt.zone_name.as_("zone_name"),
 				property_dt.handover_quarter.as_("handover_quarter"),
@@ -315,6 +325,12 @@ def create_property() -> dict[str, Any]:
 			frappe.throw(_("Trakheesi Permit Number is mandatory."), frappe.ValidationError)
 		if not data.get("trakheesi_qr_code"):
 			frappe.throw(_("Trakheesi QR Code is mandatory."), frappe.ValidationError)
+		if not data.get("trakheesi_listing_number"):
+			frappe.throw(_("Trakheesi Listing Number is mandatory."), frappe.ValidationError)
+		if not data.get("license_number"):
+			frappe.throw(_("License Number is mandatory."), frappe.ValidationError)
+
+	verification = _verify_trakheesi_for_create(data, user_roles)
 
 	agent_name = data.get("agent") or frappe.db.get_value("Agent", {"user": current_user}, "name")
 	if not agent_name:
@@ -350,8 +366,14 @@ def create_property() -> dict[str, Any]:
 			"longitude": data.get("longitude"),
 			"description": data.get("description"),
 			"trakheesi_permit_number": data.get("trakheesi_permit_number"),
+			"trakheesi_listing_number": data.get("trakheesi_listing_number"),
+			"license_number": data.get("license_number"),
+			"trakheesi_listing_guid": verification.get("listing_guid"),
+			"trakheesi_validation_url": verification.get("validation_url"),
+			"trakheesi_last_verified_on": verification.get("verified_at"),
+			"trakheesi_verification_payload": verification.get("verification_payload"),
 			"trakheesi_qr_code": data.get("trakheesi_qr_code"),
-			"zone_name": data.get("zone_name"),
+			"zone_name": data.get("zone_name") or verification.get("zone_name_en"),
 			"agent": agent_name,
 			"primary_image": data.get("primary_image"),
 			"is_featured": is_featured,
@@ -359,6 +381,7 @@ def create_property() -> dict[str, Any]:
 		}
 	)
 	doc.flags.featured_log_source = "API"
+	_apply_verified_property_sync(doc, verification)
 
 	for amenity in data.get("amenities") or []:
 		if isinstance(amenity, dict):
@@ -672,6 +695,11 @@ def serialize_property_summary(row: dict[str, Any]) -> dict[str, Any]:
 		"featured_until": featured_until_value,
 		"featured_remaining_seconds": featured_remaining,
 		"trakheesi_permit_number": row.get("trakheesi_permit_number"),
+		"trakheesi_listing_number": row.get("trakheesi_listing_number"),
+		"license_number": row.get("license_number"),
+		"trakheesi_listing_guid": row.get("trakheesi_listing_guid"),
+		"trakheesi_validation_url": row.get("trakheesi_validation_url"),
+		"trakheesi_last_verified_on": row.get("trakheesi_last_verified_on"),
 		"trakheesi_qr_code": row.get("trakheesi_qr_code"),
 		"zone_name": row.get("zone_name"),
 		"developer": developer,
@@ -776,6 +804,11 @@ def serialize_property_detail(doc) -> dict[str, Any]:
 		"featured_until": featured_until_value,
 		"featured_remaining_seconds": featured_remaining,
 		"trakheesi_permit_number": doc.trakheesi_permit_number,
+		"trakheesi_listing_number": doc.trakheesi_listing_number,
+		"license_number": doc.license_number,
+		"trakheesi_listing_guid": doc.trakheesi_listing_guid,
+		"trakheesi_validation_url": doc.trakheesi_validation_url,
+		"trakheesi_last_verified_on": doc.trakheesi_last_verified_on,
 		"trakheesi_qr_code": doc.trakheesi_qr_code,
 		"zone_name": doc.zone_name,
 		"is_sold": bool(doc.is_sold),
@@ -1204,6 +1237,72 @@ def expire_featured_properties():
 	return {"expired_count": len(expired)}
 
 
+def sync_trakheesi_delisted_properties() -> dict[str, Any]:
+	"""Nightly scheduler job to reconcile delisted Trakheesi listings."""
+	delist_payload = trakheesi.fetch_delisted_listings()
+	rows = delist_payload.get("rows") or []
+	reconciled_count = 0
+	comment_count = 0
+	updated_count = 0
+
+	for row in rows:
+		listing_number = str(row.get("listingNumber") or "").strip()
+		license_number = str(row.get("LicenseNumber") or row.get("licenseNumber") or "").strip()
+		if not listing_number or not license_number:
+			continue
+
+		properties_to_update = frappe.get_all(
+			"Property",
+			filters={
+				"trakheesi_listing_number": listing_number,
+				"license_number": license_number,
+			},
+			fields=["name", "status", "is_featured", "featured_from", "featured_until"],
+		)
+		if not properties_to_update:
+			continue
+
+		comment_content = trakheesi.build_delist_comment(row=row)
+		for property_row in properties_to_update:
+			reconciled_count += 1
+			update_values: dict[str, Any] = {}
+			if (property_row.get("status") or "") != "Inactive":
+				update_values["status"] = "Inactive"
+			if cint(property_row.get("is_featured")):
+				update_values["is_featured"] = 0
+			if property_row.get("featured_until"):
+				update_values["featured_until"] = None
+			if frappe.db.has_column("Property", "featured_from") and property_row.get("featured_from"):
+				update_values["featured_from"] = None
+
+			if update_values:
+				frappe.db.set_value("Property", property_row.get("name"), update_values, update_modified=False)
+				updated_count += 1
+
+			if not trakheesi.is_duplicate_delist_comment(
+				property_name=property_row.get("name"),
+				comment_content=comment_content,
+			):
+				frappe.get_doc(
+					{
+						"doctype": "Comment",
+						"comment_type": "Comment",
+						"reference_doctype": "Property",
+						"reference_name": property_row.get("name"),
+						"content": comment_content,
+					}
+				).insert(ignore_permissions=True)
+				comment_count += 1
+
+	frappe.db.commit()
+	return {
+		"record_count": delist_payload.get("record_count", 0),
+		"reconciled_count": reconciled_count,
+		"updated_count": updated_count,
+		"comment_count": comment_count,
+	}
+
+
 def _find_existing_amenity(value: Any) -> str | None:
 	name = _clean_str(value)
 	if not name:
@@ -1211,6 +1310,27 @@ def _find_existing_amenity(value: Any) -> str | None:
 	return frappe.db.exists("Amenity", {"name": name}) or frappe.db.exists(
 		"Amenity", {"amenity_name": name}
 	)
+
+def _verify_trakheesi_for_create(data: dict[str, Any], user_roles: set[str]) -> dict[str, Any]:
+	if "System Manager" in user_roles:
+		return {}
+	return trakheesi.verify_listing(
+		listing_number=str(data.get("trakheesi_listing_number") or "").strip(),
+		license_number=str(data.get("license_number") or "").strip(),
+	)
+
+
+def _apply_verified_property_sync(doc, verification: dict[str, Any]) -> None:
+	if not verification:
+		return
+	if verification.get("property_size") not in (None, ""):
+		doc.area_sqft = verification.get("property_size")
+	if verification.get("zone_name_en"):
+		doc.zone_name = verification.get("zone_name_en")
+	if not doc.city and verification.get("permit_location"):
+		doc.city = verification.get("permit_location")
+	if not doc.address_line1:
+		doc.address_line1 = verification.get("building_name_en") or verification.get("property_name_en")
 
 
 def validate_featured_purchase_properties(

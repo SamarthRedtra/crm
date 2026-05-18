@@ -68,6 +68,12 @@ class Property(Document):
 		status: DF.Literal["Draft", "Under Verification", "Pending DLD", "Rejected DLD", "Active", "Inactive"]
 		title: DF.Data
 		trakheesi_permit_number: DF.Data | None
+		trakheesi_listing_number: DF.Data | None
+		license_number: DF.Data | None
+		trakheesi_listing_guid: DF.Data | None
+		trakheesi_validation_url: DF.Data | None
+		trakheesi_last_verified_on: DF.Datetime | None
+		trakheesi_verification_payload: DF.LongText | None
 		trakheesi_qr_code: DF.AttachImage | None
 		views_count: DF.Int
 		zone_name: DF.Data | None
