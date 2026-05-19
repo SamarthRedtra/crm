@@ -86,6 +86,14 @@ def sync_lead(lead=None, property_name: str | None = None, **kwargs):
 
 	lead_data = _parse_lead_input(lead)
 
+	# Accept flat payload too — any allowed Lead field passed at top level
+	# is folded into lead_data (nested values take precedence).
+	for key in list(kwargs.keys()):
+		if key in {"lead", "property_name", "property_id", "cmd"}:
+			continue
+		if key in ALLOWED_LEAD_FIELDS or key == "name":
+			lead_data.setdefault(key, kwargs.get(key))
+
 	prop = (
 		property_name
 		or kwargs.get("property_name")
