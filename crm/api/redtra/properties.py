@@ -1174,73 +1174,51 @@ def _get_alora_whatsapp_number() -> str | None:
 	return clean or None
 
 
-_LEAD_PROPERTY_FIELD: str | None = None
-
-
 def _resolve_lead_property_field() -> str | None:
-	"""Return the CRM Lead field linking to Property (memoized).
+	"""Return the CRM Lead field linking to Property.
 
-	Defaults to `custom_property`; falls back gracefully if absent.
+	Prefers `custom_property` (current schema), falls back to `property`.
+	Not memoized — meta can change after migrations.
 	"""
-	global _LEAD_PROPERTY_FIELD
-	if _LEAD_PROPERTY_FIELD is not None:
-		return _LEAD_PROPERTY_FIELD or None
 	try:
 		meta = frappe.get_meta("CRM Lead")
 	except Exception:
-		_LEAD_PROPERTY_FIELD = ""
 		return None
 	for fieldname in ("custom_property", "property"):
 		if meta.has_field(fieldname):
-			_LEAD_PROPERTY_FIELD = fieldname
 			return fieldname
-	_LEAD_PROPERTY_FIELD = ""
 	return None
 
 
 def _get_property_leads(property_id: str | None, limit: int = 50) -> list[dict[str, Any]]:
-	"""Return leads tied to a property, scoped by current user permissions.
+	"""Return leads tied to a property.
 
-	Guests and users without read permission on the property see an empty list.
-	Owning agent / System Manager see all leads linked via `custom_property`.
+	Guest callers get an empty list (PII guard).
+	Authenticated callers see all leads linked via `custom_property` to the property
+	they are already authorised to view (the property API itself enforces visibility).
 	"""
 	if not property_id:
 		return []
 	field = _resolve_lead_property_field()
 	if not field:
 		return []
-	user = frappe.session.user if getattr(frappe, "session", None) else "Guest"
+	user = getattr(frappe.session, "user", "Guest") if getattr(frappe, "session", None) else "Guest"
 	if user == "Guest":
 		return []
 	try:
-		if not frappe.has_permission("Property", "read", property_id):
-			return []
-	except Exception:
-		return []
-	try:
-		rows = frappe.get_all(
-			"CRM Lead",
-			filters={field: property_id},
-			fields=[
-				"name",
-				"lead_name",
-				"first_name",
-				"last_name",
-				"email",
-				"mobile_no",
-				"phone",
-				"status",
-				"source",
-				"lead_owner",
-				"agent_id",
-				"agency",
-				"converted",
-				"creation",
-				"modified",
-			],
-			order_by="creation desc",
-			limit=limit,
-			ignore_permissions=True,
+		rows = frappe.db.sql(
+			f"""
+			SELECT
+				name, lead_name, first_name, last_name, email, mobile_no, phone,
+				status, source, lead_owner, agent_id, agency, converted,
+				{field} AS custom_property, creation, modified
+			FROM `tabCRM Lead`
+			WHERE {field} = %(property_id)s
+			ORDER BY creation DESC
+			LIMIT %(limit)s
+			""",
+			{"property_id": property_id, "limit": int(limit)},
+			as_dict=True,
 		)
 	except Exception:
 		return []
