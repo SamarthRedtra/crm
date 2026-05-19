@@ -55,6 +55,17 @@ def _parse_lead_input(lead) -> dict[str, Any]:
 	frappe.throw(_("Invalid lead payload."), frappe.ValidationError)
 
 
+def _get_request_payload() -> dict[str, Any]:
+	"""Read JSON body directly for clients that don't bind body fields to kwargs."""
+	request = getattr(frappe.local, "request", None)
+	if not request:
+		return {}
+	payload = request.get_json(silent=True) or {}
+	if isinstance(payload, dict):
+		return {k: v for k, v in payload.items()}
+	return {}
+
+
 @frappe.whitelist(methods=["POST"])
 def sync_lead(lead=None, property_name: str | None = None, **kwargs):
 	"""
@@ -84,20 +95,27 @@ def sync_lead(lead=None, property_name: str | None = None, **kwargs):
 	if lead is None:
 		lead = kwargs.get("lead")
 
+	body = _get_request_payload()
+	if lead is None:
+		lead = body.get("lead")
+
 	lead_data = _parse_lead_input(lead)
 
 	# Accept flat payload too — any allowed Lead field passed at top level
 	# is folded into lead_data (nested values take precedence).
-	for key in list(kwargs.keys()):
-		if key in {"lead", "property_name", "property_id", "cmd"}:
-			continue
-		if key in ALLOWED_LEAD_FIELDS or key == "name":
-			lead_data.setdefault(key, kwargs.get(key))
+	for source in (body, kwargs):
+		for key in list(source.keys()):
+			if key in {"lead", "property_name", "property_id", "cmd"}:
+				continue
+			if key in ALLOWED_LEAD_FIELDS or key == "name":
+				lead_data.setdefault(key, source.get(key))
 
 	prop = (
 		property_name
 		or kwargs.get("property_name")
 		or kwargs.get("property_id")
+		or body.get("property_name")
+		or body.get("property_id")
 		or ""
 	)
 	prop = str(prop).strip()
