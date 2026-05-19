@@ -234,6 +234,9 @@ router.beforeEach(async (to, from, next) => {
       }
     }
 
+    const session = sessionStore()
+    const isAdministrator = session.user === 'Administrator'
+
     const routingName = String(to.name || '')
     /** Gates that must remain reachable while agency/agent onboarding is in progress. */
     const onboardingGateRoutes = new Set([
@@ -250,61 +253,64 @@ router.beforeEach(async (to, from, next) => {
     }
     const isUnverifiedAgent = agentResource.data && agentResource.data.name && agentResource.data.status !== 'Verified'
 
-    // 1) Company profile + billing (Agency Onboarding) — including while ops verification is pending — before agent KYC.
-    if (needsAgencyOnboarding() && !onboardingGateRoutes.has(routingName)) {
-      next({ name: 'Agency Onboarding' })
-      return
-    }
+    // Administrator bypasses agency/agent onboarding gates (no Agent record, system-wide access).
+    if (!isAdministrator) {
+      // 1) Company profile + billing (Agency Onboarding) — including while ops verification is pending — before agent KYC.
+      if (needsAgencyOnboarding() && !onboardingGateRoutes.has(routingName)) {
+        next({ name: 'Agency Onboarding' })
+        return
+      }
 
-    // 2) Agency verification status page
-    if (needsAgencyVerification() && !onboardingGateRoutes.has(routingName)) {
-      next({ name: 'Agency Verification' })
-      return
-    }
+      // 2) Agency verification status page
+      if (needsAgencyVerification() && !onboardingGateRoutes.has(routingName)) {
+        next({ name: 'Agency Verification' })
+        return
+      }
 
-    if (!needsAgencyVerification() && routingName === 'Agency Verification') {
-      next({ name: 'Home' })
-      return
-    }
+      if (!needsAgencyVerification() && routingName === 'Agency Verification') {
+        next({ name: 'Home' })
+        return
+      }
 
-    // 3) Agent KYC (only after agency gates above)
-    if (
-      isUnverifiedAgent &&
-      to.name !== 'Agent Onboarding' &&
-      to.name !== 'Agency Onboarding' &&
-      !agentOnboardingBypass.has(routingName)
-    ) {
-      next({ name: 'Agent Onboarding' })
-      return
-    }
+      // 3) Agent KYC (only after agency gates above)
+      if (
+        isUnverifiedAgent &&
+        to.name !== 'Agent Onboarding' &&
+        to.name !== 'Agency Onboarding' &&
+        !agentOnboardingBypass.has(routingName)
+      ) {
+        next({ name: 'Agent Onboarding' })
+        return
+      }
 
-    if (!isUnverifiedAgent && to.name === 'Agent Onboarding' && !needsAgencyVerification()) {
-      next({ name: 'Home' })
-      return
-    }
+      if (!isUnverifiedAgent && to.name === 'Agent Onboarding' && !needsAgencyVerification()) {
+        next({ name: 'Home' })
+        return
+      }
 
-    if (
-      !needsAgencyOnboarding() &&
-      routingName === 'Agency Onboarding' &&
-      to.query.resume !== 'agency'
-    ) {
-      next({ name: 'Home' })
-      return
-    }
+      if (
+        !needsAgencyOnboarding() &&
+        routingName === 'Agency Onboarding' &&
+        to.query.resume !== 'agency'
+      ) {
+        next({ name: 'Home' })
+        return
+      }
 
-    if (
-      !needsAgencyOnboarding() &&
-      !needsAgencyVerification() &&
-      needsBillingActivation() &&
-      routingName !== 'Billing Activation'
-    ) {
-      next({ name: 'Billing Activation' })
-      return
-    }
+      if (
+        !needsAgencyOnboarding() &&
+        !needsAgencyVerification() &&
+        needsBillingActivation() &&
+        routingName !== 'Billing Activation'
+      ) {
+        next({ name: 'Billing Activation' })
+        return
+      }
 
-    if (!needsBillingActivation() && routingName === 'Billing Activation') {
-      next({ name: 'Home' })
-      return
+      if (!needsBillingActivation() && routingName === 'Billing Activation') {
+        next({ name: 'Home' })
+        return
+      }
     }
 
     // Manager dashboard: agency Admin/Manager must match API (`dashboard_user_only`), not plain Sales User.

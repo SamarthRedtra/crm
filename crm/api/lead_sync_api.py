@@ -58,15 +58,17 @@ def _parse_lead_input(lead) -> dict[str, Any]:
 @frappe.whitelist(methods=["POST"])
 def sync_lead(lead=None, property_name: str | None = None, **kwargs):
 	"""
-	Create or update a **CRM Lead**, optionally linked to a **Property**.
+	Create or update a **CRM Lead**, optionally linked to a **Property** and Agent.
 
 	Request (JSON body): ``{ "lead": { ... }, "property_name": "PROP-..." }``
-	You may also pass Property as ``lead.custom_property``, ``lead.property``, or top-level ``property_name``.
+	Property may be passed as ``lead.custom_property``, ``lead.property``, ``lead.property_id``,
+	or top-level ``property_name`` / ``property_id``.
+	Agent may be passed as ``lead.agent_id`` (Agent link).
 
 	- **Create** requires ``first_name`` and ``email`` (unless updating by ``name``).
 	- **Update**: include ``lead.name`` with the existing CRM Lead ID.
 
-	Returns: ``{ "name": "...", "custom_property": "PROP-..." }``
+	Returns: ``{ "name": "...", "custom_property": "PROP-...", "agent_id": "AGT-..." }``
 	"""
 	frappe.only_for(
 		[
@@ -75,6 +77,7 @@ def sync_lead(lead=None, property_name: str | None = None, **kwargs):
 			"Agency Admin",
 			"Agency Manager",
 			"Sales User",
+			"Agent",
 		]
 	)
 
@@ -83,16 +86,30 @@ def sync_lead(lead=None, property_name: str | None = None, **kwargs):
 
 	lead_data = _parse_lead_input(lead)
 
-	prop = (property_name or kwargs.get("property_name") or "").strip()
-	prop = prop or (lead_data.pop("custom_property", None) or "") or ""
-	prop = str(prop).strip() if prop else ""
+	prop = (
+		property_name
+		or kwargs.get("property_name")
+		or kwargs.get("property_id")
+		or ""
+	)
+	prop = str(prop).strip()
 	if not prop:
-		prop = (lead_data.pop("property", None) or lead_data.pop("property_name", None) or "").strip()
+		prop = str(
+			lead_data.pop("custom_property", None)
+			or lead_data.pop("property", None)
+			or lead_data.pop("property_id", None)
+			or lead_data.pop("property_name", None)
+			or ""
+		).strip()
 
 	field_pid = _property_fieldname()
 
 	if prop and not frappe.db.exists("Property", prop):
 		frappe.throw(_("Property {0} does not exist.").format(prop), frappe.LinkValidationError)
+
+	agent_id_value = (lead_data.get("agent_id") or "").strip() if isinstance(lead_data.get("agent_id"), str) else lead_data.get("agent_id")
+	if agent_id_value and not frappe.db.exists("Agent", agent_id_value):
+		frappe.throw(_("Agent {0} does not exist.").format(agent_id_value), frappe.LinkValidationError)
 
 	for k in list(lead_data.keys()):
 		if k not in ALLOWED_LEAD_FIELDS and k != "name":
@@ -110,7 +127,11 @@ def sync_lead(lead=None, property_name: str | None = None, **kwargs):
 			setattr(doc, field_pid, prop)
 		doc.flags.ignore_permissions = True
 		doc.save()
-		return {"name": doc.name, "custom_property": getattr(doc, field_pid, None)}
+		return {
+			"name": doc.name,
+			"custom_property": getattr(doc, field_pid, None),
+			"agent_id": getattr(doc, "agent_id", None),
+		}
 
 	missing = [r for r in REQUIRED_FOR_INSERT if not str(lead_data.get(r) or "").strip()]
 	if missing:
@@ -129,4 +150,8 @@ def sync_lead(lead=None, property_name: str | None = None, **kwargs):
 		setattr(doc, field_pid, prop)
 	doc.flags.ignore_permissions = True
 	doc.insert()
-	return {"name": doc.name, "custom_property": getattr(doc, field_pid, None)}
+	return {
+		"name": doc.name,
+		"custom_property": getattr(doc, field_pid, None),
+		"agent_id": getattr(doc, "agent_id", None),
+	}

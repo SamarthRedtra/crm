@@ -23,14 +23,14 @@
 
       <form class="flex flex-col gap-4" @submit.prevent="submitLogin">
         <div class="flex flex-col gap-1.5">
-          <label class="text-p-sm font-medium text-ink-gray-7">{{ __('Email') }}</label>
+          <label class="text-p-sm font-medium text-ink-gray-7">{{ __('Email or Username') }}</label>
           <input
             v-model.trim="form.email"
-            type="email"
+            :type="isAdministratorLogin ? 'text' : 'email'"
             autocomplete="username"
             required
             class="w-full rounded border border-outline-gray-2 bg-surface-white px-3 py-2 text-p-sm text-ink-gray-8 outline-none transition focus:border-blue-400 focus:ring-1 focus:ring-blue-100"
-            placeholder="you@agency.com"
+            placeholder="you@agency.com or Administrator"
           />
         </div>
 
@@ -111,6 +111,12 @@ const form = reactive({
 const isSubmitting = ref(false)
 const errorMessage = ref('')
 const showPassword = ref(false)
+
+const isAdministratorLogin = computed(() => {
+  const value = (form.email || '').trim()
+  if (!value) return false
+  return !value.includes('@')
+})
 
 const brandResource = createResource({
   url: 'crm.api.auth.public_brand',

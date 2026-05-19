@@ -115,7 +115,6 @@
       <Dropdown
         class="form-control"
         :options="scopeOptions"
-        v-model="filters.scope"
         :button="{
           label: filters.scope === 'agency' ? __('Agency level') : __('Agent level'),
           class:
@@ -124,7 +123,6 @@
           iconRight: 'chevron-down',
           iconLeft: 'users',
         }"
-        @change="dashboardItems.reload"
       />
     </div>
 
@@ -248,9 +246,23 @@ const options = computed(() => [
 ])
 
 const scopeOptions = computed(() => {
-  const opts = [{ label: __('Agent level'), value: 'agent' }]
+  const opts: { label: string; onClick: () => void }[] = [
+    {
+      label: __('Agent level'),
+      onClick: () => {
+        filters.scope = 'agent'
+        dashboardItems.reload()
+      },
+    },
+  ]
   if (isAdmin() || isManager()) {
-    opts.push({ label: __('Agency level'), value: 'agency' })
+    opts.push({
+      label: __('Agency level'),
+      onClick: () => {
+        filters.scope = 'agency'
+        dashboardItems.reload()
+      },
+    })
   }
   return opts
 })
