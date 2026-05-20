@@ -99,6 +99,24 @@ def verify_listing(*, listing_number: str, license_number: str) -> dict[str, Any
 	}
 
 
+def apply_verification_to_property(doc, verification: dict[str, Any]) -> None:
+	"""Persist Trakheesi verify_listing results on Property (canonical sync from API response)."""
+	if not verification:
+		return
+	doc.trakheesi_listing_guid = verification.get("listing_guid")
+	doc.trakheesi_validation_url = verification.get("validation_url")
+	doc.trakheesi_last_verified_on = verification.get("verified_at")
+	doc.trakheesi_verification_payload = verification.get("verification_payload")
+	if verification.get("property_size") not in (None, ""):
+		doc.area_sqft = verification.get("property_size")
+	if verification.get("zone_name_en"):
+		doc.zone_name = verification.get("zone_name_en")
+	if not getattr(doc, "city", None) and verification.get("permit_location"):
+		doc.city = verification.get("permit_location")
+	if not getattr(doc, "address_line1", None):
+		doc.address_line1 = verification.get("building_name_en") or verification.get("property_name_en")
+
+
 def fetch_delisted_listings() -> dict[str, Any]:
 	config = get_config()
 	response = _get_json(

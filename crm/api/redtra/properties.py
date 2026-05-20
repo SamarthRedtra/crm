@@ -319,7 +319,7 @@ def create_property() -> dict[str, Any]:
 	title = data.get("title", "").strip()
 	_validate_title_letter_count(title)
 
-	# C-07: Role-aware Trakheesi validation
+	# C-07: Mandatory Trakheesi identity fields before insert — live HTTP verification runs on Property.validate()
 	if "System Manager" not in user_roles:
 		if not data.get("trakheesi_permit_number"):
 			frappe.throw(_("Trakheesi Permit Number is mandatory."), frappe.ValidationError)
@@ -329,8 +329,6 @@ def create_property() -> dict[str, Any]:
 			frappe.throw(_("Trakheesi Listing Number is mandatory."), frappe.ValidationError)
 		if not data.get("license_number"):
 			frappe.throw(_("License Number is mandatory."), frappe.ValidationError)
-
-	verification = _verify_trakheesi_for_create(data, user_roles)
 
 	agent_name = data.get("agent") or frappe.db.get_value("Agent", {"user": current_user}, "name")
 	if not agent_name:
@@ -368,12 +366,8 @@ def create_property() -> dict[str, Any]:
 			"trakheesi_permit_number": data.get("trakheesi_permit_number"),
 			"trakheesi_listing_number": data.get("trakheesi_listing_number"),
 			"license_number": data.get("license_number"),
-			"trakheesi_listing_guid": verification.get("listing_guid"),
-			"trakheesi_validation_url": verification.get("validation_url"),
-			"trakheesi_last_verified_on": verification.get("verified_at"),
-			"trakheesi_verification_payload": verification.get("verification_payload"),
 			"trakheesi_qr_code": data.get("trakheesi_qr_code"),
-			"zone_name": data.get("zone_name") or verification.get("zone_name_en"),
+			"zone_name": data.get("zone_name"),
 			"agent": agent_name,
 			"primary_image": data.get("primary_image"),
 			"is_featured": is_featured,
@@ -381,7 +375,6 @@ def create_property() -> dict[str, Any]:
 		}
 	)
 	doc.flags.featured_log_source = "API"
-	_apply_verified_property_sync(doc, verification)
 
 	for amenity in data.get("amenities") or []:
 		if isinstance(amenity, dict):
@@ -475,6 +468,16 @@ def update_property(property_id: str) -> dict[str, Any]:
 			"description": data.get("description", doc.description),
 			"trakheesi_permit_number": data.get("trakheesi_permit_number", doc.trakheesi_permit_number),
 			"trakheesi_qr_code": data.get("trakheesi_qr_code", doc.trakheesi_qr_code),
+			"trakheesi_listing_number": (
+				data["trakheesi_listing_number"]
+				if "trakheesi_listing_number" in data
+				else doc.trakheesi_listing_number
+			),
+			"license_number": (
+				data["license_number"]
+				if "license_number" in data
+				else doc.license_number
+			),
 			"zone_name": data.get("zone_name", doc.zone_name),
 			"is_featured": is_featured_value,
 			"featured_until": featured_until,
@@ -1363,27 +1366,6 @@ def _find_existing_amenity(value: Any) -> str | None:
 	return frappe.db.exists("Amenity", {"name": name}) or frappe.db.exists(
 		"Amenity", {"amenity_name": name}
 	)
-
-def _verify_trakheesi_for_create(data: dict[str, Any], user_roles: set[str]) -> dict[str, Any]:
-	if "System Manager" in user_roles:
-		return {}
-	return trakheesi.verify_listing(
-		listing_number=str(data.get("trakheesi_listing_number") or "").strip(),
-		license_number=str(data.get("license_number") or "").strip(),
-	)
-
-
-def _apply_verified_property_sync(doc, verification: dict[str, Any]) -> None:
-	if not verification:
-		return
-	if verification.get("property_size") not in (None, ""):
-		doc.area_sqft = verification.get("property_size")
-	if verification.get("zone_name_en"):
-		doc.zone_name = verification.get("zone_name_en")
-	if not doc.city and verification.get("permit_location"):
-		doc.city = verification.get("permit_location")
-	if not doc.address_line1:
-		doc.address_line1 = verification.get("building_name_en") or verification.get("property_name_en")
 
 
 def validate_featured_purchase_properties(

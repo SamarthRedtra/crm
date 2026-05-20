@@ -7,7 +7,7 @@ from frappe import _
 from frappe.model.document import Document
 from frappe.utils import cint, today
 from crm.api.redtra.utils import get_mandate_agent_verification
-from crm.api.redtra import featured_logs
+from crm.api.redtra import featured_logs, trakheesi
 
 
 class Property(Document):
@@ -155,6 +155,60 @@ class Property(Document):
 		self._ensure_active_developer()
 		self._ensure_verified_agent()
 		self._enforce_property_code_rules()
+		self._verify_trakheesi_listing_if_applicable()
+
+	def _trakheesi_exempt_user(self) -> bool:
+		"""Mirror Redtra API: System Manager skips live Trakheesi HTTP verification."""
+		return "System Manager" in frappe.get_roles(frappe.session.user)
+
+	def _should_skip_trakheesi_hooks(self) -> bool:
+		if getattr(frappe.flags, "in_import", False):
+			return True
+		if getattr(self.flags, "skip_trakheesi_verification", False):
+			return True
+		return False
+
+	def _previous_trakheesi_identity(self) -> tuple[str, str]:
+		if self.is_new():
+			return "", ""
+		prev = self.get_doc_before_save()
+		if prev:
+			pl = (getattr(prev, "trakheesi_listing_number", None) or "").strip()
+			p_lic = (getattr(prev, "license_number", None) or "").strip()
+			return pl, p_lic
+		pl = (frappe.db.get_value("Property", self.name, "trakheesi_listing_number") or "").strip()
+		p_lic = (frappe.db.get_value("Property", self.name, "license_number") or "").strip()
+		return pl, p_lic
+
+	def _verify_trakheesi_listing_if_applicable(self) -> None:
+		if self._should_skip_trakheesi_hooks():
+			return
+		if self._trakheesi_exempt_user():
+			return
+
+		listing = (self.trakheesi_listing_number or "").strip()
+		license_no = (self.license_number or "").strip()
+
+		if not listing and not license_no:
+			return
+
+		if not listing or not license_no:
+			frappe.throw(
+				_("Trakheesi Listing Number and License Number are both required when either is provided."),
+				frappe.ValidationError,
+			)
+
+		if not (self.trakheesi_permit_number or "").strip():
+			frappe.throw(_("Trakheesi Permit Number is mandatory."), frappe.ValidationError)
+		if not (self.trakheesi_qr_code or "").strip():
+			frappe.throw(_("Trakheesi QR Code is mandatory."), frappe.ValidationError)
+
+		prev_listing, prev_license = self._previous_trakheesi_identity()
+		if listing == prev_listing and license_no == prev_license:
+			return
+
+		verification = trakheesi.verify_listing(listing_number=listing, license_number=license_no)
+		trakheesi.apply_verification_to_property(self, verification)
 
 	def _validate_quality_score(self):
 		"""Quality Score is mandatory for Admins/Managers."""
