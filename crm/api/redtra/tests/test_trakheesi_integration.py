@@ -305,6 +305,7 @@ class TestTrakheesiIntegration(IntegrationTestCase):
 					"currency": "AED",
 					"agent": self.agent.name,
 					"status": "Active",
+					"is_sold": 1,
 					"is_featured": 1,
 					"featured_until": "2030-01-01 00:00:00",
 					"trakheesi_listing_number": "7123139000",
@@ -335,3 +336,51 @@ class TestTrakheesiIntegration(IntegrationTestCase):
 		self.assertIsNone(updated.featured_until)
 		self.assertGreaterEqual(first_run["comment_count"], 1)
 		self.assertEqual(second_run["comment_count"], 0)
+
+	def test_nightly_delist_skips_properties_that_are_not_sold_rented_or_inactive(self):
+		with patch(
+			"crm.api.redtra.trakheesi.verify_listing",
+			return_value={
+				"listing_guid": "listing-guid-delist-skip-001",
+				"validation_url": "https://validation.example/delist-skip",
+				"verified_at": "2026-05-22 18:10:00",
+				"verification_payload": "{\"ok\":true}",
+			},
+		):
+			property_doc = frappe.get_doc(
+				{
+					"doctype": "Property",
+					"title": "Delist Skip Target",
+					"listing_type": "Buy",
+					"property_type": "Apartment",
+					"price": 850000,
+					"currency": "AED",
+					"agent": self.agent.name,
+					"status": "Draft",
+					"is_featured": 1,
+					"featured_until": "2030-01-01 00:00:00",
+					"trakheesi_listing_number": "7999999000",
+					"license_number": "723399",
+					"trakheesi_permit_number": "P-DELIST-SKIP-001",
+					"trakheesi_qr_code": "/files/delist-skip-qr.png",
+				}
+			).insert(ignore_permissions=True)
+
+		mock_delist_payload = {
+			"rows": [
+				{
+					"listingNumber": "7999999000",
+					"LicenseNumber": "723399",
+					"delistDate": "2026-05-18T00:00:00",
+					"statusNameEn": "Listing Sold",
+				}
+			],
+			"record_count": 1,
+		}
+		with patch("crm.api.redtra.trakheesi.fetch_delisted_listings", return_value=mock_delist_payload):
+			result = properties.sync_trakheesi_delisted_properties()
+
+		updated = frappe.get_doc("Property", property_doc.name)
+		self.assertEqual(updated.status, "Under Verification")
+		self.assertEqual(updated.is_featured, 1)
+		self.assertEqual(result["reconciled_count"], 0)

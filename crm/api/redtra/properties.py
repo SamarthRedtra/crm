@@ -1313,16 +1313,30 @@ def sync_trakheesi_delisted_properties() -> dict[str, Any]:
 				"trakheesi_listing_number": listing_number,
 				"license_number": license_number,
 			},
-			fields=["name", "status", "is_featured", "featured_from", "featured_until"],
+			fields=[
+				"name",
+				"status",
+				"is_sold",
+				"is_rented",
+				"is_featured",
+				"featured_from",
+				"featured_until",
+			],
 		)
 		if not properties_to_update:
 			continue
 
 		comment_content = trakheesi.build_delist_comment(row=row)
 		for property_row in properties_to_update:
+			current_status = (property_row.get("status") or "").strip()
+			if current_status != "Inactive" and not cint(property_row.get("is_sold")) and not cint(
+				property_row.get("is_rented")
+			):
+				continue
+
 			reconciled_count += 1
 			update_values: dict[str, Any] = {}
-			if (property_row.get("status") or "") != "Inactive":
+			if current_status != "Inactive":
 				update_values["status"] = "Inactive"
 			if cint(property_row.get("is_featured")):
 				update_values["is_featured"] = 0
