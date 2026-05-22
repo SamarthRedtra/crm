@@ -81,7 +81,15 @@ const PROPERTY_FIELD_GROUPS = {
           name: 'off_plan_section',
           label: 'Off-Plan Details',
           columns: [
-            ['trakheesi_permit_number', 'trakheesi_qr_code', 'zone_name', 'handover_quarter', 'handover_year'],
+            [
+              'trakheesi_listing_number',
+              'license_number',
+              'trakheesi_permit_number',
+              'trakheesi_qr_code',
+              'zone_name',
+              'handover_quarter',
+              'handover_year',
+            ],
             ['payment_plan_table', 'project_units_table', 'payment_plan_type', 'completion_percentage'],
           ],
         },
@@ -170,8 +178,24 @@ const PROPERTY_FIELD_GROUPS = {
           label: 'Basic Information',
           hideLabel: true,
           columns: [
-            ['title', 'developer', 'agent', 'property_category', 'trakheesi_permit_number', 'is_featured'],
-            ['property_type', 'rent_type', 'property_code', 'trakheesi_qr_code', 'featured_from', 'featured_until'],
+            [
+              'title',
+              'developer',
+              'agent',
+              'property_category',
+              'trakheesi_listing_number',
+              'trakheesi_permit_number',
+              'is_featured',
+            ],
+            [
+              'property_type',
+              'rent_type',
+              'property_code',
+              'license_number',
+              'trakheesi_qr_code',
+              'featured_from',
+              'featured_until',
+            ],
           ],
         },
         {

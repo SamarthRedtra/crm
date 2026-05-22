@@ -123,6 +123,8 @@ class Property(Document):
 
 	def before_insert(self):
 		self._set_property_code()
+		if self.trakheesi_permit_number and not self.license_number:
+			self.license_number = self.trakheesi_permit_number
 
 	def after_insert(self):
 		self._log_featured_change(source=(getattr(self.flags, "featured_log_source", None) or "Desk"))

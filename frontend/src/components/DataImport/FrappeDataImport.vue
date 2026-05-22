@@ -61,7 +61,7 @@ import { useRoute } from 'vue-router'
 import DataImportList from '../../../node_modules/frappe-ui/frappe/DataImport/DataImportList.vue'
 import ImportSteps from '../../../node_modules/frappe-ui/frappe/DataImport/ImportSteps.vue'
 import PreviewStep from '../../../node_modules/frappe-ui/frappe/DataImport/PreviewStep.vue'
-import UploadStep from '../../../node_modules/frappe-ui/frappe/DataImport/UploadStep.vue'
+import UploadStep from '@/components/DataImport/UploadStep.vue'
 import MappingStep from '@/components/DataImport/MappingStep.vue'
 
 const route = useRoute()
