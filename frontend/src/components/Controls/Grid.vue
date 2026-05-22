@@ -229,18 +229,15 @@
                         )
                     "
                   />
-                  <DateTimePicker
+                  <input
                     v-else-if="field.fieldtype === 'Datetime'"
-                    :modelValue="
-                      normalizeDateTimeValueForPicker(row[field.fieldname])
-                    "
-                    variant="outline"
-                    :format="getFormat('', '', true, true, false)"
-                    input-class="border-none text-sm text-ink-gray-8"
-                    @update:modelValue="
-                      (v) =>
+                    type="datetime-local"
+                    class="w-full rounded-md border border-outline-gray-3 bg-surface-gray-2 px-3 py-2 text-sm text-ink-gray-8 focus:border-outline-gray-4 focus:outline-none"
+                    :value="toDateTimeLocalValue(row[field.fieldname])"
+                    @input="
+                      (event) =>
                         fieldChange(
-                          normalizeDateTimeOutputFromPicker(v),
+                          fromDateTimeLocalValue(event.target.value),
                           field,
                           row,
                         )
@@ -482,7 +479,6 @@ import {
   normalizeDateOutputFromPicker,
   normalizeDateTimeOutputFromPicker,
   normalizeDateValueForPicker,
-  normalizeDateTimeValueForPicker,
 } from '@/utils'
 import { flt } from '@/utils/numberFormat.js'
 import { usersStore } from '@/stores/users'
@@ -492,7 +488,6 @@ import {
   FormControl,
   Checkbox,
   TimePicker,
-  DateTimePicker,
   DatePicker,
   Tooltip,
   dayjs,
@@ -732,6 +727,17 @@ const reorder = () => {
 
 function fieldChange(value, field, row) {
   triggerOnChange(field.fieldname, value, row)
+}
+
+function toDateTimeLocalValue(value) {
+  if (!value) return ''
+  return String(value).replace(' ', 'T').slice(0, 16)
+}
+
+function fromDateTimeLocalValue(value) {
+  if (!value) return ''
+  const normalized = String(value).replace('T', ' ')
+  return normalized.length === 16 ? `${normalized}:00` : normalized
 }
 
 function getDefaultValue(defaultValue, fieldtype) {

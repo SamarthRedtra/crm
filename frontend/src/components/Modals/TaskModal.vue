@@ -80,13 +80,12 @@
               </Tooltip>
             </template>
           </Link>
-          <div class="w-36">
-            <DateTimePicker
-              class="datepicker"
-              v-model="_task.due_date"
-              :placeholder="__('01/04/2024 11:30 PM')"
-              :formatter="(date) => getFormat(date, '', true, true)"
-              input-class="border-none"
+          <div class="w-56">
+            <input
+              type="datetime-local"
+              class="w-full rounded-md border border-outline-gray-3 bg-surface-gray-2 px-3 py-2 text-base text-ink-gray-8 focus:border-outline-gray-4 focus:outline-none"
+              :value="toDateTimeLocalValue(_task.due_date)"
+              @input="(event) => (_task.due_date = fromDateTimeLocalValue(event.target.value))"
             />
           </div>
           <Dropdown :options="taskPriorityOptions(updateTaskPriority)">
@@ -118,10 +117,10 @@ import TaskPriorityIcon from '@/components/Icons/TaskPriorityIcon.vue'
 import ArrowUpRightIcon from '@/components/Icons/ArrowUpRightIcon.vue'
 import UserAvatar from '@/components/UserAvatar.vue'
 import Link from '@/components/Controls/Link.vue'
-import { taskStatusOptions, taskPriorityOptions, getFormat } from '@/utils'
+import { taskStatusOptions, taskPriorityOptions } from '@/utils'
 import { usersStore } from '@/stores/users'
 import { capture } from '@/telemetry'
-import { TextEditor, Dropdown, Tooltip, call, DateTimePicker } from 'frappe-ui'
+import { TextEditor, Dropdown, Tooltip, call } from 'frappe-ui'
 import { useOnboarding } from 'frappe-ui/frappe'
 import { ref, watch, nextTick, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
@@ -180,6 +179,17 @@ function redirect() {
     params = { dealId: props.task.reference_docname }
   }
   router.push({ name: name, params: params })
+}
+
+function toDateTimeLocalValue(value) {
+  if (!value) return ''
+  return String(value).replace(' ', 'T').slice(0, 16)
+}
+
+function fromDateTimeLocalValue(value) {
+  if (!value) return ''
+  const normalized = String(value).replace('T', ' ')
+  return normalized.length === 16 ? `${normalized}:00` : normalized
 }
 
 async function updateTask() {

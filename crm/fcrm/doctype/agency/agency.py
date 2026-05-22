@@ -23,16 +23,18 @@ class Agency(Document):
 		billing_email: DF.Data | None
 		billing_start_date: DF.Date | None
 		billing_status: DF.Literal["Not Configured", "Active", "Past Due", "Suspended"]
-		brn_id: DF.Data | None
+		brn_id: DF.Data
 		city: DF.Data | None
+		company_license_number: DF.Data | None
 		country: DF.Link | None
 		description: DF.TextEditor | None
-		email: DF.Data | None
+		email: DF.Data
 		is_on_trial: DF.Check
 		logo: DF.AttachImage | None
 		onboarding_status: DF.Literal["Not Started", "In Progress", "Completed"]
-		phone: DF.Data | None
+		phone: DF.Data
 		pincode: DF.Data | None
+		rera_id: DF.Data
 		state: DF.Data | None
 		status: DF.Literal["Active", "Inactive"]
 		stripe_customer_id: DF.Data | None
@@ -46,6 +48,7 @@ class Agency(Document):
 		verified_by: DF.Link | None
 		verified_on: DF.Datetime | None
 		website: DF.Data | None
+		whatsapp_number: DF.Data
 	# end: auto-generated types
 
 	pass

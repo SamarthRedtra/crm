@@ -127,6 +127,20 @@
                               rows="6"
                             />
                          </div>
+                         <div v-else-if="['featured_from', 'featured_until'].includes(field.fieldname)" class="space-y-1.5">
+                            <label class="text-sm font-medium text-ink-gray-6">
+                              {{ __(field.label) }}
+                            </label>
+                            <input
+                              type="datetime-local"
+                              class="w-full rounded-md border border-outline-gray-3 bg-surface-gray-2 px-3 py-2 text-base text-ink-gray-8 focus:border-outline-gray-4 focus:outline-none"
+                              :value="toDateTimeLocalValue(property.doc[field.fieldname])"
+                              @input="(event) => triggerOnChange(field.fieldname, fromDateTimeLocalValue(event.target.value))"
+                            />
+                            <div v-if="fieldErrors[field.fieldname]" class="mt-1 text-xs text-red-500">
+                              {{ __(fieldErrors[field.fieldname]) }}
+                            </div>
+                         </div>
                          <div v-else-if="field.fieldname === 'trakheesi_qr_code'" class="space-y-2">
                             <label class="text-sm font-medium text-ink-gray-6">{{ __(field.label) }}</label>
                             <div v-if="property.doc.trakheesi_qr_code" class="relative group w-32 h-32 rounded border border-outline-gray-2 overflow-hidden bg-white p-1">
@@ -283,6 +297,17 @@ function setListingType(listingType, completionStatus) {
       tabIndex.value = Math.max(0, tabs.value.length - 1)
     }
   }
+}
+
+function toDateTimeLocalValue(value) {
+  if (!value) return ''
+  return String(value).replace(' ', 'T').slice(0, 16)
+}
+
+function fromDateTimeLocalValue(value) {
+  if (!value) return ''
+  const normalized = String(value).replace('T', ' ')
+  return normalized.length === 16 ? `${normalized}:00` : normalized
 }
 
 async function addCustomAmenity() {

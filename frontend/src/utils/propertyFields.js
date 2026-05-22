@@ -60,7 +60,7 @@ const PROPERTY_FIELD_GROUPS = {
           name: 'details_section',
           label: 'Details',
           columns: [
-            ['title', 'developer', 'agent', 'is_sold', 'is_rented'],
+            ['title', 'developer', 'agent'],
             [
               'property_category',
               'listing_type',

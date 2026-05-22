@@ -162,15 +162,12 @@
       input-class="border-none"
       @update:modelValue="(v) => fieldChange(v, field)"
     />
-    <DateTimePicker
+    <input
       v-else-if="field.fieldtype === 'Datetime'"
-      :modelValue="normalizeDateTimeValueForPicker(data[field.fieldname])"
-      :format="getFormat('', '', true, true, false)"
-      :placeholder="getPlaceholder(field)"
-      input-class="border-none"
-      @update:modelValue="
-        (v) => fieldChange(normalizeDateTimeOutputFromPicker(v), field)
-      "
+      type="datetime-local"
+      class="w-full rounded-md border border-outline-gray-3 bg-surface-gray-2 px-3 py-2 text-base text-ink-gray-8 focus:border-outline-gray-4 focus:outline-none"
+      :value="toDateTimeLocalValue(data[field.fieldname])"
+      @input="(event) => fieldChange(fromDateTimeLocalValue(event.target.value), field)"
     />
     <DatePicker
       v-else-if="field.fieldtype === 'Date'"
@@ -410,6 +407,17 @@ function getValidationOptions(df) {
     return { exactWidth: 1024, exactHeight: 1024 }
   }
   return {}
+}
+
+function toDateTimeLocalValue(value) {
+  if (!value) return ''
+  return String(value).replace(' ', 'T').slice(0, 16)
+}
+
+function fromDateTimeLocalValue(value) {
+  if (!value) return ''
+  const normalized = String(value).replace('T', ' ')
+  return normalized.length === 16 ? `${normalized}:00` : normalized
 }
 </script>
 <style scoped>

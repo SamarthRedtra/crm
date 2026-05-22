@@ -64,12 +64,11 @@
           </Tooltip>
         </template>
       </Link>
-      <DateTimePicker
-        class="datepicker w-36"
-        v-model="task.due_date"
-        :placeholder="__('01/04/2024 11:30 PM')"
-        :formatter="(date) => getFormat(date, '', true, true)"
-        input-class="border-none"
+      <input
+        type="datetime-local"
+        class="datepicker w-56 rounded-md border border-transparent bg-surface-gray-6 px-3 py-2 text-base text-ink-white focus:border-outline-gray-4 focus:outline-none"
+        :value="toDateTimeLocalValue(task.due_date)"
+        @input="(event) => (task.due_date = fromDateTimeLocalValue(event.target.value))"
       />
     </div>
   </div>
@@ -80,8 +79,8 @@ import TaskPriorityIcon from '@/components/Icons/TaskPriorityIcon.vue'
 import UserAvatar from '@/components/UserAvatar.vue'
 import Link from '@/components/Controls/Link.vue'
 import { usersStore } from '@/stores/users'
-import { taskStatusOptions, taskPriorityOptions, getFormat } from '@/utils'
-import { TextEditor, Dropdown, Tooltip, DateTimePicker } from 'frappe-ui'
+import { taskStatusOptions, taskPriorityOptions } from '@/utils'
+import { TextEditor, Dropdown, Tooltip } from 'frappe-ui'
 
 const props = defineProps({
   task: {
@@ -105,6 +104,17 @@ function updateTaskStatus(status) {
 
 function updateTaskPriority(priority) {
   props.task.priority = priority
+}
+
+function toDateTimeLocalValue(value) {
+  if (!value) return ''
+  return String(value).replace(' ', 'T').slice(0, 16)
+}
+
+function fromDateTimeLocalValue(value) {
+  if (!value) return ''
+  const normalized = String(value).replace('T', ' ')
+  return normalized.length === 16 ? `${normalized}:00` : normalized
 }
 </script>
 <style scoped>

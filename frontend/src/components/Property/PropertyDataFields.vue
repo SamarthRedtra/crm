@@ -97,12 +97,24 @@
         theme="orange"
       />
     </div>
-    <div class="flex gap-1">
+    <div class="flex gap-2">
+      <Button
+        :label="document.doc?.is_sold ? __('Unmark Sold') : __('Mark as Sold')"
+        variant="subtle"
+        :loading="availabilityLoading === 'is_sold'"
+        @click="toggleAvailability('is_sold')"
+      />
+      <Button
+        :label="document.doc?.is_rented ? __('Unmark Rented') : __('Mark as Rented')"
+        variant="subtle"
+        :loading="availabilityLoading === 'is_rented'"
+        @click="toggleAvailability('is_rented')"
+      />
       <Button
         :label="__('Save')"
-        :disabled="!document.isDirty"
+        :disabled="!document.isDirty || saveLoading"
         variant="solid"
-        :loading="document.save.loading"
+        :loading="saveLoading || document.save.loading"
         @click="saveChanges"
       />
     </div>
@@ -144,9 +156,9 @@ import LoadingIndicator from '@/components/Icons/LoadingIndicator.vue'
 import { useDocument } from '@/data/document'
 import { getMeta } from '@/stores/meta'
 import { formatDate } from '@/utils'
-import { Badge, createResource } from 'frappe-ui'
+import { Badge, Button, call, createResource, toast } from 'frappe-ui'
 import { buildPropertyDataTabs, normalizePropertyDoc } from '@/utils/propertyFields'
-import { computed, watch, getCurrentInstance } from 'vue'
+import { computed, watch, getCurrentInstance, ref } from 'vue'
 
 const props = defineProps({
   docname: {
@@ -162,6 +174,8 @@ const attrs = instance?.vnode?.props ?? {}
 
 const { getFields } = getMeta('Property')
 const { document } = useDocument('Property', props.docname)
+const availabilityLoading = ref('')
+const saveLoading = ref(false)
 
 const tabs = computed(() => buildPropertyDataTabs(getFields(), document.doc || {}))
 const featuredLogRows = computed(() => featuredLogs.data || [])
@@ -223,9 +237,19 @@ watch(
 )
 
 watch(
+  () => document.save.loading,
+  (loading) => {
+    if (!loading && saveLoading.value) {
+      saveLoading.value = false
+    }
+  },
+)
+
+watch(
   () => document.save.success,
   (success) => {
     if (success) {
+      saveLoading.value = false
       document.isDirty = false
       featuredLogs.reload()
     }
@@ -239,8 +263,41 @@ function eventTypeClass(eventType) {
   return 'bg-blue-100 text-blue-800'
 }
 
+async function toggleAvailability(fieldname) {
+  if (!document.doc?.name || availabilityLoading.value) return
+
+  const nextValue = document.doc[fieldname] ? 0 : 1
+  const previousValue = document.doc[fieldname]
+  availabilityLoading.value = fieldname
+  document.doc[fieldname] = nextValue
+
+  try {
+    await call('frappe.client.set_value', {
+      doctype: 'Property',
+      name: document.doc.name,
+      fieldname: {
+        [fieldname]: nextValue,
+      },
+    })
+
+    if (document.originalDoc) {
+      document.originalDoc[fieldname] = nextValue
+    }
+    toast.success(
+      nextValue
+        ? __('Property marked as {0}.', [fieldname === 'is_sold' ? __('sold') : __('rented')])
+        : __('Property status updated.'),
+    )
+  } catch (error) {
+    document.doc[fieldname] = previousValue
+    toast.error(error?.messages?.[0] || error?.message || __('Failed to update property status.'))
+  } finally {
+    availabilityLoading.value = ''
+  }
+}
+
 function saveChanges() {
-  if (!document.isDirty) return
+  if (!document.isDirty || saveLoading.value) return
 
   normalizePropertyDoc(document.doc)
 
@@ -256,13 +313,26 @@ function saveChanges() {
 
   const hasListener = attrs.onBeforeSave !== undefined
 
+  saveLoading.value = true
+
   if (hasListener) {
     emit('beforeSave', changes)
+    queueMicrotask(() => {
+      if (!document.save.loading) {
+        saveLoading.value = false
+      }
+    })
     return
   }
 
   document.save.submit(null, {
-    onSuccess: () => emit('afterSave', changes),
+    onSuccess: () => {
+      saveLoading.value = false
+      emit('afterSave', changes)
+    },
+    onError: () => {
+      saveLoading.value = false
+    },
   })
 }
 </script>

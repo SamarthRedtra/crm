@@ -21,15 +21,18 @@ const refreshKey = ref(0)
 const doctypeMap = {
   'Property': {
     title: 'Properties',
-    listRoute: '/properties',
+    listRoute: '/crm/properties',
+    pageRoute: '/crm/properties/docname',
   },
   'CRM Lead': {
     title: 'Leads',
-    listRoute: '/leads',
+    listRoute: '/crm/leads',
+    pageRoute: '/crm/leads/docname',
   },
   'CRM Deal': {
     title: 'Deals',
-    listRoute: '/deals',
+    listRoute: '/crm/deals',
+    pageRoute: '/crm/deals/docname',
   },
 }
 
