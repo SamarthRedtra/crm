@@ -103,8 +103,17 @@ def verify_listing(
 		"property_size": property_data.get("propertySize"),
 		"zone_name_en": property_data.get("zoneNameEn"),
 		"property_name_en": property_data.get("propertyNameEn"),
+		"property_name_ar": property_data.get("propertyNameAr"),
 		"building_name_en": property_data.get("buildingNameEn"),
+		"building_name_en_fallback": property_data.get("buildlngNameEn"),
+		"building_name_ar": property_data.get("buildingNameAr"),
 		"permit_location": match.get("permitLocation"),
+		"listing_type_en": property_data.get("permitTypeNameEn"),
+		"property_type_en": property_data.get("propertyTypeNameEn"),
+		"rooms_count": property_data.get("roomsCount"),
+		"room_type_en": property_data.get("roomTypeEn"),
+		"floor_number": property_data.get("floorNumber"),
+		"facilities": property_data.get("facilities"),
 		"verification_payload": json.dumps(verification_payload, ensure_ascii=True),
 	}
 
@@ -121,10 +130,87 @@ def apply_verification_to_property(doc, verification: dict[str, Any]) -> None:
 		doc.area_sqft = verification.get("property_size")
 	if verification.get("zone_name_en"):
 		doc.zone_name = verification.get("zone_name_en")
+	if not getattr(doc, "listing_type", None):
+		mapped_listing_type = _map_listing_type(verification.get("listing_type_en"))
+		if mapped_listing_type:
+			doc.listing_type = mapped_listing_type
+	if not getattr(doc, "bedrooms", None):
+		bedrooms = _extract_bedrooms(verification)
+		if bedrooms is not None:
+			doc.bedrooms = bedrooms
 	if not getattr(doc, "city", None) and verification.get("permit_location"):
 		doc.city = verification.get("permit_location")
 	if not getattr(doc, "address_line1", None):
-		doc.address_line1 = verification.get("building_name_en") or verification.get("property_name_en")
+		doc.address_line1 = (
+			verification.get("building_name_en")
+			or verification.get("building_name_en_fallback")
+			or verification.get("property_name_en")
+			or verification.get("building_name_ar")
+			or verification.get("property_name_ar")
+		)
+	if not getattr(doc, "address_line2", None):
+		floor_number = (verification.get("floor_number") or "").strip()
+		if floor_number:
+			doc.address_line2 = f"Floor {floor_number}"
+	_sync_amenities_from_facilities(doc, verification.get("facilities"))
+
+
+def _map_listing_type(listing_type: Any) -> str | None:
+	value = (listing_type or "").strip().lower()
+	if value == "rent":
+		return "Rent"
+	if value == "sale":
+		return "Buy"
+	return None
+
+
+def _extract_bedrooms(verification: dict[str, Any]) -> int | None:
+	rooms_count = str(verification.get("rooms_count") or "").strip()
+	if rooms_count.isdigit():
+		return cint(rooms_count)
+
+	room_type = (verification.get("room_type_en") or "").strip()
+	if room_type:
+		match = next((part for part in room_type.split() if part.isdigit()), None)
+		if match:
+			return cint(match)
+	return None
+
+
+def _normalize_facility_name(facility: Any) -> str:
+	if isinstance(facility, str):
+		return facility.strip()
+	if isinstance(facility, dict):
+		for key in ("facilityNameEn", "facilityNameAr", "nameEn", "nameAr", "name", "label"):
+			value = (facility.get(key) or "").strip()
+			if value:
+				return value
+	return ""
+
+
+def _sync_amenities_from_facilities(doc, facilities: Any) -> None:
+	if not facilities or not hasattr(doc, "amenities"):
+		return
+
+	if not isinstance(facilities, list):
+		facilities = [facilities]
+
+	existing = {
+		(row.amenity_name or "").strip()
+		for row in (doc.amenities or [])
+		if getattr(row, "amenity_name", None)
+	}
+	new_names = []
+	for facility in facilities:
+		name = _normalize_facility_name(facility)
+		if name and name not in existing:
+			new_names.append(name)
+			existing.add(name)
+
+	for amenity_name in new_names:
+		if not frappe.db.exists("Amenity", amenity_name):
+			frappe.get_doc({"doctype": "Amenity", "amenity_name": amenity_name}).insert(ignore_permissions=True)
+		doc.append("amenities", {"amenity_name": amenity_name})
 
 
 def fetch_delisted_listings(

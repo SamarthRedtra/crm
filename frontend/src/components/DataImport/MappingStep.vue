@@ -27,13 +27,20 @@
       <div class="grid grid-cols-2 gap-y-8 px-4 py-2">
         <template v-for="i in columnsFromFile.length" :key="i">
           <div class="text-ink-gray-7">{{ columnsFromFile[i - 1] }}</div>
-          <Autocomplete
-            :model-value="columnMappings[columnsFromFile[i - 1]] || null"
-            :options="columnsFromSystem"
-            :loading="fields.loading"
-            placeholder="Select field"
-            @update:model-value="(val) => updateColumnMappings(i, val)"
-          />
+          <select
+            class="w-full rounded-md border border-outline-gray-3 bg-surface-gray-2 px-3 py-2 text-base text-ink-gray-8 focus:border-outline-gray-4 focus:outline-none"
+            :value="columnMappings[columnsFromFile[i - 1]] || ''"
+            @change="(event) => updateColumnMappings(i, event.target.value)"
+          >
+            <option value="">Select field</option>
+            <option
+              v-for="option in columnsFromSystem"
+              :key="option.value"
+              :value="option.value"
+            >
+              {{ option.label }}
+            </option>
+          </select>
         </template>
       </div>
     </div>
@@ -41,7 +48,7 @@
 </template>
 
 <script setup>
-import { Autocomplete, Badge, Button, toast } from 'frappe-ui'
+import { Badge, Button, toast } from 'frappe-ui'
 import { computed, ref, watch } from 'vue'
 import {
   fieldsToIgnore,
@@ -129,21 +136,18 @@ const columnsFromSystem = computed(() => {
     .flat()
 })
 
-function findSystemOption(fieldname) {
-  if (!fieldname) return null
-  return (
-    columnsFromSystem.value.find((option) => option.value === fieldname) || {
-      value: fieldname,
-      label: fieldname,
-    }
-  )
+function findSystemValue(fieldname) {
+  if (!fieldname) return ''
+  return columnsFromSystem.value.some((option) => option.value === fieldname)
+    ? fieldname
+    : ''
 }
 
-function findAutoMappedOption(columnName) {
+function findAutoMappedValue(columnName) {
   return (
-    columnsFromSystem.value.find((option) => option.value === columnName) ||
-    columnsFromSystem.value.find((option) => option.label === columnName) ||
-    null
+    columnsFromSystem.value.find((option) => option.value === columnName)?.value ||
+    columnsFromSystem.value.find((option) => option.label === columnName)?.value ||
+    ''
   )
 }
 
@@ -158,28 +162,28 @@ function initializeColumnMappings() {
   columnsFromFile.value.forEach((columnName, index) => {
     const mappedFieldname = columnToFieldMap[index]
     mappings[columnName] = mappedFieldname
-      ? findSystemOption(mappedFieldname)
-      : findAutoMappedOption(columnName)
+      ? findSystemValue(mappedFieldname)
+      : findAutoMappedValue(columnName)
   })
 
   columnMappings.value = mappings
 }
 
-function updateColumnMappings(index, option) {
+function updateColumnMappings(index, selectedValue) {
   const columnName = columnsFromFile.value[index - 1]
   if (!columnName) return
 
   columnMappings.value = {
     ...columnMappings.value,
-    [columnName]: option || null,
+    [columnName]: selectedValue || '',
   }
 
   mappingUpdated.value = true
   const templateOptions = parseTemplateOptions()
   const columnToFieldMap = { ...(templateOptions.column_to_field_map || {}) }
 
-  if (option?.value) {
-    columnToFieldMap[index - 1] = option.value
+  if (selectedValue) {
+    columnToFieldMap[index - 1] = selectedValue
   } else {
     delete columnToFieldMap[index - 1]
   }

@@ -171,11 +171,12 @@ class Property(Document):
 		self._verify_trakheesi_listing_if_applicable()
 
 	def _should_skip_trakheesi_hooks(self) -> bool:
-		if getattr(frappe.flags, "in_import", False):
-			return True
 		if getattr(self.flags, "skip_trakheesi_verification", False):
 			return True
 		return False
+
+	def _is_import_context(self) -> bool:
+		return bool(getattr(frappe.flags, "in_import", False))
 
 	def _has_trakheesi_identity_changes(self) -> bool:
 		for fieldname in self.TRAKHEESI_IDENTITY_FIELDS:
@@ -201,7 +202,7 @@ class Property(Document):
 
 		if not (self.trakheesi_permit_number or "").strip():
 			frappe.throw(_("Trakheesi Permit Number is mandatory."), frappe.ValidationError)
-		if not (self.trakheesi_qr_code or "").strip():
+		if not self._is_import_context() and not (self.trakheesi_qr_code or "").strip():
 			frappe.throw(_("Trakheesi QR Code is mandatory."), frappe.ValidationError)
 
 		if not self._has_trakheesi_identity_changes():
