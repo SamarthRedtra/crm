@@ -8,6 +8,7 @@ from typing import Any
 import frappe
 import requests
 from frappe import _
+from frappe.integrations.utils import create_request_log
 from frappe.utils import cint, now_datetime
 
 
@@ -46,7 +47,13 @@ def get_config() -> TrakheesiConfig:
 	)
 
 
-def verify_listing(*, listing_number: str, license_number: str) -> dict[str, Any]:
+def verify_listing(
+	*,
+	listing_number: str,
+	license_number: str,
+	reference_doctype: str | None = None,
+	reference_docname: str | None = None,
+) -> dict[str, Any]:
 	config = get_config()
 	listing = (listing_number or "").strip()
 	license_no = (license_number or "").strip()
@@ -60,6 +67,9 @@ def verify_listing(*, listing_number: str, license_number: str) -> dict[str, Any
 		url=url,
 		headers={"authorizationkey": config.authorization_key},
 		timeout=config.timeout_seconds,
+		request_description="Trakheesi Listing Validation",
+		reference_doctype=reference_doctype,
+		reference_docname=reference_docname,
 	)
 	result_rows = response.get("result") or []
 	errors = response.get("errors") or []
@@ -117,12 +127,19 @@ def apply_verification_to_property(doc, verification: dict[str, Any]) -> None:
 		doc.address_line1 = verification.get("building_name_en") or verification.get("property_name_en")
 
 
-def fetch_delisted_listings() -> dict[str, Any]:
+def fetch_delisted_listings(
+	*,
+	reference_doctype: str | None = None,
+	reference_docname: str | None = None,
+) -> dict[str, Any]:
 	config = get_config()
 	response = _get_json(
 		url=config.delist_base_url,
 		headers={"authorizationkey": config.authorization_key},
 		timeout=config.timeout_seconds,
+		request_description="Trakheesi Delisted Listings",
+		reference_doctype=reference_doctype,
+		reference_docname=reference_docname,
 	)
 	result_rows = response.get("result") or []
 	if not isinstance(result_rows, list):
@@ -163,11 +180,47 @@ def is_duplicate_delist_comment(*, property_name: str, comment_content: str) -> 
 	)
 
 
-def _get_json(*, url: str, headers: dict[str, str], timeout: int) -> dict[str, Any]:
+def _mask_request_headers(headers: dict[str, str]) -> dict[str, str]:
+	return {
+		key: ("***" if key.lower() == "authorizationkey" else value)
+		for key, value in (headers or {}).items()
+	}
+
+
+def _get_json(
+	*,
+	url: str,
+	headers: dict[str, str],
+	timeout: int,
+	request_description: str = "Trakheesi API",
+	reference_doctype: str | None = None,
+	reference_docname: str | None = None,
+) -> dict[str, Any]:
+	integration_request = create_request_log(
+		data={"method": "GET", "url": url},
+		service_name="Trakheesi",
+		request_headers=_mask_request_headers(headers),
+		url=url,
+		is_remote_request=1,
+		request_description=request_description,
+		reference_doctype=reference_doctype,
+		reference_docname=reference_docname,
+		status="Queued",
+	)
+
+	response = None
 	try:
 		response = requests.get(url, headers=headers, timeout=timeout)
 		response.raise_for_status()
-	except requests.RequestException:
+	except requests.RequestException as exc:
+		failure_payload = {
+			"error": str(exc),
+			"exception": exc.__class__.__name__,
+		}
+		if response is not None:
+			failure_payload["status_code"] = response.status_code
+			failure_payload["body"] = (response.text or "")[:5000]
+		integration_request.handle_failure(failure_payload)
 		frappe.log_error(
 			title="Trakheesi API request failed",
 			message=frappe.get_traceback(),
@@ -177,6 +230,9 @@ def _get_json(*, url: str, headers: dict[str, str], timeout: int) -> dict[str, A
 	try:
 		data = response.json()
 	except ValueError:
+		integration_request.handle_failure(
+			{"error": "invalid_json", "body": (response.text or "")[:5000]}
+		)
 		frappe.log_error(
 			title="Trakheesi API invalid JSON",
 			message=response.text,
@@ -184,7 +240,12 @@ def _get_json(*, url: str, headers: dict[str, str], timeout: int) -> dict[str, A
 		frappe.throw(_("Invalid response received from Trakheesi services."))
 
 	if not isinstance(data, dict):
+		integration_request.handle_failure(
+			{"error": "unexpected_format", "type": type(data).__name__}
+		)
 		frappe.throw(_("Unexpected Trakheesi response format."))
+
+	integration_request.handle_success(data)
 	return data
 
 

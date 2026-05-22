@@ -9,8 +9,8 @@
 
 <script setup>
 import { usePageMeta } from 'frappe-ui'
-import { DataImport as FrappeDataImport } from 'frappe-ui/frappe'
 import { globalStore } from '@/stores/global'
+import FrappeDataImport from '@/components/DataImport/FrappeDataImport.vue'
 import { useRoute } from 'vue-router'
 import { onBeforeUnmount, onMounted, ref } from 'vue'
 

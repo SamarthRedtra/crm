@@ -138,6 +138,38 @@ class TestProperty(UnitTestCase):
 
 		self.assertEqual("Under Verification", doc.status)
 
+	def test_reverification_triggers_on_trakheesi_identity_change(self):
+		doc = frappe.get_doc(
+			{
+				"doctype": "Property",
+				"status": "Active",
+				"trakheesi_permit_number": "P-NEW",
+			}
+		)
+		doc.is_new = lambda: False
+		doc.get_doc_before_save = lambda: frappe._dict(status="Active")
+		doc.has_value_changed = lambda fieldname: fieldname == "trakheesi_permit_number"
+
+		doc.run_method("before_validate")
+
+		self.assertEqual("Under Verification", doc.status)
+
+	def test_reverification_ignores_trakheesi_api_sync_fields(self):
+		doc = frappe.get_doc(
+			{
+				"doctype": "Property",
+				"status": "Active",
+				"trakheesi_listing_guid": "guid-123",
+			}
+		)
+		doc.is_new = lambda: False
+		doc.get_doc_before_save = lambda: frappe._dict(status="Active")
+		doc.has_value_changed = lambda fieldname: fieldname == "trakheesi_listing_guid"
+
+		doc.run_method("before_validate")
+
+		self.assertEqual("Active", doc.status)
+
 	def test_reverification_ignores_featured_only_changes(self):
 		doc = frappe.get_doc(
 			{

@@ -141,6 +141,82 @@ class TestTrakheesiIntegration(IntegrationTestCase):
 		self.assertEqual(doc.trakheesi_listing_number, "7123139000")
 		self.assertEqual(doc.license_number, "723355")
 
+	def test_property_insert_as_administrator_still_verifies_trakheesi(self):
+		mock_verification = {
+			"listing_guid": "listing-guid-admin-001",
+			"validation_url": "https://validation.example/admin",
+			"verified_at": "2026-05-22 15:30:00",
+			"property_size": 88.5,
+			"zone_name_en": "Dubai Marina",
+			"building_name_en": "Admin Verified Tower",
+			"permit_location": "Dubai",
+			"verification_payload": "{\"ok\":true}",
+		}
+
+		with patch("crm.api.redtra.trakheesi.verify_listing", return_value=mock_verification) as mocked_verify:
+			doc = frappe.get_doc(
+				{
+					"doctype": "Property",
+					"title": "Admin Trakheesi Verify",
+					"listing_type": "Buy",
+					"property_type": "Apartment",
+					"price": 1200000,
+					"currency": "AED",
+					"agent": self.agent.name,
+					"trakheesi_permit_number": "P-ADMIN-001",
+					"trakheesi_qr_code": "/files/admin-qr.png",
+					"trakheesi_listing_number": "7123139000",
+					"license_number": "723355",
+				}
+			).insert(ignore_permissions=True)
+
+		mocked_verify.assert_called_once()
+		self.assertEqual(doc.trakheesi_listing_guid, "listing-guid-admin-001")
+		self.assertEqual(doc.address_line1, "Admin Verified Tower")
+
+	def test_trakheesi_http_creates_integration_request_log(self):
+		mock_response = frappe._dict(
+			status_code=200,
+			text='{"result":[{"listingNumber":"7123139000","licenseNumber":"723355","permitStatusId":6,"listingGuid":"g1","validationUrl":"https://v.example","property":{"propertySize":70}}],"recordCount":1}',
+		)
+		mock_response.raise_for_status = lambda: None
+		mock_response.json = lambda: {
+			"result": [
+				{
+					"listingNumber": "7123139000",
+					"licenseNumber": "723355",
+					"permitStatusId": 6,
+					"listingGuid": "g1",
+					"validationUrl": "https://v.example",
+					"property": {"propertySize": 70},
+				}
+			],
+			"recordCount": 1,
+		}
+
+		with patch("crm.api.redtra.trakheesi.requests.get", return_value=mock_response):
+			from crm.api.redtra import trakheesi
+
+			trakheesi.verify_listing(
+				listing_number="7123139000",
+				license_number="723355",
+			)
+
+		log_name = frappe.db.get_value(
+			"Integration Request",
+			{
+				"integration_request_service": "Trakheesi",
+				"request_description": "Trakheesi Listing Validation",
+			},
+			"name",
+			order_by="creation desc",
+		)
+		self.assertTrue(log_name)
+		log = frappe.get_doc("Integration Request", log_name)
+		self.assertEqual(log.status, "Completed")
+		self.assertIn("7123139000", log.url)
+		self.assertIn("***", log.request_headers or "")
+
 	def test_nightly_delist_sets_inactive_unfeatures_and_adds_comment_once(self):
 		property_doc = frappe.get_doc(
 			{

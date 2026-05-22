@@ -98,7 +98,18 @@ class Property(Document):
 		"modified_by",
 		"creation",
 		"owner",
+		# Populated by Trakheesi verify API — must not re-trigger verification on sync
+		"trakheesi_listing_guid",
+		"trakheesi_validation_url",
+		"trakheesi_last_verified_on",
+		"trakheesi_verification_payload",
 	}
+	TRAKHEESI_IDENTITY_FIELDS = (
+		"trakheesi_listing_number",
+		"license_number",
+		"trakheesi_permit_number",
+		"trakheesi_qr_code",
+	)
 	NON_VALUE_FIELDTYPES = {
 		"Section Break",
 		"Column Break",
@@ -157,10 +168,6 @@ class Property(Document):
 		self._enforce_property_code_rules()
 		self._verify_trakheesi_listing_if_applicable()
 
-	def _trakheesi_exempt_user(self) -> bool:
-		"""Mirror Redtra API: System Manager skips live Trakheesi HTTP verification."""
-		return "System Manager" in frappe.get_roles(frappe.session.user)
-
 	def _should_skip_trakheesi_hooks(self) -> bool:
 		if getattr(frappe.flags, "in_import", False):
 			return True
@@ -168,22 +175,14 @@ class Property(Document):
 			return True
 		return False
 
-	def _previous_trakheesi_identity(self) -> tuple[str, str]:
-		if self.is_new():
-			return "", ""
-		prev = self.get_doc_before_save()
-		if prev:
-			pl = (getattr(prev, "trakheesi_listing_number", None) or "").strip()
-			p_lic = (getattr(prev, "license_number", None) or "").strip()
-			return pl, p_lic
-		pl = (frappe.db.get_value("Property", self.name, "trakheesi_listing_number") or "").strip()
-		p_lic = (frappe.db.get_value("Property", self.name, "license_number") or "").strip()
-		return pl, p_lic
+	def _has_trakheesi_identity_changes(self) -> bool:
+		for fieldname in self.TRAKHEESI_IDENTITY_FIELDS:
+			if self.has_value_changed(fieldname):
+				return True
+		return False
 
 	def _verify_trakheesi_listing_if_applicable(self) -> None:
 		if self._should_skip_trakheesi_hooks():
-			return
-		if self._trakheesi_exempt_user():
 			return
 
 		listing = (self.trakheesi_listing_number or "").strip()
@@ -203,11 +202,15 @@ class Property(Document):
 		if not (self.trakheesi_qr_code or "").strip():
 			frappe.throw(_("Trakheesi QR Code is mandatory."), frappe.ValidationError)
 
-		prev_listing, prev_license = self._previous_trakheesi_identity()
-		if listing == prev_listing and license_no == prev_license:
+		if not self._has_trakheesi_identity_changes():
 			return
 
-		verification = trakheesi.verify_listing(listing_number=listing, license_number=license_no)
+		verification = trakheesi.verify_listing(
+			listing_number=listing,
+			license_number=license_no,
+			reference_doctype="Property",
+			reference_docname=self.name if not self.is_new() else None,
+		)
 		trakheesi.apply_verification_to_property(self, verification)
 
 	def _validate_quality_score(self):
