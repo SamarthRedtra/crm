@@ -149,6 +149,7 @@ class TestTrakheesiIntegration(IntegrationTestCase):
 		self.assertEqual(doc.trakheesi_validation_url, "https://validation.example/test")
 		self.assertEqual(doc.trakheesi_listing_number, "7123139000")
 		self.assertEqual(doc.license_number, "723355")
+		self.assertEqual(doc.status, "Under Verification")
 
 	def test_property_insert_as_administrator_still_verifies_trakheesi(self):
 		mock_verification = {
@@ -182,6 +183,7 @@ class TestTrakheesiIntegration(IntegrationTestCase):
 		mocked_verify.assert_called_once()
 		self.assertEqual(doc.trakheesi_listing_guid, "listing-guid-admin-001")
 		self.assertEqual(doc.address_line1, "Admin Verified Tower")
+		self.assertEqual(doc.status, "Under Verification")
 
 	def test_property_insert_requires_qr_outside_import(self):
 		with self.assertRaises(frappe.ValidationError):
@@ -236,6 +238,7 @@ class TestTrakheesiIntegration(IntegrationTestCase):
 			mocked_verify.assert_called_once()
 			self.assertEqual(doc.trakheesi_listing_guid, "listing-guid-import-001")
 			self.assertEqual(doc.address_line1, "Imported Verified Tower")
+			self.assertEqual(doc.status, "Under Verification")
 		finally:
 			frappe.flags.in_import = original_in_import
 

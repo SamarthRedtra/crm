@@ -208,6 +208,7 @@ class Property(Document):
 		if not self._has_trakheesi_identity_changes():
 			return
 
+		self.status = "Under Verification"
 		verification = trakheesi.verify_listing(
 			listing_number=listing,
 			license_number=license_no,
