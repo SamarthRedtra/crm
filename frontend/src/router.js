@@ -251,7 +251,12 @@ router.beforeEach(async (to, from, next) => {
     if (!agentResource.data) {
       await agentResource.reload()
     }
-    const isUnverifiedAgent = agentResource.data && agentResource.data.name && agentResource.data.status !== 'Verified'
+    const isUnverifiedAgent =
+      agentResource.data &&
+      agentResource.data.name &&
+      (agentResource.data.status !== 'Verified' ||
+        agentResource.data.requires_agent_license_verification ||
+        agentResource.data.requires_license_verification)
 
     // Administrator bypasses agency/agent onboarding gates (no Agent record, system-wide access).
     if (!isAdministrator) {

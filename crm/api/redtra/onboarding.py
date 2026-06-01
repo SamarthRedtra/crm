@@ -197,6 +197,7 @@ def register_agency_admin(data: str | dict[str, Any] | None = None) -> dict[str,
 	_set_if_has_field(agency_doc, "is_on_trial", 0)
 	agency_doc.flags.ignore_permissions = True
 	agency_doc.insert()
+	_try_verify_registered_agency(agency_doc)
 	_try_create_stripe_customer_for_agency(agency_doc)
 
 	agent_doc = frappe.get_doc(
@@ -255,6 +256,44 @@ def _try_create_stripe_customer_for_agency(agency_doc):
 		frappe.log_error(
 			frappe.get_traceback(),
 			f"Stripe customer provisioning failed for agency {agency_doc.name}",
+		)
+
+
+def _try_verify_registered_agency(agency_doc):
+	"""Best-effort DDA verification for self-registered agencies.
+
+	This should not block account creation because login is soft-allow, but it should
+	persist the expiry date and normalize the agency name whenever DDA confirms it.
+	"""
+	try:
+		from . import data_dubai
+
+		if not data_dubai.is_configured():
+			return
+
+		verification = data_dubai.verify_real_estate_license(
+			agency_name=agency_doc.agency_name,
+			company_license_number=getattr(agency_doc, "company_license_number", None),
+			rera_id=getattr(agency_doc, "rera_id", None),
+			brn_id=getattr(agency_doc, "brn_id", None),
+			reference_doctype="Agency",
+			reference_docname=agency_doc.name,
+		)
+		verified_agency_name = verification.get("verified_agency_name")
+		if verified_agency_name:
+			existing_agency = frappe.db.get_value("Agency", {"agency_name": verified_agency_name}, "name")
+			if existing_agency and existing_agency != agency_doc.name:
+				verification["notes"] = _(
+					"{0} Existing agency {1} already uses the verified Data Dubai name."
+				).format(verification.get("notes") or "", existing_agency)
+				verification["verified_agency_name"] = agency_doc.agency_name
+		data_dubai.apply_agency_verification(agency_doc, verification)
+		agency_doc.flags.ignore_permissions = True
+		agency_doc.save()
+	except Exception:
+		frappe.log_error(
+			frappe.get_traceback(),
+			f"Data Dubai verification failed for agency {agency_doc.name}",
 		)
 
 

@@ -11,7 +11,7 @@ from frappe.utils import add_months, cint, get_datetime_str, now_datetime
 from frappe.utils.password import update_password
 
 
-from . import agencies, appointments, favorites, properties, reviews, utils
+from . import agencies, appointments, data_dubai, favorites, properties, reviews, utils
 
 
 
@@ -72,6 +72,14 @@ def login() -> dict[str, Any]:
 	user_roles = set(frappe.get_roles(login_manager.user))
 	is_admin = login_manager.user == "Administrator" or "System Manager" in user_roles
 	is_agent = "Agent" in user_roles or is_admin
+	access_context = {}
+	if is_agent:
+		try:
+			from . import billing
+
+			access_context = billing.get_agency_access_context(user=login_manager.user)
+		except Exception:
+			access_context = {}
 	return {
 		"token": token,
 		"refresh_token": refresh_token,
@@ -82,6 +90,11 @@ def login() -> dict[str, Any]:
 		"token_expires_in_hours": token_expiry_hours,
 		"is_agent": is_agent,
 		"is_admin": is_admin,
+		"requires_license_verification": access_context.get("requires_license_verification", False),
+		"requires_agency_license_verification": access_context.get("requires_agency_license_verification", False),
+		"requires_agent_license_verification": access_context.get("requires_agent_license_verification", False),
+		"agency_license_status": access_context.get("agency_license_status"),
+		"agent_license_status": access_context.get("agent_license_status"),
 	}
 
 
@@ -420,6 +433,7 @@ def _build_agent_profile(user_doc, agent_doc, start_of_day, end_of_day, end_of_t
 		agent_ratings = reviews.get_agent_rating_stats(agent_doc.name)
 	except Exception:
 		agent_ratings = reviews.empty_agent_rating_summary()
+	agent_license_flags = data_dubai.build_agent_access_flags(agent_doc)
 
 	return {
 
@@ -433,10 +447,17 @@ def _build_agent_profile(user_doc, agent_doc, start_of_day, end_of_day, end_of_t
 			"id": agent_doc.name,
 			"status": agent_doc.status,
 			"brn_id": getattr(agent_doc, "brn_id", None),
+			"broker_license_status": getattr(agent_doc, "dda_broker_license_status", "Not Checked"),
+			"broker_license_expiry_date": getattr(agent_doc, "dda_broker_license_expiry_date", None),
+			"agency_match_status": getattr(agent_doc, "dda_agency_match_status", "Unknown"),
+			"verified_agency_name": getattr(agent_doc, "dda_verified_agency_name", None),
+			"license_verification_checked_on": getattr(agent_doc, "dda_verification_checked_on", None),
+			"license_verification_notes": getattr(agent_doc, "dda_verification_notes", None),
 			"about_me": agent_doc.bio,
 			"profile_image": getattr(agent_doc, "profile_image", None),
 			"max_daily_appointments": agent_doc.max_daily_appointments,
 			"ratings": agent_ratings,
+			"requires_license_verification": agent_license_flags.get("requires_agent_license_verification", False),
 		},
 		"appointments_today": appointments_today,
 		"properties": properties_listed,

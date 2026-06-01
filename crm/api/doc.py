@@ -817,6 +817,8 @@ def get_linked_docs_of_document(doctype, docname):
 
 @frappe.whitelist()
 def get_current_agent():
+	from crm.api.redtra import data_dubai
+
 	user = frappe.session.user
 	name = frappe.db.get_value("Agent", {"user": user}, "name")
 	if not name:
@@ -854,6 +856,12 @@ def get_current_agent():
 		"status": doc.status,
 		"dfd_registration_id": doc.dfd_registration_id,
 		"brn_id": doc.brn_id,
+		"broker_license_status": getattr(doc, "dda_broker_license_status", "Not Checked"),
+		"broker_license_expiry_date": getattr(doc, "dda_broker_license_expiry_date", None),
+		"agency_match_status": getattr(doc, "dda_agency_match_status", "Unknown"),
+		"verified_agency_name": getattr(doc, "dda_verified_agency_name", None),
+		"license_verification_checked_on": getattr(doc, "dda_verification_checked_on", None),
+		"license_verification_notes": getattr(doc, "dda_verification_notes", None),
 		"full_name": doc.full_name,
 		"agency": doc.agency,
 		"agency_role": doc.agency_role,
@@ -870,6 +878,7 @@ def get_current_agent():
 		"availability_slots": slots_out,
 		"kyc_documents": kyc_out,
 	}
+	out.update(data_dubai.build_agent_access_flags(doc))
 
 	if doc.agency:
 		out["agency_onboarding_status"] = frappe.db.get_value(

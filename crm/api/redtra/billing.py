@@ -102,6 +102,12 @@ def _get_agent_record(user: str | None = None) -> dict[str, Any] | None:
 			"billable",
 			"billing_start_date",
 			"billing_end_date",
+			"dda_broker_license_status",
+			"dda_broker_license_expiry_date",
+			"dda_agency_match_status",
+			"dda_verified_agency_name",
+			"dda_verification_checked_on",
+			"dda_verification_notes",
 		],
 		as_dict=True,
 	)
@@ -136,6 +142,14 @@ def get_agency_access_context(user: str | None = None, agency_id: str | None = N
 		and billing_status != "Active"
 		and _is_billing_enabled()
 	)
+	from . import data_dubai
+
+	agency_license_flags = data_dubai.build_agency_access_flags(agency_doc)
+	agent_license_flags = data_dubai.build_agent_access_flags(agent)
+	requires_license_verification = bool(
+		agency_license_flags["requires_agency_license_verification"]
+		or agent_license_flags["requires_agent_license_verification"]
+	)
 
 	return {
 		"user": user,
@@ -168,6 +182,9 @@ def get_agency_access_context(user: str | None = None, agency_id: str | None = N
 		"trial_end_date": agency_doc.trial_end_date if agency_doc and hasattr(agency_doc, "trial_end_date") else None,
 		"trial_grace_end_date": agency_doc.trial_grace_end_date if agency_doc and hasattr(agency_doc, "trial_grace_end_date") else None,
 		"requires_billing_activation": requires_billing_activation,
+		"requires_license_verification": requires_license_verification,
+		**agency_license_flags,
+		**agent_license_flags,
 	}
 
 

@@ -30,6 +30,14 @@
   "trakheesi_delist_base_url",
   "trakheesi_authorization_key",
   "trakheesi_request_timeout_seconds",
+  "dda_base_url",
+  "dda_security_identifier",
+  "dda_client_id",
+  "dda_client_secret",
+  "dda_entity",
+  "dda_broker_dataset_name",
+  "dda_real_estate_dataset_name",
+  "dda_request_timeout_seconds",
   "field_configs"
  ],
  "fields": [
@@ -177,6 +185,57 @@
    "fieldname": "trakheesi_request_timeout_seconds",
    "fieldtype": "Int",
    "label": "Trakheesi Request Timeout (Seconds)"
+  },
+  {
+   "description": "Base URL for Data Dubai APIs, without trailing slash.",
+   "fieldname": "dda_base_url",
+   "fieldtype": "Data",
+   "label": "Data Dubai Base URL"
+  },
+  {
+   "description": "x-DDA-SecurityApplicationIdentifier provided by Data Dubai.",
+   "fieldname": "dda_security_identifier",
+   "fieldtype": "Data",
+   "label": "Data Dubai Security Identifier"
+  },
+  {
+   "description": "OAuth client_id provided by Data Dubai.",
+   "fieldname": "dda_client_id",
+   "fieldtype": "Data",
+   "label": "Data Dubai Client ID"
+  },
+  {
+   "description": "OAuth client_secret provided by Data Dubai.",
+   "fieldname": "dda_client_secret",
+   "fieldtype": "Password",
+   "label": "Data Dubai Client Secret"
+  },
+  {
+   "description": "Entity segment used in Data Dubai open dataset URLs.",
+   "fieldname": "dda_entity",
+   "fieldtype": "Data",
+   "label": "Data Dubai Entity"
+  },
+  {
+   "default": "dld_brokers-open-api",
+   "description": "Dataset name used to verify broker licenses.",
+   "fieldname": "dda_broker_dataset_name",
+   "fieldtype": "Data",
+   "label": "Data Dubai Broker Dataset"
+  },
+  {
+   "default": "dld_real_estate_licenses-open-api",
+   "description": "Dataset name used to verify real estate licenses.",
+   "fieldname": "dda_real_estate_dataset_name",
+   "fieldtype": "Data",
+   "label": "Data Dubai Real Estate Dataset"
+  },
+  {
+   "default": "15",
+   "description": "HTTP timeout in seconds for Data Dubai requests.",
+   "fieldname": "dda_request_timeout_seconds",
+   "fieldtype": "Int",
+   "label": "Data Dubai Request Timeout (Seconds)"
   },
   {
    "fieldname": "field_configs",

@@ -25,6 +25,13 @@ class Agent(Document):
 		billing_start_date: DF.Date | None
 		bio: DF.SmallText | None
 		brn_id: DF.Data | None
+		dda_agency_match_status: DF.Literal["Unknown", "Matched", "Mismatch"]
+		dda_broker_license_expiry_date: DF.Date | None
+		dda_broker_license_status: DF.Literal["Not Checked", "Verified", "Mismatch", "Expired", "Failed"]
+		dda_verified_agency_name: DF.Data | None
+		dda_verification_checked_on: DF.Datetime | None
+		dda_verification_notes: DF.SmallText | None
+		dda_verification_payload: DF.LongText | None
 		dfd_registration_id: DF.Data
 		email: DF.Data
 		full_name: DF.Data | None
@@ -56,6 +63,7 @@ class Agent(Document):
 				self.agent_level = get_default_agent_level_for_new_agent()
 		self._validate_status_transition()
 		self._validate_daily_limit()
+		self._verify_broker_license_if_applicable()
 
 	def after_save(self):
 		self._attach_kyc_files_to_doc()
@@ -92,6 +100,67 @@ class Agent(Document):
 	def _validate_daily_limit(self):
 		if self.max_daily_appointments is not None and self.max_daily_appointments < 0:
 			frappe.throw(_("Max daily appointments cannot be negative."))
+
+	def _verify_broker_license_if_applicable(self):
+		from crm.api.redtra import data_dubai
+
+		if getattr(self.flags, "skip_dda_verification", False):
+			return
+		if not data_dubai.is_configured():
+			return
+
+		current_status = (self.status or "").strip()
+		previous_status = "" if self.is_new() else ((self.get_db_value("status") or "").strip())
+		identity_changed = self.is_new() or any(
+			self.has_value_changed(fieldname) for fieldname in ("agency", "brn_id", "dfd_registration_id")
+		)
+		should_verify = current_status in {"Pending Verification", "Verified"} or (
+			identity_changed and previous_status in {"Pending Verification", "Verified"}
+		)
+		if not should_verify:
+			return
+
+		registration_id = (self.dfd_registration_id or "").strip()
+		brn_id = (self.brn_id or "").strip()
+		has_real_registration = bool(registration_id and not registration_id.startswith("TMP-"))
+		if not self.agency:
+			return
+		if not (brn_id or has_real_registration):
+			frappe.throw(
+				_("Broker license details are required before submitting agent onboarding."),
+				frappe.ValidationError,
+			)
+
+		agency_doc = frappe.get_doc("Agency", self.agency)
+		verification = data_dubai.verify_broker_license(
+			agent_name=self.name,
+			brn_id=brn_id,
+			dfd_registration_id=registration_id if has_real_registration else None,
+			agency_name=agency_doc.agency_name,
+			reference_doctype="Agent",
+			reference_docname=self.name if not self.is_new() else None,
+		)
+		data_dubai.apply_agent_verification(self, verification)
+
+		verified_agency_name = verification.get("verified_agency_name")
+		if verified_agency_name and verified_agency_name != agency_doc.agency_name:
+			existing_agency = frappe.db.get_value("Agency", {"agency_name": verified_agency_name}, "name")
+			if not existing_agency or existing_agency == agency_doc.name:
+				frappe.db.set_value(
+					"Agency",
+					agency_doc.name,
+					{
+						"agency_name": verified_agency_name,
+						"dda_verified_agency_name": verified_agency_name,
+					},
+					update_modified=False,
+				)
+
+		if verification.get("status") != data_dubai.STATUS_VERIFIED:
+			frappe.throw(
+				_(verification.get("notes") or "Broker license verification failed."),
+				frappe.ValidationError,
+			)
 
 	def _attach_kyc_files_to_doc(self):
 		"""Ensure every KYC document file is also attached to the parent Agent doc."""

@@ -2,16 +2,20 @@ import re
 
 import frappe
 from frappe.tests import IntegrationTestCase
+from unittest.mock import patch
 
 from crm.api.redtra import onboarding
 
 
 class TestAgencyOnboardingRegistration(IntegrationTestCase):
 	def setUp(self):
+		self.global_search_patcher = patch("frappe.model.document.update_global_search")
+		self.global_search_patcher.start()
 		frappe.set_user("Administrator")
 		self.suffix = frappe.generate_hash(length=8)
 
 	def tearDown(self):
+		self.global_search_patcher.stop()
 		frappe.set_user("Administrator")
 		email = getattr(self, "_cleanup_email", None)
 		agency_id = getattr(self, "_cleanup_agency", None)

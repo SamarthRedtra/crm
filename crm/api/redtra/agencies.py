@@ -23,6 +23,10 @@ SUMMARY_FIELDS = [
 	"phone",
 	"email",
 	"whatsapp_number",
+	"dda_real_estate_license_status",
+	"dda_real_estate_license_expiry_date",
+	"dda_verified_agency_name",
+	"dda_verification_checked_on",
 ]
 
 
@@ -156,6 +160,11 @@ def list_agency_agents(agency_id: str) -> dict[str, Any]:
 			"profile_image",
 			"agency",
 			"email",
+			"dda_broker_license_status",
+			"dda_broker_license_expiry_date",
+			"dda_agency_match_status",
+			"dda_verified_agency_name",
+			"dda_verification_checked_on",
 		],
 		start=start,
 		limit=page_size,
@@ -344,6 +353,10 @@ def _serialize_agency_summary(row: dict[str, Any]) -> dict[str, Any]:
 		"phone": row.get("phone"),
 		"email": row.get("email"),
 		"whatsapp_number": row.get("whatsapp_number"),
+		"real_estate_license_status": row.get("dda_real_estate_license_status") or "Not Checked",
+		"real_estate_license_expiry_date": row.get("dda_real_estate_license_expiry_date"),
+		"verified_agency_name": row.get("dda_verified_agency_name"),
+		"license_verification_checked_on": row.get("dda_verification_checked_on"),
 		"location": _build_location(row.get("city"), row.get("state"), row.get("country")),
 	}
 
@@ -368,6 +381,11 @@ def _serialize_agency_detail(doc) -> dict[str, Any]:
 		"logo": doc.logo,
 		"description": doc.description,
 		"description_not_formatted": strip_html(doc.description) if doc.description else None,
+		"real_estate_license_status": getattr(doc, "dda_real_estate_license_status", "Not Checked"),
+		"real_estate_license_expiry_date": getattr(doc, "dda_real_estate_license_expiry_date", None),
+		"verified_agency_name": getattr(doc, "dda_verified_agency_name", None),
+		"license_verification_checked_on": getattr(doc, "dda_verification_checked_on", None),
+		"license_verification_notes": getattr(doc, "dda_verification_notes", None),
 		"location": _build_location(doc.city, doc.state, doc.country),
 	}
 

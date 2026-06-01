@@ -37,6 +37,8 @@ class TestCustomerProfile(IntegrationTestCase):
 				"full_name": "Profile Agent",
 				"status": "Verified",
 				"dfd_registration_id": "PROF-123",
+				"phone": "+971500001111",
+				"whatsapp_number": "+971500001111",
 				"availability_slots": [
 					{"day_of_week": "Monday", "start_time": "09:00:00", "end_time": "18:00:00"}
 				]
@@ -94,39 +96,42 @@ class TestCustomerProfile(IntegrationTestCase):
 				self.headers = headers
 			def get_json(self): return self.json
 
-		frappe.local.request = MockRequest({"property_id": self.property.name}, headers)
-		favorites.add_favorite() # This calls get_current_user -> checks token
-		
-		# 2. Create Appointment
-		# Find next Monday
-		today = get_datetime()
-		days_ahead = 0
-		while add_days(today, days_ahead).strftime("%A") != "Monday":
-			days_ahead += 1
-		if days_ahead == 0: days_ahead = 7
-		
-		target_date = add_days(today, days_ahead)
-		start_time = target_date.replace(hour=10, minute=0, second=0, microsecond=0)
-		end_time = target_date.replace(hour=10, minute=30, second=0, microsecond=0)
-		
-		# We can use create_appointment API or just insert doc
-		# API is better to test integration but requires mocking request again
-		frappe.local.request = MockRequest({
-			"property_id": self.property.name,
-			"start_datetime": str(start_time),
-			"end_datetime": str(end_time),
-			"notes": "Profile Test"
-		}, headers)
-		
-		# Mock agent verification mandatory check
-		with patch("crm.api.redtra.utils.get_mandate_agent_verification", return_value=False):
-			appointments.create_appointment()
+		with patch("crm.api.redtra.utils.extract_bearer_token", return_value="fake"), patch(
+			"crm.api.redtra.utils.decode_jwt", return_value={"user": self.customer_email}
+		):
+			frappe.local.request = MockRequest({"property_id": self.property.name}, headers)
+			favorites.add_favorite() # This calls get_current_user -> checks token
 			
-		# 3. Call get_profile
-		# Mock request for get_profile (GET, no data)
-		frappe.local.request = MockRequest({}, headers)
-		
-		profile = auth.get_profile()
+			# 2. Create Appointment
+			# Find next Monday
+			today = get_datetime()
+			days_ahead = 0
+			while add_days(today, days_ahead).strftime("%A") != "Monday":
+				days_ahead += 1
+			if days_ahead == 0: days_ahead = 7
+			
+			target_date = add_days(today, days_ahead)
+			start_time = target_date.replace(hour=10, minute=0, second=0, microsecond=0)
+			end_time = target_date.replace(hour=10, minute=30, second=0, microsecond=0)
+			
+			# We can use create_appointment API or just insert doc
+			# API is better to test integration but requires mocking request again
+			frappe.local.request = MockRequest({
+				"property_id": self.property.name,
+				"start_datetime": str(start_time),
+				"end_datetime": str(end_time),
+				"notes": "Profile Test"
+			}, headers)
+			
+			# Mock agent verification mandatory check
+			with patch("crm.api.redtra.utils.get_mandate_agent_verification", return_value=False):
+				appointments.create_appointment()
+				
+			# 3. Call get_profile
+			# Mock request for get_profile (GET, no data)
+			frappe.local.request = MockRequest({}, headers)
+			
+			profile = auth.get_profile()
 		
 		# Assertions
 		self.assertIn("favorites", profile)

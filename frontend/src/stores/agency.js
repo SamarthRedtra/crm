@@ -36,7 +36,11 @@ export const agencyStore = defineStore('crm-agency', () => {
   function needsAgencyVerification() {
     if (!hasAgency() || !isAgencyAdmin()) return false
     const status = context.value.verification_status || 'Verified'
-    return status === 'Pending Verification' || status === 'Rejected'
+    return (
+      status === 'Pending Verification' ||
+      status === 'Rejected' ||
+      Boolean(context.value.requires_agency_license_verification)
+    )
   }
 
   function needsBillingActivation() {

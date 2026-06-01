@@ -12,6 +12,13 @@
   "dfd_registration_id",
   "brn_id",
   "agency",
+  "dda_broker_license_status",
+  "dda_broker_license_expiry_date",
+  "dda_agency_match_status",
+  "dda_verified_agency_name",
+  "dda_verification_checked_on",
+  "dda_verification_notes",
+  "dda_verification_payload",
   "zone_name",
   "agency_role",
   "billable",
@@ -74,6 +81,52 @@
    "in_standard_filter": 1,
    "label": "Agency",
    "options": "Agency"
+  },
+  {
+   "default": "Not Checked",
+   "fieldname": "dda_broker_license_status",
+   "fieldtype": "Select",
+   "label": "Data Dubai Broker License Status",
+   "options": "Not Checked\nVerified\nMismatch\nExpired\nFailed",
+   "read_only": 1
+  },
+  {
+   "fieldname": "dda_broker_license_expiry_date",
+   "fieldtype": "Date",
+   "label": "Data Dubai Broker License Expiry Date",
+   "read_only": 1
+  },
+  {
+   "default": "Unknown",
+   "fieldname": "dda_agency_match_status",
+   "fieldtype": "Select",
+   "label": "Data Dubai Agency Match Status",
+   "options": "Unknown\nMatched\nMismatch",
+   "read_only": 1
+  },
+  {
+   "fieldname": "dda_verified_agency_name",
+   "fieldtype": "Data",
+   "label": "Data Dubai Verified Agency Name",
+   "read_only": 1
+  },
+  {
+   "fieldname": "dda_verification_checked_on",
+   "fieldtype": "Datetime",
+   "label": "Data Dubai Verification Checked On",
+   "read_only": 1
+  },
+  {
+   "fieldname": "dda_verification_notes",
+   "fieldtype": "Small Text",
+   "label": "Data Dubai Verification Notes",
+   "read_only": 1
+  },
+  {
+   "fieldname": "dda_verification_payload",
+   "fieldtype": "Long Text",
+   "label": "Data Dubai Verification Payload",
+   "read_only": 1
   },
   {
    "default": "Agent",

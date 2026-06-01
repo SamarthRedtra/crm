@@ -103,12 +103,12 @@ class Property(Document):
 		"trakheesi_validation_url",
 		"trakheesi_last_verified_on",
 		"trakheesi_verification_payload",
+		"trakheesi_qr_code",
 	}
 	TRAKHEESI_IDENTITY_FIELDS = (
 		"trakheesi_listing_number",
 		"license_number",
 		"trakheesi_permit_number",
-		"trakheesi_qr_code",
 	)
 	NON_VALUE_FIELDTYPES = {
 		"Section Break",
@@ -202,10 +202,16 @@ class Property(Document):
 
 		if not (self.trakheesi_permit_number or "").strip():
 			frappe.throw(_("Trakheesi Permit Number is mandatory."), frappe.ValidationError)
-		if not self._is_import_context() and not (self.trakheesi_qr_code or "").strip():
+
+		will_verify = self._has_trakheesi_identity_changes()
+		if (
+			not self._is_import_context()
+			and not (self.trakheesi_qr_code or "").strip()
+			and not will_verify
+		):
 			frappe.throw(_("Trakheesi QR Code is mandatory."), frappe.ValidationError)
 
-		if not self._has_trakheesi_identity_changes():
+		if not will_verify:
 			return
 
 		self.status = "Under Verification"
@@ -216,6 +222,12 @@ class Property(Document):
 			reference_docname=self.name if not self.is_new() else None,
 		)
 		trakheesi.apply_verification_to_property(self, verification)
+
+		if not self._is_import_context() and not (self.trakheesi_qr_code or "").strip():
+			frappe.throw(
+				_("Trakheesi QR Code could not be generated from verification response."),
+				frappe.ValidationError,
+			)
 
 	def _validate_quality_score(self):
 		"""Quality Score is mandatory for Admins/Managers."""

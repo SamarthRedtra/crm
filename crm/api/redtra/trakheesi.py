@@ -1,9 +1,11 @@
 from __future__ import annotations
 
+import base64
 import json
 from dataclasses import dataclass
 from datetime import datetime
 from typing import Any
+from urllib.parse import urlencode
 
 import frappe
 import requests
@@ -51,6 +53,7 @@ def verify_listing(
 	*,
 	listing_number: str,
 	license_number: str,
+	is_generate_qr_code: bool = True,
 	reference_doctype: str | None = None,
 	reference_docname: str | None = None,
 ) -> dict[str, Any]:
@@ -63,6 +66,8 @@ def verify_listing(
 		frappe.throw(_("License number is required."))
 
 	url = f"{config.validation_base_url}/{listing}/{license_no}"
+	if is_generate_qr_code:
+		url = f"{url}?{urlencode({'isGenerateQrCode': 'true'})}"
 	response = _get_json(
 		url=url,
 		headers={"authorizationkey": config.authorization_key},
@@ -99,6 +104,7 @@ def verify_listing(
 		"license_number": license_no,
 		"listing_guid": match.get("listingGuid"),
 		"validation_url": match.get("validationUrl"),
+		"validation_qr": match.get("validationQr"),
 		"verified_at": str(now_datetime()),
 		"property_size": property_data.get("propertySize"),
 		"zone_name_en": property_data.get("zoneNameEn"),
@@ -153,6 +159,61 @@ def apply_verification_to_property(doc, verification: dict[str, Any]) -> None:
 		if floor_number:
 			doc.address_line2 = f"Floor {floor_number}"
 	_sync_amenities_from_facilities(doc, verification.get("facilities"))
+	_apply_validation_qr_code(doc, verification)
+
+
+def _apply_validation_qr_code(doc, verification: dict[str, Any]) -> None:
+	validation_qr = verification.get("validation_qr")
+	if not validation_qr:
+		return
+
+	file_url = _save_validation_qr_code(
+		doc=doc,
+		validation_qr=validation_qr,
+		listing_number=verification.get("listing_number") or getattr(doc, "trakheesi_listing_number", ""),
+	)
+	if file_url:
+		doc.trakheesi_qr_code = file_url
+
+
+def _normalize_validation_qr_payload(raw_data: str) -> str:
+	value = (raw_data or "").strip()
+	if not value:
+		return ""
+	if "," in value and value.lower().startswith("data:"):
+		_, value = value.split(",", 1)
+	return value.strip()
+
+
+def _save_validation_qr_code(*, doc, validation_qr: str, listing_number: str = "") -> str | None:
+	raw_data = _normalize_validation_qr_payload(validation_qr)
+	if not raw_data:
+		return None
+
+	try:
+		base64.b64decode(raw_data, validate=True)
+	except Exception:
+		frappe.log_error(
+			title="Trakheesi validation QR decode failed",
+			message=frappe.get_traceback(),
+		)
+		return None
+
+	listing = (listing_number or "").strip() or "listing"
+	file_doc = frappe.get_doc(  # type: ignore[call-arg]
+		{
+			"doctype": "File",
+			"file_name": f"trakheesi-qr-{listing}.png",
+			"content": raw_data,
+			"decode": 1,
+			"is_private": 0,
+		}
+	)
+	if getattr(doc, "name", None):
+		file_doc.attached_to_doctype = "Property"
+		file_doc.attached_to_name = doc.name
+	file_doc.save(ignore_permissions=True)
+	return file_doc.file_url
 
 
 def _map_listing_type(listing_type: Any) -> str | None:

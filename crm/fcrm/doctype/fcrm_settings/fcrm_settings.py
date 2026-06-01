@@ -29,6 +29,14 @@ class FCRMSettings(Document):
 		enable_forecasting: DF.Check
 		favicon: DF.Attach | None
 		alora_whatsapp_number: DF.Data | None
+		dda_base_url: DF.Data | None
+		dda_security_identifier: DF.Data | None
+		dda_client_id: DF.Data | None
+		dda_client_secret: DF.Password | None
+		dda_entity: DF.Data | None
+		dda_broker_dataset_name: DF.Data | None
+		dda_real_estate_dataset_name: DF.Data | None
+		dda_request_timeout_seconds: DF.Int
 		trakheesi_validation_base_url: DF.Data | None
 		trakheesi_delist_base_url: DF.Data | None
 		trakheesi_authorization_key: DF.Password | None

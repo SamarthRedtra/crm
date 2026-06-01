@@ -4,6 +4,8 @@ import { usePropertySettings } from '@/stores/propertySettings'
 
 const { fieldConfigs } = usePropertySettings()
 const session = sessionStore()
+const TITLE_MIN_LETTERS = 15
+const TITLE_MAX_LETTERS = 50
 
 const PROPERTY_FIELD_GROUPS = {
   sidebar: [
@@ -618,7 +620,7 @@ export function validatePropertyDoc(doc) {
       return `${config.label || fieldname} is mandatory`
     }
 
-    if (typeof value === 'string' && (config.min_words || config.max_words)) {
+    if (fieldname !== 'title' && typeof value === 'string' && (config.min_words || config.max_words)) {
       const words = value.trim().split(/\s+/).filter(Boolean).length
       if (config.min_words && words < config.min_words) {
         return `${config.label || fieldname} must be at least ${config.min_words} words`
@@ -631,8 +633,11 @@ export function validatePropertyDoc(doc) {
 
   // Enforce title words if not overridden by backend or in addition to
   const titleLetters = doc.title.replace(/\s+/g, '').length
-  if (titleLetters > 50) {
-    return 'Title must not exceed 50 letters'
+  if (titleLetters < TITLE_MIN_LETTERS) {
+    return `Title must be at least ${TITLE_MIN_LETTERS} characters`
+  }
+  if (titleLetters > TITLE_MAX_LETTERS) {
+    return `Title must not exceed ${TITLE_MAX_LETTERS} letters`
   }
 
   // C-07: Trakheesi fields mandatory — admin (session.user === 'Administrator') can bypass
@@ -709,8 +714,10 @@ export function getFieldErrors(doc) {
     errors.title = 'Title is mandatory'
   } else {
     const titleLetters = doc.title.replace(/\s+/g, '').length
-    if (titleLetters > 50) {
-      errors.title = 'Title must not exceed 30 letters'
+    if (titleLetters < TITLE_MIN_LETTERS) {
+      errors.title = `Title must be at least ${TITLE_MIN_LETTERS} characters`
+    } else if (titleLetters > TITLE_MAX_LETTERS) {
+      errors.title = `Title must not exceed ${TITLE_MAX_LETTERS} letters`
     }
   }
 

@@ -18,6 +18,12 @@
   "brn_id",
   "rera_id",
   "company_license_number",
+  "dda_real_estate_license_status",
+  "dda_real_estate_license_expiry_date",
+  "dda_verified_agency_name",
+  "dda_verification_checked_on",
+  "dda_verification_notes",
+  "dda_verification_payload",
   "website",
   "section_break_address",
   "address_line1",
@@ -116,6 +122,44 @@
    "fieldname": "company_license_number",
    "fieldtype": "Data",
    "label": "Company License Number"
+  },
+  {
+   "default": "Not Checked",
+   "fieldname": "dda_real_estate_license_status",
+   "fieldtype": "Select",
+   "label": "Data Dubai Real Estate License Status",
+   "options": "Not Checked\nVerified\nMismatch\nExpired\nFailed",
+   "read_only": 1
+  },
+  {
+   "fieldname": "dda_real_estate_license_expiry_date",
+   "fieldtype": "Date",
+   "label": "Data Dubai Real Estate License Expiry Date",
+   "read_only": 1
+  },
+  {
+   "fieldname": "dda_verified_agency_name",
+   "fieldtype": "Data",
+   "label": "Data Dubai Verified Agency Name",
+   "read_only": 1
+  },
+  {
+   "fieldname": "dda_verification_checked_on",
+   "fieldtype": "Datetime",
+   "label": "Data Dubai Verification Checked On",
+   "read_only": 1
+  },
+  {
+   "fieldname": "dda_verification_notes",
+   "fieldtype": "Small Text",
+   "label": "Data Dubai Verification Notes",
+   "read_only": 1
+  },
+  {
+   "fieldname": "dda_verification_payload",
+   "fieldtype": "Long Text",
+   "label": "Data Dubai Verification Payload",
+   "read_only": 1
   },
   {
    "fieldname": "website",

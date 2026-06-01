@@ -57,6 +57,7 @@ SUMMARY_FIELDS = [
 	"handover_year",
 ]
 
+TITLE_MIN_LETTERS = 15
 TITLE_MAX_LETTERS = 50
 
 
@@ -325,8 +326,6 @@ def create_property() -> dict[str, Any]:
 	if "System Manager" not in user_roles:
 		if not data.get("trakheesi_permit_number"):
 			frappe.throw(_("Trakheesi Permit Number is mandatory."), frappe.ValidationError)
-		if not data.get("trakheesi_qr_code"):
-			frappe.throw(_("Trakheesi QR Code is mandatory."), frappe.ValidationError)
 		if not data.get("trakheesi_listing_number"):
 			frappe.throw(_("Trakheesi Listing Number is mandatory."), frappe.ValidationError)
 		if not data.get("license_number"):
@@ -428,14 +427,9 @@ def update_property(property_id: str) -> dict[str, Any]:
 	if "System Manager" not in user_roles:
 		if "trakheesi_permit_number" in data and not data.get("trakheesi_permit_number"):
 			frappe.throw(_("Trakheesi Permit Number is mandatory."), frappe.ValidationError)
-		if "trakheesi_qr_code" in data and not data.get("trakheesi_qr_code"):
-			frappe.throw(_("Trakheesi QR Code is mandatory."), frappe.ValidationError)
-		
-		# Also ensure they aren't cleared if not in data (though doc.update handles it, explicit is better if we want to enforce presence)
+
 		if not data.get("trakheesi_permit_number") and not doc.trakheesi_permit_number:
 			frappe.throw(_("Trakheesi Permit Number is mandatory."), frappe.ValidationError)
-		if not data.get("trakheesi_qr_code") and not doc.trakheesi_qr_code:
-			frappe.throw(_("Trakheesi QR Code is mandatory."), frappe.ValidationError)
 
 	featured_until = _normalize_featured_until(data.get("featured_until"), is_featured_value)
 
@@ -566,6 +560,11 @@ def serialize_property_summary(row: dict[str, Any]) -> dict[str, Any]:
 					"trakheesi_qr_code",
 					"zone_name",
 					"email",
+					"dda_broker_license_status",
+					"dda_broker_license_expiry_date",
+					"dda_agency_match_status",
+					"dda_verified_agency_name",
+					"dda_verification_checked_on",
 				],
 				as_dict=True,
 			)
@@ -588,6 +587,11 @@ def serialize_property_summary(row: dict[str, Any]) -> dict[str, Any]:
 					"profile_image": agent_data.get("profile_image"),
 					"status": agent_data.get("status"),
 					"email": agent_data.get("email"),
+					"broker_license_status": agent_data.get("dda_broker_license_status") or "Not Checked",
+					"broker_license_expiry_date": agent_data.get("dda_broker_license_expiry_date"),
+					"agency_match_status": agent_data.get("dda_agency_match_status") or "Unknown",
+					"verified_agency_name": agent_data.get("dda_verified_agency_name"),
+					"license_verification_checked_on": agent_data.get("dda_verification_checked_on"),
 					"trakheesi_permit_number": agent_data.get("trakheesi_permit_number"),
 					"trakheesi_qr_code": agent_data.get("trakheesi_qr_code"),
 					"zone_name": agent_data.get("zone_name"),
@@ -772,6 +776,11 @@ def serialize_property_detail(doc) -> dict[str, Any]:
 			"whatsapp_number": whatsapp_number_for_links,
 			"whatsapp_link": _build_whatsapp_link(whatsapp_number_for_links),
 			"email": agent_doc.email,
+			"broker_license_status": getattr(agent_doc, "dda_broker_license_status", "Not Checked"),
+			"broker_license_expiry_date": getattr(agent_doc, "dda_broker_license_expiry_date", None),
+			"agency_match_status": getattr(agent_doc, "dda_agency_match_status", "Unknown"),
+			"verified_agency_name": getattr(agent_doc, "dda_verified_agency_name", None),
+			"license_verification_checked_on": getattr(agent_doc, "dda_verification_checked_on", None),
 		}
 		try:
 			agent_payload["ratings"] = reviews.get_agent_rating_stats(doc.agent)
@@ -1084,6 +1093,11 @@ def _clean_str(value: Any) -> str | None:
 
 def _validate_title_letter_count(title: str) -> None:
 	letter_count = len("".join(title.split()))
+	if letter_count < TITLE_MIN_LETTERS:
+		frappe.throw(
+			_("Title must be at least {0} characters.").format(TITLE_MIN_LETTERS),
+			frappe.ValidationError,
+		)
 	if letter_count > TITLE_MAX_LETTERS:
 		frappe.throw(
 			_("Title must not exceed {0} letters.").format(TITLE_MAX_LETTERS),

@@ -27,6 +27,12 @@ class Agency(Document):
 		city: DF.Data | None
 		company_license_number: DF.Data | None
 		country: DF.Link | None
+		dda_real_estate_license_expiry_date: DF.Date | None
+		dda_real_estate_license_status: DF.Literal["Not Checked", "Verified", "Mismatch", "Expired", "Failed"]
+		dda_verified_agency_name: DF.Data | None
+		dda_verification_checked_on: DF.Datetime | None
+		dda_verification_notes: DF.SmallText | None
+		dda_verification_payload: DF.LongText | None
 		description: DF.TextEditor | None
 		email: DF.Data
 		is_on_trial: DF.Check

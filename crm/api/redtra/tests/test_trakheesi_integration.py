@@ -93,7 +93,7 @@ class TestTrakheesiIntegration(IntegrationTestCase):
 	def test_create_property_applies_non_price_sync_and_ignores_arabic(self):
 		self._set_request_payload(
 			{
-				"title": "Trakheesi Valid",
+				"title": "Trakheesi Valid Property",
 				"listing_type": "Buy",
 				"property_type": "Apartment",
 				"price": 1500000,
@@ -185,23 +185,71 @@ class TestTrakheesiIntegration(IntegrationTestCase):
 		self.assertEqual(doc.address_line1, "Admin Verified Tower")
 		self.assertEqual(doc.status, "Under Verification")
 
-	def test_property_insert_requires_qr_outside_import(self):
-		with self.assertRaises(frappe.ValidationError):
-			frappe.get_doc(
+	def test_property_insert_requires_qr_when_verification_does_not_return_one(self):
+		mock_verification = {
+			"listing_guid": "listing-guid-no-qr",
+			"validation_url": "https://validation.example/no-qr",
+			"verified_at": "2026-05-22 16:00:00",
+			"verification_payload": "{\"ok\":true}",
+		}
+
+		with patch("crm.api.redtra.trakheesi.verify_listing", return_value=mock_verification):
+			with self.assertRaises(frappe.ValidationError):
+				frappe.get_doc(
+					{
+						"doctype": "Property",
+						"title": "QR Missing After Verify",
+						"status": "Draft",
+						"listing_type": "Buy",
+						"property_type": "Apartment",
+						"price": 1250000,
+						"currency": "AED",
+						"agent": self.agent.name,
+						"trakheesi_permit_number": "P-NO-QR-001",
+						"trakheesi_listing_number": "7123139000",
+						"license_number": "723355",
+					}
+				).insert(ignore_permissions=True)
+
+	def test_apply_verification_uploads_validation_qr_code(self):
+		from crm.api.redtra import trakheesi
+
+		qr_png = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8/5+hHgAHggJ/PchI7wAAAABJRU5ErkJggg=="
+		doc = frappe.get_doc(
+			{
+				"doctype": "Property",
+				"title": "QR Upload Target",
+				"listing_type": "Buy",
+				"property_type": "Apartment",
+				"price": 1100000,
+				"currency": "AED",
+				"agent": self.agent.name,
+				"trakheesi_listing_number": "7123139000",
+			}
+		)
+		doc.flags.skip_trakheesi_verification = True
+		doc.insert(ignore_permissions=True)
+
+		trakheesi.apply_verification_to_property(
+			doc,
+			{
+				"listing_number": "7123139000",
+				"validation_qr": qr_png,
+				"listing_guid": "listing-guid-qr-upload",
+			},
+		)
+
+		self.assertTrue(doc.trakheesi_qr_code)
+		self.assertTrue(
+			frappe.db.exists(
+				"File",
 				{
-					"doctype": "Property",
-					"title": "QR Required Outside Import",
-					"status": "Draft",
-					"listing_type": "Buy",
-					"property_type": "Apartment",
-					"price": 1250000,
-					"currency": "AED",
-					"agent": self.agent.name,
-					"trakheesi_permit_number": "P-NO-QR-001",
-					"trakheesi_listing_number": "7123139000",
-					"license_number": "723355",
-				}
-			).insert(ignore_permissions=True)
+					"attached_to_doctype": "Property",
+					"attached_to_name": doc.name,
+					"file_name": "trakheesi-qr-7123139000.png",
+				},
+			)
+		)
 
 	def test_property_import_still_verifies_trakheesi(self):
 		mock_verification = {
@@ -256,19 +304,24 @@ class TestTrakheesiIntegration(IntegrationTestCase):
 					"permitStatusId": 6,
 					"listingGuid": "g1",
 					"validationUrl": "https://v.example",
+					"validationQr": "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8/5+hHgAHggJ/PchI7wAAAABJRU5ErkJggg==",
 					"property": {"propertySize": 70},
 				}
 			],
 			"recordCount": 1,
 		}
 
-		with patch("crm.api.redtra.trakheesi.requests.get", return_value=mock_response):
+		with patch("crm.api.redtra.trakheesi.requests.get", return_value=mock_response) as mocked_get:
 			from crm.api.redtra import trakheesi
 
-			trakheesi.verify_listing(
+			result = trakheesi.verify_listing(
 				listing_number="7123139000",
 				license_number="723355",
 			)
+
+		request_url = mocked_get.call_args.kwargs.get("url") or mocked_get.call_args.args[0]
+		self.assertIn("isGenerateQrCode=true", request_url)
+		self.assertTrue(result.get("validation_qr"))
 
 		log_name = frappe.db.get_value(
 			"Integration Request",
