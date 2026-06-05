@@ -43,16 +43,16 @@ Desk → **FCRM Settings** → **Push Notifications**
 |--------|--------|
 | **Mobile Push Provider** | `Darify Firebase` |
 | **Firebase Project ID** | `darify-b9ff8` |
-| **Firebase Service Account JSON** | Full JSON from Firebase Console |
+| **Firebase Service Account Key** | Upload JSON key file from Firebase Console |
 
 #### Get service account JSON
 
 1. [Firebase Console](https://console.firebase.google.com/) → project **darify-b9ff8**
 2. Project Settings → **Service accounts**
 3. **Generate new private key** → download JSON
-4. Paste entire JSON into **Firebase Service Account JSON** in FCRM Settings
+4. Upload the downloaded `.json` file in **Firebase Service Account Key** (Attach field) in FCRM Settings
 
-> `google-services.json` in Flutter is the **client** config. The server needs the **service account** JSON (different file).
+> `google-services.json` in Flutter is the **client** config. The server needs the **service account key file** (different file).
 
 #### Flutter app
 

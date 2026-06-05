@@ -27,7 +27,7 @@
   "push_notifications_tab",
   "mobile_push_provider",
   "firebase_project_id",
-  "firebase_service_account_json",
+  "firebase_service_account_key",
   "firebase_request_timeout_seconds",
   "property_settings_tab",
   "alora_whatsapp_number",
@@ -179,10 +179,10 @@
   },
   {
    "depends_on": "eval:doc.mobile_push_provider == 'Darify Firebase'",
-   "description": "Paste the full JSON from Firebase Console > Project Settings > Service Accounts > Generate new private key.",
-   "fieldname": "firebase_service_account_json",
-   "fieldtype": "Password",
-   "label": "Firebase Service Account JSON",
+   "description": "Upload the JSON key file from Firebase Console > Project Settings > Service Accounts > Generate new private key.",
+   "fieldname": "firebase_service_account_key",
+   "fieldtype": "Attach",
+   "label": "Firebase Service Account Key",
    "mandatory_depends_on": "eval:doc.mobile_push_provider == 'Darify Firebase'"
   },
   {

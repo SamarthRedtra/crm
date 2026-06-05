@@ -13,18 +13,26 @@ class TestFCMPush(IntegrationTestCase):
 		settings = frappe.get_single("FCRM Settings")
 		settings.mobile_push_provider = "Darify Firebase"
 		settings.firebase_project_id = "darify-b9ff8"
-		settings.firebase_service_account_json = json.dumps(
+		service_account = {
+			"type": "service_account",
+			"project_id": "darify-b9ff8",
+			"private_key_id": "test",
+			"private_key": "-----BEGIN PRIVATE KEY-----\nMIIBVwIBADANBgkqhkiG9w0BAQEFAASCAT4wggE6AgEAAkEAp-test\n-----END PRIVATE KEY-----\n",
+			"client_email": "firebase-adminsdk@test.iam.gserviceaccount.com",
+			"client_id": "123",
+			"auth_uri": "https://accounts.google.com/o/oauth2/auth",
+			"token_uri": "https://oauth2.googleapis.com/token",
+		}
+		file_doc = frappe.get_doc(
 			{
-				"type": "service_account",
-				"project_id": "darify-b9ff8",
-				"private_key_id": "test",
-				"private_key": "-----BEGIN PRIVATE KEY-----\nMIIBVwIBADANBgkqhkiG9w0BAQEFAASCAT4wggE6AgEAAkEAp-test\n-----END PRIVATE KEY-----\n",
-				"client_email": "firebase-adminsdk@test.iam.gserviceaccount.com",
-				"client_id": "123",
-				"auth_uri": "https://accounts.google.com/o/oauth2/auth",
-				"token_uri": "https://oauth2.googleapis.com/token",
+				"doctype": "File",
+				"file_name": "firebase-service-account-test.json",
+				"content": json.dumps(service_account),
+				"is_private": 1,
 			}
 		)
+		file_doc.save(ignore_permissions=True)
+		settings.firebase_service_account_key = file_doc.file_url
 		settings.save(ignore_permissions=True)
 
 	def test_send_push_to_user_without_tokens(self):

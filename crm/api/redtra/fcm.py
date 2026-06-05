@@ -27,21 +27,32 @@ def _get_settings():
 	return frappe.get_single("FCRM Settings")
 
 
-def _get_service_account_info() -> dict[str, Any]:
-	settings = _get_settings()
-	raw = settings.get_password("firebase_service_account_json")
-	if not raw:
-		frappe.throw(_("Firebase Service Account JSON is not configured in FCRM Settings."))
+def load_service_account_info(file_url: str) -> dict[str, Any]:
+	if not file_url:
+		frappe.throw(_("Firebase Service Account Key is not configured in FCRM Settings."))
+
+	file_name = frappe.db.get_value("File", {"file_url": file_url}, "name")
+	if not file_name:
+		frappe.throw(_("Firebase Service Account Key file not found."))
+
+	content = frappe.get_doc("File", file_name).get_content()
+	if isinstance(content, bytes):
+		content = content.decode()
 
 	try:
-		info = json.loads(raw)
+		info = json.loads(content)
 	except json.JSONDecodeError as exc:
-		frappe.throw(_("Firebase Service Account JSON is invalid: {0}").format(exc))
+		frappe.throw(_("Firebase Service Account Key file is invalid JSON: {0}").format(exc))
 
 	if not info.get("private_key") or not info.get("client_email"):
-		frappe.throw(_("Firebase Service Account JSON must include private_key and client_email."))
+		frappe.throw(_("Firebase Service Account Key must include private_key and client_email."))
 
 	return info
+
+
+def _get_service_account_info() -> dict[str, Any]:
+	settings = _get_settings()
+	return load_service_account_info(settings.firebase_service_account_key)
 
 
 def _get_access_token() -> str:

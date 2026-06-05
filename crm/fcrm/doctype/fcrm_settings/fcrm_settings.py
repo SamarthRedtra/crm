@@ -41,7 +41,7 @@ class FCRMSettings(Document):
 		dda_request_timeout_seconds: DF.Int
 		firebase_project_id: DF.Data | None
 		firebase_request_timeout_seconds: DF.Int
-		firebase_service_account_json: DF.Password | None
+		firebase_service_account_key: DF.Attach | None
 		mobile_push_provider: DF.Literal["Darify Firebase", "Frappe Push Relay"]
 		trakheesi_validation_base_url: DF.Data | None
 		trakheesi_delist_base_url: DF.Data | None
@@ -69,17 +69,12 @@ class FCRMSettings(Document):
 		if not self.firebase_project_id:
 			frappe.throw(_("Firebase Project ID is required when using Darify Firebase push."))
 
-		raw = self.get_password("firebase_service_account_json")
-		if not raw:
-			frappe.throw(_("Firebase Service Account JSON is required when using Darify Firebase push."))
+		from crm.api.redtra.fcm import load_service_account_info
 
-		try:
-			info = json.loads(raw)
-		except json.JSONDecodeError as exc:
-			frappe.throw(_("Firebase Service Account JSON is invalid: {0}").format(exc))
+		if not self.firebase_service_account_key:
+			frappe.throw(_("Firebase Service Account Key is required when using Darify Firebase push."))
 
-		if not info.get("private_key") or not info.get("client_email"):
-			frappe.throw(_("Firebase Service Account JSON must include private_key and client_email."))
+		load_service_account_info(self.firebase_service_account_key)
 
 	def do_not_allow_to_delete_if_standard(self):
 		if not self.has_value_changed("dropdown_items"):
