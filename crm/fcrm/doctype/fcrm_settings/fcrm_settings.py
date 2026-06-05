@@ -1,6 +1,8 @@
 # Copyright (c) 2024, Frappe Technologies Pvt. Ltd. and contributors
 # For license information, please see license.txt
 
+import json
+
 import frappe
 import requests
 from frappe import _
@@ -37,6 +39,10 @@ class FCRMSettings(Document):
 		dda_broker_dataset_name: DF.Data | None
 		dda_real_estate_dataset_name: DF.Data | None
 		dda_request_timeout_seconds: DF.Int
+		firebase_project_id: DF.Data | None
+		firebase_request_timeout_seconds: DF.Int
+		firebase_service_account_json: DF.Password | None
+		mobile_push_provider: DF.Literal["Darify Firebase", "Frappe Push Relay"]
 		trakheesi_validation_base_url: DF.Data | None
 		trakheesi_delist_base_url: DF.Data | None
 		trakheesi_authorization_key: DF.Password | None
@@ -54,6 +60,26 @@ class FCRMSettings(Document):
 		self.do_not_allow_to_delete_if_standard()
 		self.setup_forecasting()
 		self.make_currency_read_only()
+		self.validate_firebase_push_settings()
+
+	def validate_firebase_push_settings(self):
+		if self.mobile_push_provider != "Darify Firebase":
+			return
+
+		if not self.firebase_project_id:
+			frappe.throw(_("Firebase Project ID is required when using Darify Firebase push."))
+
+		raw = self.get_password("firebase_service_account_json")
+		if not raw:
+			frappe.throw(_("Firebase Service Account JSON is required when using Darify Firebase push."))
+
+		try:
+			info = json.loads(raw)
+		except json.JSONDecodeError as exc:
+			frappe.throw(_("Firebase Service Account JSON is invalid: {0}").format(exc))
+
+		if not info.get("private_key") or not info.get("client_email"):
+			frappe.throw(_("Firebase Service Account JSON must include private_key and client_email."))
 
 	def do_not_allow_to_delete_if_standard(self):
 		if not self.has_value_changed("dropdown_items"):

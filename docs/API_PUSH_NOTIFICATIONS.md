@@ -2,51 +2,104 @@
 
 ## Overview
 
-This document covers CRM wrapper APIs implemented in:
+CRM push APIs for the **native Flutter app** (`com.example.darify`, Firebase project `darify-b9ff8`).
 
-- `apps/crm/crm/api/redtra/push.py`
-- Route registrations in `apps/crm/crm/api/redtra/routes.py`
+Implementation:
 
-These endpoints expose token registration and push sending capabilities through CRM APIs.
+- `apps/crm/crm/api/redtra/push.py` — API handlers
+- `apps/crm/crm/api/redtra/fcm.py` — direct Firebase Cloud Messaging (FCM HTTP v1)
+- `apps/crm/crm/api/redtra/routes.py` — route registration
 
 ## Base URL
 
-All routes below are registered in Frappe API v1:
-
-- `https://darify.u.frappe.cloud/api/v1/notifications/push/...`
-
-Example:
-
-- `https://darify.u.frappe.cloud/api/v1/notifications/push/subscribe`
+```text
+https://darify.u.frappe.cloud/api/v1/notifications/push/...
+```
 
 ## Authentication
 
-All endpoints require JWT auth via `Authorization: Bearer <token>`.
+All endpoints require JWT auth:
+
+```http
+Authorization: Bearer <JWT_TOKEN>
+```
+
+---
+
+## Server setup (required once)
+
+### Why not Frappe default relay?
+
+The Flutter app uses **your own Firebase project** (`darify-b9ff8`).  
+Frappe's default push relay uses the shared **`raven`** Firebase project. Tokens from `darify-b9ff8` will **not** deliver through the default relay.
+
+CRM therefore supports **Darify Firebase** — server sends directly to FCM using your service account.
+
+### Configure FCRM Settings
+
+Desk → **FCRM Settings** → **Push Notifications**
+
+| Field | Value |
+|--------|--------|
+| **Mobile Push Provider** | `Darify Firebase` |
+| **Firebase Project ID** | `darify-b9ff8` |
+| **Firebase Service Account JSON** | Full JSON from Firebase Console |
+
+#### Get service account JSON
+
+1. [Firebase Console](https://console.firebase.google.com/) → project **darify-b9ff8**
+2. Project Settings → **Service accounts**
+3. **Generate new private key** → download JSON
+4. Paste entire JSON into **Firebase Service Account JSON** in FCRM Settings
+
+> `google-services.json` in Flutter is the **client** config. The server needs the **service account** JSON (different file).
+
+#### Flutter app
+
+Your `google-services.json` must stay on project `darify-b9ff8`:
+
+```json
+{
+  "project_info": {
+    "project_id": "darify-b9ff8"
+  },
+  "client": [{
+    "android_client_info": {
+      "package_name": "com.example.darify"
+    }
+  }]
+}
+```
+
+---
 
 ## Endpoints
 
 ### 1) Register device token
 
-- **Method:** `POST`
-- **Path:** `/api/v1/notifications/push/subscribe`
-- **Handler:** `push.subscribe_push_token`
-- **Access:** Any authenticated JWT user
+| | |
+|---|---|
+| **Method** | `POST` |
+| **Path** | `/api/v1/notifications/push/subscribe` |
+| **Access** | Any authenticated JWT user |
 
 #### Request body
 
 ```json
 {
   "fcm_token": "fcm_device_token_here",
-  "environment": "production",
-  "device_information": "{\"platform\":\"ios\",\"app_version\":\"1.0.0\"}"
+  "environment": "Mobile",
+  "device_information": "{\"platform\":\"android\",\"app_version\":\"1.0.0\"}"
 }
 ```
 
-Notes:
+| Field | Required | Notes |
+|--------|----------|--------|
+| `fcm_token` | Yes | From `FirebaseMessaging.instance.getToken()` |
+| `environment` | Yes | Use `Mobile` (also accepts `production`, `development`, `android`, `ios`) |
+| `device_information` | No | JSON string |
 
-- `fcm_token` is required.
-- `environment` is required (example: `production`, `development`).
-- `device_information` is optional.
+Call **after login** and again on `onTokenRefresh`.
 
 #### Success response
 
@@ -65,19 +118,22 @@ curl -X POST "https://darify.u.frappe.cloud/api/v1/notifications/push/subscribe"
   -H "Content-Type: application/json" \
   -d '{
     "fcm_token": "fcm_device_token_here",
-    "environment": "production",
+    "environment": "Mobile",
     "device_information": "{\"platform\":\"android\",\"app_version\":\"1.0.0\"}"
   }'
 ```
+
+Token is stored in **Raven Push Token** for the logged-in user. With Darify Firebase enabled, it is **not** sent to Frappe relay.
 
 ---
 
 ### 2) Unregister device token
 
-- **Method:** `POST`
-- **Path:** `/api/v1/notifications/push/unsubscribe`
-- **Handler:** `push.unsubscribe_push_token`
-- **Access:** Any authenticated JWT user
+| | |
+|---|---|
+| **Method** | `POST` |
+| **Path** | `/api/v1/notifications/push/unsubscribe` |
+| **Access** | Any authenticated JWT user |
 
 #### Request body
 
@@ -86,10 +142,6 @@ curl -X POST "https://darify.u.frappe.cloud/api/v1/notifications/push/subscribe"
   "fcm_token": "fcm_device_token_here"
 }
 ```
-
-Notes:
-
-- `fcm_token` is required.
 
 #### Success response
 
@@ -100,25 +152,15 @@ Notes:
 }
 ```
 
-#### cURL
-
-```bash
-curl -X POST "https://darify.u.frappe.cloud/api/v1/notifications/push/unsubscribe" \
-  -H "Authorization: Bearer <JWT_TOKEN>" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "fcm_token": "fcm_device_token_here"
-  }'
-```
-
 ---
 
 ### 3) Send push notification to one user
 
-- **Method:** `POST`
-- **Path:** `/api/v1/notifications/push/send`
-- **Handler:** `push.send_push_notification`
-- **Access roles:** `System Manager`, `Agency Admin`, `Agency Manager`
+| | |
+|---|---|
+| **Method** | `POST` |
+| **Path** | `/api/v1/notifications/push/send` |
+| **Access** | `System Manager`, `Agency Admin`, `Agency Manager` |
 
 #### Request body
 
@@ -129,25 +171,59 @@ curl -X POST "https://darify.u.frappe.cloud/api/v1/notifications/push/unsubscrib
   "message": "A new lead has been assigned to you.",
   "data": {
     "type": "lead_assigned",
-    "lead_id": "CRM-LEAD-0001",
-    "channel_id": "CHANNEL-0001"
-  },
-  "user_image_path": "/files/avatar.png"
+    "lead_id": "CRM-LEAD-0001"
+  }
 }
 ```
 
-Notes:
-
-- `user_id`, `title`, and `message` are required.
-- `data` is optional and defaults to `{}`.
-- `user_image_path` is optional.
-
-#### Success response
+#### Success response (Darify Firebase)
 
 ```json
 {
-  "message": "Push notification sent.",
-  "ok": true
+  "ok": true,
+  "sent": true,
+  "provider": "Darify Firebase",
+  "token_count": 1,
+  "sent_count": 1,
+  "failed_count": 0,
+  "message": "Push notification sent to 1 device(s)."
+}
+```
+
+#### Failure response examples
+
+No token registered:
+
+```json
+{
+  "ok": false,
+  "sent": false,
+  "provider": "Darify Firebase",
+  "token_count": 0,
+  "sent_count": 0,
+  "failed_count": 0,
+  "message": "No registered FCM tokens found for this user."
+}
+```
+
+FCM rejected token (stale token is auto-removed):
+
+```json
+{
+  "ok": false,
+  "sent": false,
+  "provider": "Darify Firebase",
+  "token_count": 1,
+  "sent_count": 0,
+  "failed_count": 1,
+  "results": [
+    {
+      "token": "...",
+      "success": false,
+      "status_code": 404,
+      "token_removed": true
+    }
+  ]
 }
 ```
 
@@ -158,13 +234,9 @@ curl -X POST "https://darify.u.frappe.cloud/api/v1/notifications/push/send" \
   -H "Authorization: Bearer <JWT_TOKEN>" \
   -H "Content-Type: application/json" \
   -d '{
-    "user_id": "agent@example.com",
-    "title": "New Lead Assigned",
-    "message": "A new lead has been assigned to you.",
-    "data": {
-      "type": "lead_assigned",
-      "lead_id": "CRM-LEAD-0001"
-    }
+    "user_id": "khansaahmed37@gmail.com",
+    "title": "Staging test",
+    "message": "Hello from Darify Firebase"
   }'
 ```
 
@@ -172,73 +244,45 @@ curl -X POST "https://darify.u.frappe.cloud/api/v1/notifications/push/send" \
 
 ### 4) Send push notification to group/topic
 
-- **Method:** `POST`
-- **Path:** `/api/v1/notifications/push/send-group`
-- **Handler:** `push.send_group_push_notification`
-- **Access roles:** `System Manager`, `Agency Admin`, `Agency Manager`
+| | |
+|---|---|
+| **Method** | `POST` |
+| **Path** | `/api/v1/notifications/push/send-group` |
+| **Access** | `System Manager`, `Agency Admin`, `Agency Manager` |
 
-#### Request body
+Still uses **Frappe Push Relay** topics (Raven). Not used for Darify Firebase direct send yet.
 
-```json
-{
-  "group_id": "AGENCY-CHANNEL-001",
-  "title": "Daily Update",
-  "message": "5 new properties are live today.",
-  "data": {
-    "type": "daily_summary",
-    "agency_id": "AGY-0001"
-  },
-  "user_image_path": "/files/agency-logo.png"
-}
-```
+---
 
-Notes:
+## Flutter integration checklist
 
-- `group_id`, `title`, and `message` are required.
-- `group_id` maps to Raven topic/channel id (`send_notification_to_topic(channel_id=group_id, ...)`).
-- `data` is optional and defaults to `{}`.
-- `user_image_path` is optional.
+1. Add `firebase_messaging` + `google-services.json` (`darify-b9ff8`)
+2. Request notification permission (iOS + Android 13+)
+3. After JWT login → `POST /notifications/push/subscribe` with `environment: "Mobile"`
+4. Listen to `FirebaseMessaging.instance.onTokenRefresh` → re-subscribe
+5. Handle foreground messages with `FirebaseMessaging.onMessage`
+6. Test with app in **background** first (system tray)
 
-#### Success response
+---
 
-```json
-{
-  "message": "Group push notification sent.",
-  "ok": true
-}
-```
+## Where to verify delivery
 
-#### cURL
+| Check | Location |
+|--------|----------|
+| Token saved | Desk → **Raven Push Token** (user + `Mobile`) |
+| Send result | API response `sent_count`, `failed_count`, `results` |
+| FCM errors | Desk → **Error Log** (`CRM push send failed`) |
+| Provider | FCRM Settings → **Mobile Push Provider** = `Darify Firebase` |
 
-```bash
-curl -X POST "https://darify.u.frappe.cloud/api/v1/notifications/push/send-group" \
-  -H "Authorization: Bearer <JWT_TOKEN>" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "group_id": "AGENCY-CHANNEL-001",
-    "title": "Daily Update",
-    "message": "5 new properties are live today.",
-    "data": {
-      "type": "daily_summary",
-      "agency_id": "AGY-0001"
-    }
-  }'
-```
-
-## Error behavior
-
-- Missing required fields return validation errors from `utils.get_request_json`.
-- Unauthorized/invalid JWT returns auth errors from `utils.require_jwt`.
-- Role mismatch on send endpoints returns permission errors.
-- Unsubscribe with unknown token can return Raven-side `"FCM token not found"` error.
+---
 
 ## Implementation mapping
 
-- Route definitions: `apps/crm/crm/api/redtra/routes.py`
-  - `/notifications/push/subscribe` -> `push.subscribe_push_token`
-  - `/notifications/push/unsubscribe` -> `push.unsubscribe_push_token`
-  - `/notifications/push/send` -> `push.send_push_notification`
-  - `/notifications/push/send-group` -> `push.send_group_push_notification`
-- API handlers: `apps/crm/crm/api/redtra/push.py`
-- Underlying token mapping APIs: `raven.api.notification.subscribe` and `raven.api.notification.unsubscribe`
-- Underlying push send APIs: `raven.notification.send_notification_to_user` and `raven.notification.send_notification_to_topic`
+| Route | Handler |
+|--------|---------|
+| `/notifications/push/subscribe` | `push.subscribe_push_token` |
+| `/notifications/push/unsubscribe` | `push.unsubscribe_push_token` |
+| `/notifications/push/send` | `push.send_push_notification` → `fcm.send_push_to_user` |
+| `/notifications/push/send-group` | `push.send_group_push_notification` |
+
+**Frappe Push Relay** is still available: set **Mobile Push Provider** to `Frappe Push Relay` in FCRM Settings (for Raven/web tokens only).

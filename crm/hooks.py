@@ -148,6 +148,7 @@ has_permission = {
 override_doctype_class = {
 	"Contact": "crm.overrides.contact.CustomContact",
 	"Email Template": "crm.overrides.email_template.CustomEmailTemplate",
+	"Raven Push Token": "crm.overrides.raven_push_token.CustomRavenPushToken",
 }
 
 auth_hooks = ["crm.api.redtra.jwt_auth.authenticate"]

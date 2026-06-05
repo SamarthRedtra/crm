@@ -24,6 +24,11 @@
   "dropdown_items",
   "agent_settings_tab",
   "mandatory_kyc_documents",
+  "push_notifications_tab",
+  "mobile_push_provider",
+  "firebase_project_id",
+  "firebase_service_account_json",
+  "firebase_request_timeout_seconds",
   "property_settings_tab",
   "alora_whatsapp_number",
   "trakheesi_validation_base_url",
@@ -149,6 +154,43 @@
    "fieldname": "mandatory_kyc_documents",
    "fieldtype": "Data",
    "label": "Mandatory KYC Document Types"
+  },
+  {
+   "fieldname": "push_notifications_tab",
+   "fieldtype": "Tab Break",
+   "label": "Push Notifications"
+  },
+  {
+   "default": "Darify Firebase",
+   "description": "Use Darify Firebase for the native Flutter app (com.example.darify). Use Frappe Push Relay only for Raven/web tokens.",
+   "fieldname": "mobile_push_provider",
+   "fieldtype": "Select",
+   "label": "Mobile Push Provider",
+   "options": "Darify Firebase\nFrappe Push Relay"
+  },
+  {
+   "default": "darify-b9ff8",
+   "depends_on": "eval:doc.mobile_push_provider == 'Darify Firebase'",
+   "description": "Firebase project_id from google-services.json (e.g. darify-b9ff8).",
+   "fieldname": "firebase_project_id",
+   "fieldtype": "Data",
+   "label": "Firebase Project ID",
+   "mandatory_depends_on": "eval:doc.mobile_push_provider == 'Darify Firebase'"
+  },
+  {
+   "depends_on": "eval:doc.mobile_push_provider == 'Darify Firebase'",
+   "description": "Paste the full JSON from Firebase Console > Project Settings > Service Accounts > Generate new private key.",
+   "fieldname": "firebase_service_account_json",
+   "fieldtype": "Password",
+   "label": "Firebase Service Account JSON",
+   "mandatory_depends_on": "eval:doc.mobile_push_provider == 'Darify Firebase'"
+  },
+  {
+   "default": "15",
+   "depends_on": "eval:doc.mobile_push_provider == 'Darify Firebase'",
+   "fieldname": "firebase_request_timeout_seconds",
+   "fieldtype": "Int",
+   "label": "Firebase Request Timeout (Seconds)"
   },
   {
    "fieldname": "property_settings_tab",
