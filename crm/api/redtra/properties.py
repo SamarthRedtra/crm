@@ -55,6 +55,7 @@ SUMMARY_FIELDS = [
 	"quality_score",
 	"handover_quarter",
 	"handover_year",
+	"completion_percentage",
 ]
 
 TITLE_MIN_LETTERS = 15
@@ -267,6 +268,7 @@ def list_properties() -> dict[str, Any]:
 				property_dt.quality_score.as_("quality_score"),
 				property_dt.handover_quarter.as_("handover_quarter"),
 				property_dt.handover_year.as_("handover_year"),
+				property_dt.completion_percentage.as_("completion_percentage"),
 				area_dt.area_name.as_("area_name"),
 				developer_dt.developer_name.as_("developer_name"),
 			)
@@ -731,6 +733,7 @@ def serialize_property_summary(row: dict[str, Any]) -> dict[str, Any]:
 		"description_not_formatted": strip_html(row.get("description")) if row.get("description") else None,
 		"handover_quarter": row.get("handover_quarter"),
 		"handover_year": row.get("handover_year"),
+		"completion_percentage": row.get("completion_percentage"),
 		"leads": _get_property_leads(property_id),
 	}
 
@@ -850,6 +853,7 @@ def serialize_property_detail(doc) -> dict[str, Any]:
 		"whatsapp_chat_link": link,
 		"handover_quarter": doc.handover_quarter,
 		"handover_year": doc.handover_year,
+		"completion_percentage": doc.completion_percentage,
 		"leads": _get_property_leads(doc.name),
 	}
 
