@@ -2,73 +2,92 @@ import { defineConfig } from 'vite'
 import vue from '@vitejs/plugin-vue'
 import vueJsx from '@vitejs/plugin-vue-jsx'
 import path from 'path'
-import fs from 'fs'
-import frappeui from 'frappe-ui/vite'
 import { VitePWA } from 'vite-plugin-pwa'
 
-function appPath(app) {
-  const root = path.resolve(__dirname, '../..') // points to apps
-  const frontendPaths = [
-    // Standard frontend structure: appname/frontend/src
-    path.join(root, app, 'frontend', 'src'),
-    // Desk-based apps: appname/desk/src
-    path.join(root, app, 'desk', 'src'),
-    // Alternative frontend structures
-    path.join(root, app, 'client', 'src'),
-    path.join(root, app, 'ui', 'src'),
-    // Direct src structure: appname/src
-    path.join(root, app, 'src'),
-  ]
-  return frontendPaths.find((srcPath) => fs.existsSync(srcPath)) || null
-}
-
-function hasApp(app) {
-  return fs.existsSync(appPath(app))
-}
-
-// List of frontend apps used in this project
-let apps = []
-
-const alias = [
-  // Default "@" for this app
-  {
-    find: '@',
-    replacement: path.resolve(__dirname, 'src'),
-  },
-
-  // App-specific aliases like @helpdesk, @hrms, etc.
-  ...apps.map((app) =>
-    hasApp(app)
-      ? { find: `@${app}`, replacement: appPath(app) }
-      : { find: `@${app}`, replacement: `virtual:${app}` },
-  ),
-]
-
-const defineFlags = Object.fromEntries(
-  apps.map((app) => [
-    `__HAS_${app.toUpperCase()}__`,
-    JSON.stringify(hasApp(app)),
-  ]),
-)
-
-const virtualStubPlugin = {
-  name: 'virtual-empty-modules',
-  resolveId(id) {
-    if (id.startsWith('virtual:')) return '\0' + id
-  },
-  load(id) {
-    if (id.startsWith('\0virtual:')) {
-      return 'export default {}; export const missing = true;'
-    }
-  },
-}
-
-console.log('Generated app aliases:', alias)
-
 // https://vitejs.dev/config/
-export default defineConfig({
-  define: defineFlags,
-  plugins: [
+export default defineConfig(async ({ mode }) => {
+  const isDev = mode === 'development'
+  const config = {
+    plugins: [
+      vue(),
+      vueJsx(),
+      VitePWA({
+        registerType: 'autoUpdate',
+        devOptions: {
+          enabled: true,
+        },
+        manifest: {
+          display: 'standalone',
+          name: 'Frappe CRM',
+          short_name: 'Frappe CRM',
+          start_url: '/crm',
+          description:
+            'Modern & 100% Open-source CRM tool to supercharge your sales operations',
+          icons: [
+            {
+              src: '/assets/crm/manifest/manifest-icon-192.maskable.png',
+              sizes: '192x192',
+              type: 'image/png',
+              purpose: 'any',
+            },
+            {
+              src: '/assets/crm/manifest/manifest-icon-192.maskable.png',
+              sizes: '192x192',
+              type: 'image/png',
+              purpose: 'maskable',
+            },
+            {
+              src: '/assets/crm/manifest/manifest-icon-512.maskable.png',
+              sizes: '512x512',
+              type: 'image/png',
+              purpose: 'any',
+            },
+            {
+              src: '/assets/crm/manifest/manifest-icon-512.maskable.png',
+              sizes: '512x512',
+              type: 'image/png',
+              purpose: 'maskable',
+            },
+          ],
+        },
+      }),
+    ],
+    resolve: {
+      alias: {
+        '@': path.resolve(__dirname, 'src'),
+        // point at the package src dir (not index.ts) so subpath imports like
+        // `@framework/ui/components/Notifications` resolve. Importing subpaths avoids the
+        // barrel, which `export *`s components (Grid/Phone/FormLayout) that need a newer
+        // frappe-ui (`frappe-ui/internals`) than this app pins.
+        '@framework/ui': path.resolve(__dirname, '../../frappe/ui/src'),
+      },
+      // ensure the linked framework package reuses the host app's single copy of each peer.
+      // `dompurify` is an implicit dep of @framework/ui's sanitize util (not declared in its
+      // package.json); dedupe resolves it to the host's copy since the symlinked source has
+      // no node_modules of its own.
+      dedupe: ['vue', 'vue-router', 'frappe-ui', 'dompurify'],
+    },
+    optimizeDeps: {
+      include: [
+        'feather-icons',
+        'tailwind.config.js',
+        'prosemirror-state',
+        'prosemirror-view',
+        'lowlight',
+        'interactjs',
+      ],
+    },
+    server: {
+      fs: {
+        // allow the bench `apps/` dir so Vite can serve linked local packages
+        // (frappe-ui, @framework/ui) that live in sibling app repos
+        allow: [path.resolve(__dirname, '../..')],
+      },
+    },
+  }
+
+  const frappeui = await importFrappeUIPlugin(isDev, config)
+  config.plugins.unshift(
     frappeui({
       frappeProxy: true,
       lucideIcons: true,
@@ -79,59 +98,62 @@ export default defineConfig({
         sourcemap: true,
       },
     }),
-    vue(),
-    vueJsx(),
-    VitePWA({
-      registerType: 'autoUpdate',
-      devOptions: {
-        enabled: true,
-      },
-      manifest: {
-        display: 'standalone',
-        name: 'Frappe CRM',
-        short_name: 'Frappe CRM',
-        start_url: '/crm',
-        description:
-          'Modern & 100% Open-source CRM tool to supercharge your sales operations',
-        icons: [
-          {
-            src: '/assets/crm/manifest/manifest-icon-192.maskable.png',
-            sizes: '192x192',
-            type: 'image/png',
-            purpose: 'any',
-          },
-          {
-            src: '/assets/crm/manifest/manifest-icon-192.maskable.png',
-            sizes: '192x192',
-            type: 'image/png',
-            purpose: 'maskable',
-          },
-          {
-            src: '/assets/crm/manifest/manifest-icon-512.maskable.png',
-            sizes: '512x512',
-            type: 'image/png',
-            purpose: 'any',
-          },
-          {
-            src: '/assets/crm/manifest/manifest-icon-512.maskable.png',
-            sizes: '512x512',
-            type: 'image/png',
-            purpose: 'maskable',
-          },
-        ],
-      },
-    }),
-    virtualStubPlugin,
-  ],
-  resolve: { alias },
-  optimizeDeps: {
-    include: [
-      'feather-icons',
-      'showdown',
-      'tailwind.config.js',
-      'prosemirror-state',
-      'prosemirror-view',
-      'lowlight',
-    ],
-  },
+  )
+
+  return config
 })
+
+async function importFrappeUIPlugin(isDev, config) {
+  if (isDev) {
+    try {
+      // Check if local frappe-ui has the vite plugin file
+      const fs = await import('node:fs')
+      const localVitePluginPath = path.resolve(__dirname, '../frappe-ui/vite')
+
+      if (fs.existsSync(localVitePluginPath)) {
+        const module = await import('../frappe-ui/vite')
+        console.info('Local frappe-ui vite plugin found, using local plugin')
+        config.resolve.alias = getAliases(config)
+        return module.default
+      } else {
+        console.warn('Local frappe-ui vite plugin not found, using npm package')
+      }
+    } catch (error) {
+      console.warn(
+        'Local frappe-ui not found, falling back to npm package:',
+        error.message,
+      )
+    }
+  }
+  // Fall back to npm package if local import fails
+  const module = await import('frappe-ui/vite')
+  return module.default
+}
+
+function getAliases(config) {
+  return {
+    ...config.resolve.alias,
+    'frappe-ui/tailwind': path.resolve(
+      __dirname,
+      '../frappe-ui/tailwind/preset.js',
+    ),
+    'frappe-ui/style.css': path.resolve(
+      __dirname,
+      '../frappe-ui/src/style.css',
+    ),
+    'frappe-ui/frappe': path.resolve(__dirname, '../frappe-ui/frappe/index.js'),
+    // subpath entries must precede the bare `frappe-ui` key: a plain string alias
+    // matches by prefix, so without these `frappe-ui/editor` would rewrite to
+    // `.../src/index.ts/editor`. `internals` is pulled in by @framework/ui.
+    'frappe-ui/editor': path.resolve(
+      __dirname,
+      '../frappe-ui/src/molecules/editor/index.ts',
+    ),
+    'frappe-ui/editor-style.css': path.resolve(
+      __dirname,
+      '../frappe-ui/src/molecules/editor/style.css',
+    ),
+    'frappe-ui/internals': path.resolve(__dirname, '../frappe-ui/internals.ts'),
+    'frappe-ui': path.resolve(__dirname, '../frappe-ui/src/index.ts'),
+  }
+}

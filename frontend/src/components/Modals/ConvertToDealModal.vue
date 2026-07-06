@@ -1,9 +1,9 @@
 <template>
-  <Dialog v-model="show" :options="{ size: 'xl' }">
+  <Dialog v-model:open="show" :size="'xl'">
     <template #body-header>
       <div class="mb-6 flex items-center justify-between">
         <div>
-          <h3 class="text-2xl font-semibold leading-6 text-ink-gray-9">
+          <h3 class="text-3xl-semibold leading-6 text-ink-gray-9">
             {{ __('Convert to Deal') }}
           </h3>
         </div>
@@ -15,11 +15,11 @@
             :icon="EditIcon"
             @click="openQuickEntryModal"
           />
-          <Button icon="x" variant="ghost" @click="show = false" />
+          <Button icon="lucide-x" variant="ghost" @click="show = false" />
         </div>
       </div>
     </template>
-    <template #body-content>
+    <template #default>
       <div class="mb-4 flex items-center gap-2 text-ink-gray-5">
         <OrganizationsIcon class="h-4 w-4" />
         <label class="block text-base">{{ __('Organization') }}</label>
@@ -97,20 +97,16 @@ import { sessionStore } from '@/stores/session'
 import { statusesStore } from '@/stores/statuses'
 import { showQuickEntryModal, quickEntryProps } from '@/composables/modals'
 import { isMobileView } from '@/composables/settings'
-import { capture } from '@/telemetry'
-import { useOnboarding } from 'frappe-ui/frappe'
+import { useOnboarding, useTelemetry } from 'frappe-ui/frappe'
 import { Switch, Dialog, createResource, call } from 'frappe-ui'
 import { ref, computed } from 'vue'
 import { useRouter } from 'vue-router'
 
 const props = defineProps({
-  lead: {
-    type: Object,
-    required: true,
-  },
+  lead: { type: Object, required: true },
 })
 
-const show = defineModel()
+const show = defineModel({ type: Boolean })
 
 const router = useRouter()
 
@@ -125,6 +121,7 @@ const existingOrganizationChecked = ref(false)
 const existingContact = ref('')
 const existingOrganization = ref('')
 const error = ref('')
+const { capture } = useTelemetry()
 
 const { triggerConvertToDeal } = useDocument('CRM Lead', props.lead.name)
 const { document: deal } = useDocument('CRM Deal')
@@ -190,13 +187,7 @@ async function convertToDeal() {
   }
 }
 
-const dealStatuses = computed(() => {
-  let statuses = statusOptions('deal')
-  if (!deal.doc?.status) {
-    deal.doc.status = statuses[0].value
-  }
-  return statuses
-})
+const dealStatuses = computed(() => statusOptions('deal'))
 
 const dealTabs = createResource({
   url: 'crm.fcrm.doctype.crm_fields_layout.crm_fields_layout.get_fields_layout',

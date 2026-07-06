@@ -1,75 +1,115 @@
 import { getScript } from '@/data/script'
 import { globalStore } from '@/stores/global'
+import { getMeta } from '@/stores/meta'
+import { useAttachments } from '@/composables/useAttachments'
 import { showSettings, activeSettingsPage } from '@/composables/settings'
-import { runSequentially, parseAssignees } from '@/utils'
+import { runSequentially, parseAssignees, sanitizeText } from '@/utils'
+import { findMissingMandatory } from '@/utils/fieldTransforms'
 import { createDocumentResource, createResource, toast } from 'frappe-ui'
-import { ref, reactive } from 'vue'
+import { ref, reactive, getCurrentInstance } from 'vue'
 
 const documentsCache = {}
 const controllersCache = {}
 const assigneesCache = {}
+const permissionsCache = {}
 
-export function useDocument(doctype, docname) {
+export function useDocument(doctype, docname, resourceOverrides = {}) {
+  if (typeof docname === 'number') docname = String(docname)
   const { setupScript, scripts } = getScript(doctype)
+  const meta = getMeta(doctype)
+  const { trackOldFile, processPendingDeletions } = useAttachments(
+    doctype,
+    docname,
+  )
 
+  const vm = getCurrentInstance()?.proxy
   documentsCache[doctype] = documentsCache[doctype] || {}
 
   const error = ref('')
 
   if (!documentsCache[doctype][docname || '']) {
     if (docname) {
-      documentsCache[doctype][docname] = createDocumentResource({
-        doctype: doctype,
-        name: docname,
-        onSuccess: async () => await setupFormScript(),
-        onError: (err) => {
-          error.value = err
-          if (err.exc_type === 'DoesNotExistError') {
-            toast.error(__(err.messages[0] || 'Document does not exist'))
-          }
-          if (err.exc_type === 'PermissionError') {
-            toast.error(
-              __(
-                err.messages[0] ||
-                  'You do not have permission to access this document',
-              ),
-            )
-          }
-        },
-        setValue: {
-          onSuccess: () => {
-            triggerOnSave()
-            toast.success(__('Document updated successfully'))
-          },
+      documentsCache[doctype][docname] = createDocumentResource(
+        {
+          realtime: Boolean(vm?.$socket),
+          doctype: doctype,
+          name: docname,
+          onSuccess: async () => await setupFormScript(),
           onError: (err) => {
-            triggerOnError(err)
-
-            if (err.exc_type == 'MandatoryError') {
-              const fieldName = err.messages
-                .map((msg) => {
-                  let arr = msg.split(': ')
-                  return arr[arr.length - 1].trim()
-                })
-                .join(', ')
-              toast.error(__('Mandatory field error: {0}', [fieldName]))
-              return
+            error.value = err
+            if (err.exc_type === 'DoesNotExistError') {
+              toast.error(__(err.messages[0] || 'Document does not exist'))
             }
-
-            err.messages?.forEach((msg) => {
-              toast.error(msg)
-            })
-
-            if (err.messages?.length === 0) {
-              toast.error(__('An error occurred while updating the document'))
+            if (err.exc_type === 'PermissionError') {
+              toast.error(
+                __(
+                  err.messages[0] ||
+                    'You do not have permission to access this document',
+                ),
+              )
             }
-
-            console.error(err)
           },
+          setValue: {
+            onSuccess: () => {
+              triggerOnSave()
+              toast.success(__('Document updated successfully'))
+              processPendingDeletions()
+            },
+            onError: (err) => {
+              triggerOnError(err)
+
+              if (err.exc_type == 'MandatoryError') {
+                const fieldName = err.messages
+                  .map((msg) => {
+                    let arr = msg.split(': ')
+                    return arr[arr.length - 1].trim()
+                  })
+                  .join(', ')
+                toast.error(__('Mandatory field error: {0}', [fieldName]))
+                return
+              }
+
+              err.messages?.forEach((msg) => {
+                toast.error(msg)
+              })
+
+              if (err.messages?.length === 0) {
+                toast.error(__('An error occurred while updating the document'))
+              }
+
+              console.error(err)
+            },
+          },
+          ...resourceOverrides,
         },
-      })
+        vm,
+      )
+      if (!documentsCache[doctype][docname].fieldHtmlMap) {
+        documentsCache[doctype][docname].fieldHtmlMap = {}
+      }
+      if (!documentsCache[doctype][docname].fieldPropertyOverrides) {
+        documentsCache[doctype][docname].fieldPropertyOverrides = {}
+      }
+
+      // Override the submit function to trigger validation before submitting
+      // TODO: fix validate function to return error message instead of throwing error in frappe-ui and remove try-catch block here
+      const _save = documentsCache[doctype][docname].save
+      const _originalSubmit = _save.submit
+      _save.submit = async function (...args) {
+        try {
+          await triggerOnValidate()
+        } catch (err) {
+          console.error(err)
+          return
+        }
+        const mandatory = checkMandatory(documentsCache[doctype][docname].doc)
+        if (mandatory) return
+        return _originalSubmit.apply(_save, args)
+      }
     } else {
       documentsCache[doctype][''] = reactive({
-        doc: {},
+        doc: { __newDocument: true, doctype },
+        fieldPropertyOverrides: {},
       })
       setupFormScript()
     }
@@ -87,6 +127,21 @@ export function useDocument(doctype, docname) {
         name: docname,
       },
       transform: (data) => parseAssignees(data),
+    })
+  }
+
+  permissionsCache[doctype] = permissionsCache[doctype] || {}
+
+  if (!permissionsCache[doctype][docname || '']) {
+    permissionsCache[doctype][docname || ''] = createResource({
+      url: 'frappe.client.get_doc_permissions',
+      cache: `permissions:${doctype}:${docname}`,
+      auto: docname ? true : false,
+      params: {
+        doctype: doctype,
+        docname: docname,
+      },
+      initialData: { permissions: {} },
     })
   }
 
@@ -125,7 +180,7 @@ export function useDocument(doctype, docname) {
 
     const organizedControllers = {}
     for (const controller of controllersArray) {
-      const controllerKey = controller.constructor.name // e.g., "CRMLead", "CRMProducts"
+      const controllerKey = controller._className || controller.constructor.name
       if (!organizedControllers[controllerKey]) {
         organizedControllers[controllerKey] = []
       }
@@ -134,6 +189,7 @@ export function useDocument(doctype, docname) {
     controllersCache[doctype][docname || ''] = organizedControllers
 
     triggerOnLoad()
+    triggerOnRender()
   }
 
   function getControllers(row = null) {
@@ -152,9 +208,37 @@ export function useDocument(doctype, docname) {
     return []
   }
 
+  function checkMandatory(doc) {
+    let fields = meta?.doctypesMeta?.[doctype]?.fields || []
+
+    if (!fields || fields.length === 0) return
+
+    const overrides =
+      documentsCache[doctype][docname || '']?.fieldPropertyOverrides || {}
+
+    const missingFields = findMissingMandatory(fields, doc, {
+      propertyOverrides: overrides,
+      doctypesMeta: meta?.doctypesMeta || {},
+    })
+
+    if (missingFields.length > 0) {
+      toast.error(
+        __('Mandatory fields required: {0}', [missingFields.join(', ')]),
+      )
+      return __('Mandatory fields required: {0}', [missingFields.join(', ')])
+    }
+  }
+
   async function triggerOnLoad() {
     const handler = async function () {
       await (this.onLoad?.() || this.on_load?.() || this.onload?.())
+    }
+    await trigger(handler)
+  }
+
+  async function triggerOnRender() {
+    const handler = async function () {
+      await (this.onRender?.() || this.on_render?.() || this.refresh?.())
     }
     await trigger(handler)
   }
@@ -163,6 +247,13 @@ export function useDocument(doctype, docname) {
     const args = Array.from(arguments)
     const handler = async function () {
       await (this.onBeforeCreate?.(...args) || this.on_before_create?.(...args))
+    }
+    await trigger(handler)
+  }
+
+  async function triggerOnValidate() {
+    const handler = async function () {
+      await (this.onValidate?.() || this.on_validate?.() || this.validate?.())
     }
     await trigger(handler)
   }
@@ -181,14 +272,8 @@ export function useDocument(doctype, docname) {
     await trigger(handler)
   }
 
-  async function triggerOnRefresh() {
-    const handler = async function () {
-      await this.refresh?.()
-    }
-    await trigger(handler)
-  }
-
-  async function triggerOnChange(fieldname, value, row) {
+  async function triggerOnChange(fieldname, _value, row) {
+    const value = sanitizeText(_value)
     let oldValue = null
     if (row) {
       oldValue = row[fieldname]
@@ -196,6 +281,7 @@ export function useDocument(doctype, docname) {
     } else {
       oldValue = documentsCache[doctype][docname || ''].doc[fieldname]
       documentsCache[doctype][docname || ''].doc[fieldname] = value
+      trackOldFile(oldValue, value)
     }
 
     const handler = async function () {
@@ -210,14 +296,19 @@ export function useDocument(doctype, docname) {
     try {
       await trigger(handler, row)
     } catch (error) {
-      if (row) {
-        row[fieldname] = oldValue
-      } else {
-        documentsCache[doctype][docname || ''].doc[fieldname] = oldValue
-      }
       console.error(handler)
       throw error
     }
+  }
+
+  async function triggerButton(fieldname, row) {
+    const handler = async function () {
+      if (row) {
+        this.currentRowIdx = row.idx
+      }
+      await this[fieldname]?.()
+    }
+    await trigger(handler, row)
   }
 
   async function triggerOnRowAdd(row) {
@@ -264,6 +355,12 @@ export function useDocument(doctype, docname) {
     await trigger(handler)
   }
 
+  function setFieldHtml(fieldname, html) {
+    const cache = documentsCache[doctype][docname || '']
+    if (!cache.fieldHtmlMap) cache.fieldHtmlMap = {}
+    cache.fieldHtmlMap[fieldname] = html
+  }
+
   async function trigger(taskFn, row = null) {
     const controllers = getControllers(row)
     if (!controllers.length) return
@@ -278,19 +375,23 @@ export function useDocument(doctype, docname) {
   return {
     document: documentsCache[doctype][docname || ''],
     assignees: assigneesCache[doctype][docname || ''],
+    permissions: permissionsCache[doctype][docname || ''],
     scripts,
     error,
     getControllers,
     triggerOnLoad,
+    triggerOnRender,
     triggerOnBeforeCreate,
+    triggerOnValidate,
     triggerOnSave,
     triggerOnError,
-    triggerOnRefresh,
     triggerOnChange,
+    triggerButton,
     triggerOnRowAdd,
     triggerOnRowRemove,
     setupFormScript,
     triggerOnCreateLead,
     triggerConvertToDeal,
+    setFieldHtml,
   }
 }

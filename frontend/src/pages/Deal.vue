@@ -25,7 +25,7 @@
         <template #default="{ open }">
           <Button
             v-if="doc.status"
-            :label="doc.status"
+            :label="statusLabel(doc.status)"
             :iconRight="open ? 'chevron-up' : 'chevron-down'"
           >
             <template #prefix>
@@ -37,29 +37,34 @@
     </template>
   </LayoutHeader>
   <div v-if="doc.name" class="flex h-full overflow-hidden">
-    <Tabs as="div" v-model="tabIndex" :tabs="tabs">
+    <Tabs
+      v-model="tabIndex"
+      as="div"
+      :tabs="tabs"
+      class="flex flex-1 overflow-hidden flex-col [&_[role='tab']]:px-0 [&_[role='tab']]:shrink-0 [&_[role='tablist']]:px-5 [&_[role='tablist']::-webkit-scrollbar]:h-0 [&_[role='tablist']]:min-h-[45px] [&_[role='tablist']]:gap-7.5 [&_[role='tabpanel']:not([hidden])]:flex [&_[role='tabpanel']:not([hidden])]:grow"
+    >
       <template #tab-panel>
         <Activities
           ref="activities"
+          v-model:reload="reload"
+          v-model:tabIndex="tabIndex"
           doctype="CRM Deal"
           :docname="dealId"
           :tabs="tabs"
-          v-model:reload="reload"
-          v-model:tabIndex="tabIndex"
           @beforeSave="beforeStatusChange"
-          @afterSave="reloadAssignees"
+          @afterSave="reloadResources"
         />
       </template>
     </Tabs>
     <Resizer side="right" class="flex flex-col justify-between border-l">
       <div
-        class="flex h-10.5 cursor-copy items-center border-b px-5 py-2.5 text-lg font-medium text-ink-gray-9"
+        class="flex h-[45px] cursor-copy items-center border-b px-5 py-2.5 text-lg-medium text-ink-gray-9"
         @click="copyToClipboard(dealId)"
       >
         {{ __(dealId) }}
       </div>
       <div class="flex items-center justify-start gap-5 border-b p-5">
-        <Tooltip :text="__('Organization logo')">
+        <Tooltip :text="__('Organization Logo')">
           <div class="group relative size-12">
             <Avatar
               size="3xl"
@@ -70,47 +75,52 @@
           </div>
         </Tooltip>
         <div class="flex flex-col gap-2.5 truncate text-ink-gray-9">
-          <Tooltip :text="organization?.name || __('Set an organization')">
-            <div class="truncate text-2xl font-medium">
+          <Tooltip :text="organization?.name || __('Set an Organization')">
+            <div class="truncate text-3xl-medium">
               {{ title }}
             </div>
           </Tooltip>
           <div class="flex gap-1.5">
             <Button
               v-if="callEnabled"
-              :tooltip="__('Make a call')"
+              :tooltip="__('Make a Call')"
               :icon="PhoneIcon"
               @click="triggerCall"
             />
 
             <Button
-              :tooltip="__('Send an email')"
+              :tooltip="__('Send an Email')"
               :icon="Email2Icon"
               @click="
-                doc.email ? openEmailBox() : toast.error(__('No email set'))
+                doc.email
+                  ? openEmailBox()
+                  : toast.error(
+                      __('Please set an email address to send emails'),
+                    )
               "
             />
 
             <Button
-              :tooltip="__('Go to website')"
+              :tooltip="__('Go to Website')"
               :icon="LinkIcon"
               @click="
                 doc.website
                   ? openWebsite(doc.website)
-                  : toast.error(__('No website set'))
+                  : toast.error(__('Please set a website to visit'))
               "
             />
 
             <Button
-              :tooltip="__('Attach a file')"
+              :tooltip="__('Attach a File')"
               :icon="AttachmentIcon"
               @click="showFilesUploader = true"
             />
 
             <Button
+              v-if="canDelete"
               :tooltip="__('Delete')"
               variant="subtle"
-              icon="trash-2"
+              icon="lucide-trash-2"
               theme="red"
               @click="deleteDeal"
             />
@@ -133,14 +143,13 @@
           :docname="dealId"
           @reload="sections.reload"
           @beforeFieldChange="beforeStatusChange"
-          @afterFieldChange="reloadAssignees"
+          @afterFieldChange="reloadResources"
         >
           <template #actions="{ section }">
             <div v-if="section.name == 'contacts_section'" class="pr-2">
               <Link
                 value=""
                 doctype="Contact"
-                @change="(e) => addContact(e)"
                 :onCreate="
                   (value, close) => {
                     _contact = {
@@ -151,12 +160,13 @@
                     close()
                   }
                 "
+                @change="(e) => addContact(e)"
               >
                 <template #target="{ togglePopover }">
                   <Button
                     class="h-7 px-3"
                     variant="ghost"
-                    icon="plus"
+                    icon="lucide-plus"
                     @click="togglePopover()"
                   />
                 </template>
@@ -176,12 +186,12 @@
                 <span>{{ __('Loading...') }}</span>
               </div>
               <div
-                v-else-if="dealContacts?.data?.length"
                 v-for="(contact, i) in dealContacts.data"
+                v-else-if="dealContacts?.data?.length"
                 :key="contact.name"
               >
                 <div class="px-2 pb-2.5" :class="[i == 0 ? 'pt-5' : 'pt-2.5']">
-                  <Section :opened="contact.opened">
+                  <CollapsibleSection :opened="contact.opened">
                     <template #header="{ opened, toggle }">
                       <div
                         class="flex cursor-pointer items-center justify-between gap-2 pr-1 text-base leading-5 text-ink-gray-7"
@@ -209,14 +219,14 @@
                         <div class="flex items-center">
                           <Dropdown :options="contactOptions(contact)">
                             <Button
-                              icon="more-horizontal"
+                              icon="lucide-more-horizontal"
                               class="text-ink-gray-5"
                               variant="ghost"
                             />
                           </Dropdown>
                           <Button
                             variant="ghost"
-                            :tooltip="__('View contact')"
+                            :tooltip="__('View Contact')"
                             :icon="ArrowUpRightIcon"
                             @click="
                               router.push({
@@ -229,36 +239,46 @@
                             variant="ghost"
                             class="transition-all duration-300 ease-in-out"
                             :class="{ 'rotate-90': opened }"
-                            icon="chevron-right"
+                            icon="lucide-chevron-right"
                             @click="toggle()"
                           />
                         </div>
                       </div>
                     </template>
-                    <div
-                      class="flex flex-col gap-1.5 text-base text-ink-gray-8"
-                    >
-                      <div class="flex items-center gap-3 pb-1.5 pl-1 pt-4">
+                    <div class="flex flex-col gap-1.5 text-base">
+                      <div
+                        v-if="contact.email"
+                        class="flex items-center gap-3 pb-1.5 pl-1 pt-4 text-ink-gray-8"
+                      >
                         <Email2Icon class="h-4 w-4" />
                         {{ contact.email }}
                       </div>
-                      <div class="flex items-center gap-3 p-1 py-1.5">
+                      <div
+                        v-if="contact.mobile_no"
+                        class="flex items-center gap-3 p-1 py-1.5 text-ink-gray-8"
+                      >
                         <PhoneIcon class="h-4 w-4" />
                         {{ contact.mobile_no }}
                       </div>
+                      <div
+                        v-if="!contact.email && !contact.mobile_no"
+                        class="flex items-center justify-center py-4 text-sm text-ink-gray-4"
+                      >
+                        {{ __('No Details Added') }}
+                      </div>
                     </div>
-                  </Section>
+                  </CollapsibleSection>
                 </div>
                 <div
                   v-if="i != dealContacts.data.length - 1"
-                  class="mx-2 h-px border-t border-outline-gray-modals"
+                  class="mx-2 h-px border-t border-outline-elevation-2"
                 />
               </div>
               <div
                 v-else
                 class="flex h-20 items-center justify-center text-base text-ink-gray-5"
               >
-                {{ __('No contacts added') }}
+                {{ __('No Contacts Added') }}
               </div>
             </div>
           </template>
@@ -310,7 +330,8 @@
   <LostReasonModal
     v-if="showLostReasonModal"
     v-model="showLostReasonModal"
-    :deal="document"
+    doctype="CRM Deal"
+    :document="document"
   />
 </template>
 <script setup>
@@ -324,6 +345,7 @@ import EmailIcon from '@/components/Icons/EmailIcon.vue'
 import Email2Icon from '@/components/Icons/Email2Icon.vue'
 import CommentIcon from '@/components/Icons/CommentIcon.vue'
 import DetailsIcon from '@/components/Icons/DetailsIcon.vue'
+import EventIcon from '@/components/Icons/EventIcon.vue'
 import PhoneIcon from '@/components/Icons/PhoneIcon.vue'
 import TaskIcon from '@/components/Icons/TaskIcon.vue'
 import NoteIcon from '@/components/Icons/NoteIcon.vue'
@@ -341,18 +363,25 @@ import AssignTo from '@/components/AssignTo.vue'
 import FilesUploader from '@/components/FilesUploader/FilesUploader.vue'
 import ContactModal from '@/components/Modals/ContactModal.vue'
 import Link from '@/components/Controls/Link.vue'
-import Section from '@/components/Section.vue'
+import CollapsibleSection from '@/components/CollapsibleSection.vue'
 import SidePanelLayout from '@/components/SidePanelLayout.vue'
 import SLASection from '@/components/SLASection.vue'
 import CustomActions from '@/components/CustomActions.vue'
-import { openWebsite, setupCustomizations, copyToClipboard } from '@/utils'
+import {
+  openWebsite,
+  setupCustomizations,
+  copyToClipboard,
+  isTranslatable,
+} from '@/utils'
 import { getView } from '@/utils/view'
 import { getSettings } from '@/stores/settings'
 import { globalStore } from '@/stores/global'
 import { statusesStore } from '@/stores/statuses'
 import { getMeta } from '@/stores/meta'
 import { useDocument } from '@/data/document'
-import { whatsappEnabled, callEnabled } from '@/composables/settings'
+import { whatsappEnabled } from '@/composables/whatsapp'
+import { callEnabled } from '@/composables/telephony'
+import { useBroadcast } from '@/composables/useBroadcast'
 import {
   createResource,
   Dropdown,
@@ -377,6 +406,7 @@ import {
 import { useRoute, useRouter } from 'vue-router'
 import { useActiveTabManager } from '@/composables/useActiveTabManager'
 
+const { on } = useBroadcast()
 const { brand } = getSettings()
 const { $dialog, $socket, makeCall } = globalStore()
 const { statusOptions, getDealStatus } = statusesStore()
@@ -389,20 +419,24 @@ const route = useRoute()
 const router = useRouter()
 
 const props = defineProps({
-  dealId: {
-    type: String,
-    required: true,
-  },
+  dealId: { type: String, required: true },
 })
 
 const errorTitle = ref('')
 const errorMessage = ref('')
 const showDeleteLinkedDocModal = ref(false)
 
-const { triggerOnChange, assignees, document, scripts, error } = useDocument(
-  'CRM Deal',
-  props.dealId,
-)
+const {
+  triggerOnChange,
+  triggerOnRender,
+  assignees,
+  permissions,
+  document,
+  scripts,
+  error,
+} = useDocument('CRM Deal', props.dealId)
+
+const canDelete = computed(() => permissions.data?.permissions?.delete || false)
 
 const doc = computed(() => document.doc || {})
 
@@ -410,10 +444,10 @@ watch(error, (err) => {
   if (err) {
     errorTitle.value = __(
       err.exc_type == 'DoesNotExistError'
-        ? 'Document not found'
-        : 'Error occurred',
+        ? 'Document Not Found'
+        : 'Error Occurred',
     )
-    errorMessage.value = __(err.messages?.[0] || 'An error occurred')
+    errorMessage.value = __(err.messages?.[0] || 'An Error Occurred')
   } else {
     errorTitle.value = ''
     errorMessage.value = ''
@@ -460,10 +494,11 @@ watch(
 
 const organization = computed(() => organizationDocument.value?.doc || {})
 
-onMounted(() => {
+onMounted(async () => {
   $socket.on('crm_customer_created', () => {
-    toast.success(__('Customer created successfully'))
+    toast.success(__('Customer Created Successfully'))
   })
+  if (document.doc) await triggerOnRender()
 })
 
 onBeforeUnmount(() => {
@@ -501,7 +536,7 @@ const breadcrumbs = computed(() => {
 })
 
 const title = computed(() => {
-  let t = doctypeMeta['CRM Deal']?.title_field || 'name'
+  let t = doctypeMeta.value?.title_field || 'name'
   return doc.value?.[t] || props.dealId
 })
 
@@ -542,6 +577,11 @@ const tabs = computed(() => {
       icon: DetailsIcon,
     },
     {
+      name: 'Events',
+      label: __('Events'),
+      icon: EventIcon,
+    },
+    {
       name: 'Calls',
       label: __('Calls'),
       icon: PhoneIcon,
@@ -575,10 +615,11 @@ const { tabIndex } = useActiveTabManager(tabs, 'lastDealTab')
 
 const sections = createResource({
   url: 'crm.fcrm.doctype.crm_fields_layout.crm_fields_layout.get_sidepanel_sections',
-  cache: ['sidePanelSections', 'CRM Deal'],
   params: { doctype: 'CRM Deal' },
   transform: (data) => getParsedSections(data),
 })
+
+on('reload-deal-sections', () => sections.reload())
 
 if (!sections.data) sections.fetch()
 
@@ -628,7 +669,7 @@ function contactOptions(contact) {
 
 async function addContact(contact) {
   if (dealContacts.data?.find((c) => c.name === contact)) {
-    toast.error(__('Contact already added'))
+    toast.error(__('Contact Already Added'))
     return
   }
 
@@ -638,7 +679,7 @@ async function addContact(contact) {
   })
   if (d) {
     dealContacts.reload()
-    toast.success(__('Contact added'))
+    toast.success(__('Contact Added'))
   }
 }
 
@@ -649,7 +690,7 @@ async function removeContact(contact) {
   })
   if (d) {
     dealContacts.reload()
-    toast.success(__('Contact removed'))
+    toast.success(__('Contact Removed'))
   }
 }
 
@@ -660,7 +701,7 @@ async function setPrimaryContact(contact) {
   })
   if (d) {
     dealContacts.reload()
-    toast.success(__('Primary contact set'))
+    toast.success(__('Primary Contact Set'))
   }
 }
 
@@ -683,12 +724,12 @@ function triggerCall() {
   let mobile_no = primaryContact.mobile_no || null
 
   if (!primaryContact) {
-    toast.error(__('No primary contact set'))
+    toast.error(__('No Primary Contact Set'))
     return
   }
 
   if (!mobile_no) {
-    toast.error(__('No mobile number set'))
+    toast.error(__('No Mobile Number Set'))
     return
   }
 
@@ -741,6 +782,11 @@ function openEmailBox() {
   nextTick(() => (activities.value.emailBox.show = true))
 }
 
+function statusLabel(status) {
+  if (isTranslatable('CRM Deal Status')) return __(status)
+  return status
+}
+
 const showLostReasonModal = ref(false)
 
 function setLostReason() {
@@ -749,7 +795,9 @@ function setLostReason() {
     (document.doc.lost_reason && document.doc.lost_reason !== 'Other') ||
     (document.doc.lost_reason === 'Other' && document.doc.lost_notes)
   ) {
-    document.save.submit()
+    document.save.submit(null, {
+      onSuccess: () => sections.reload(),
+    })
     return
   }
 
@@ -758,20 +806,26 @@ function setLostReason() {
 
 function beforeStatusChange(data) {
   if (
-    data?.hasOwnProperty('status') &&
+    Object.hasOwn(data ?? {}, 'status') &&
     getDealStatus(data.status).type == 'Lost'
   ) {
     setLostReason()
   } else {
     document.save.submit(null, {
-      onSuccess: () => reloadAssignees(data),
+      onSuccess: () => reloadResources(data),
     })
   }
 }
 
-function reloadAssignees(data) {
-  if (data?.hasOwnProperty('deal_owner')) {
+function reloadResources(data) {
+  if (Object.hasOwn(data ?? {}, 'deal_owner')) {
     assignees.reload()
+  }
+  if (
+    Object.hasOwn(data ?? {}, 'status') &&
+    getDealStatus(data.status).type != 'Lost'
+  ) {
+    sections.reload()
   }
 }
 </script>

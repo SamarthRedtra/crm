@@ -1,20 +1,20 @@
 <template>
   <div
-    class="my-3 flex items-center justify-between text-lg font-medium sm:mb-4 sm:mt-8"
+    class="my-3 flex items-center justify-between text-lg-medium sm:mb-4 sm:mt-8"
   >
-    <div class="flex h-8 items-center text-xl font-semibold text-ink-gray-8">
+    <div class="flex h-8 items-center text-2xl-semibold text-ink-gray-8">
       {{ __('Data') }}
       <Badge
         v-if="document.isDirty"
         class="ml-3"
-        :label="'Not Saved'"
+        :label="__('Not Saved')"
         theme="orange"
       />
     </div>
     <div class="flex gap-1">
       <Button
         v-if="isManager() && !isMobileView"
-        :tooltip="__('Edit fields layout')"
+        :tooltip="__('Edit Fields Layout')"
         :icon="EditIcon"
         @click="showDataFieldsModal = true"
       />
@@ -29,7 +29,7 @@
   </div>
   <div
     v-if="document.get.loading"
-    class="flex flex-1 flex-col items-center justify-center gap-3 text-xl font-medium text-ink-gray-6"
+    class="flex flex-1 flex-col items-center justify-center gap-3 text-2xl-medium text-ink-gray-6"
   >
     <LoadingIndicator class="h-6 w-6" />
     <span>{{ __('Loading...') }}</span>
@@ -67,14 +67,8 @@ import { isMobileView } from '@/composables/settings'
 import { ref, watch, getCurrentInstance } from 'vue'
 
 const props = defineProps({
-  doctype: {
-    type: String,
-    required: true,
-  },
-  docname: {
-    type: String,
-    required: true,
-  },
+  doctype: { type: String, required: true },
+  docname: { type: String, required: true },
 })
 
 const emit = defineEmits(['beforeSave', 'afterSave'])

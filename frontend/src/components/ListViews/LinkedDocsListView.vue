@@ -1,5 +1,6 @@
 <template>
   <ListView
+    ref="listViewRef"
     :class="$attrs.class"
     :columns="columns"
     :rows="rows"
@@ -10,7 +11,6 @@
     }"
     row-key="reference_docname"
     @update:selections="(selections) => emit('selectionsChanged', selections)"
-    ref="listViewRef"
   >
     <ListHeader @columnWidthUpdated="emit('columnWidthUpdated')">
       <ListHeaderItem
@@ -22,22 +22,23 @@
       </ListHeaderItem>
     </ListHeader>
     <div class="*:mx-0 *:sm:mx-0">
-      <ListRows :rows="rows" v-slot="{ idx, column, item, row }">
+      <ListRows v-slot="{ column, item, row }" :rows="rows">
         <ListRowItem
           :item="item"
+          class="!w-full"
           @click="listViewRef.toggleRow(row['reference_docname'])"
         >
           <template #default="{ label }">
             <div
               v-if="column.key === 'title'"
-              class="truncate text-base flex gap-2"
+              class="truncate text-base flex gap-2 w-full"
             >
-              <span>
+              <span class="max-w-[90%] truncate">
                 {{ label }}
               </span>
-              <FeatherIcon
-                name="external-link"
-                class="h-4 w-4 cursor-pointer"
+              <span
+                class="lucide-external-link h-4 w-4 cursor-pointer"
+                aria-hidden="true"
                 @click.stop="viewLinkedDoc(row)"
               />
             </div>
@@ -59,23 +60,11 @@ import ListRows from '@/components/ListViews/ListRows.vue'
 import { ListView, ListHeader, ListHeaderItem, ListRowItem } from 'frappe-ui'
 import { ref } from 'vue'
 
-const props = defineProps({
-  rows: {
-    type: Array,
-    required: true,
-  },
-  columns: {
-    type: Array,
-    required: true,
-  },
-  linkedDocsResource: {
-    type: Object,
-    required: true,
-  },
-  unlinkLinkedDoc: {
-    type: Function,
-    required: true,
-  },
+defineProps({
+  rows: { type: Array, required: true },
+  columns: { type: Array, required: true },
+  linkedDocsResource: { type: Object, required: true },
+  unlinkLinkedDoc: { type: Function, required: true },
   options: {
     type: Object,
     default: () => ({
@@ -102,6 +91,7 @@ const listViewRef = ref(null)
 const viewLinkedDoc = (doc) => {
   let page = ''
   let id = ''
+  let openDesk = false
   switch (doc.reference_doctype) {
     case 'CRM Lead':
       page = 'leads'
@@ -123,6 +113,11 @@ const viewLinkedDoc = (doc) => {
       page = 'organizations'
       id = doc.reference_docname
       break
+    case 'CRM Notification':
+      page = 'crm-notification'
+      id = doc.reference_docname
+      openDesk = true
+      break
     case 'FCRM Note':
       page = 'notes'
       id = `view?open=${doc.reference_docname}`
@@ -130,7 +125,11 @@ const viewLinkedDoc = (doc) => {
     default:
       break
   }
-  window.open(`/crm/${page}/${id}`)
+  let base = '/crm'
+  if (openDesk) {
+    base = '/app'
+  }
+  window.open(`${base}/${page}/${id}`)
 }
 
 const getDoctypeName = (doctype) => {

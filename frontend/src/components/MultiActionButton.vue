@@ -29,13 +29,11 @@
 </template>
 <script setup>
 import { DropdownOption } from '@/utils'
+import { Button, Dropdown } from 'frappe-ui'
 import { computed, ref } from 'vue'
 
 const props = defineProps({
-  options: {
-    type: Array,
-    default: () => [],
-  },
+  options: { type: Array, default: () => [] },
 })
 
 const showDropdown = ref(props.options?.length > 1)

@@ -1,33 +1,33 @@
 <template>
   <Dialog
-    v-model="show"
-    :options="{
-      title: editMode
+    v-model:open="show"
+    :title="
+      editMode
         ? __('Edit View')
         : duplicateMode
           ? __('Duplicate View')
-          : __('Create View'),
-    }"
+          : __('Create View')
+    "
   >
-    <template #body-content>
+    <template #default>
       <div class="mb-1.5 block text-base text-ink-gray-5">
         {{ __('View Name') }}
       </div>
       <div class="flex gap-2">
-        <IconPicker v-model="view.icon" v-slot="{ togglePopover }">
+        <IconPicker v-slot="{ togglePopover }" v-model="view.icon">
           <Button
             size="md"
-            class="flex size-8 text-2xl leading-none"
+            class="flex size-8 text-3xl leading-none"
             :label="view.icon"
             @click="togglePopover"
           />
         </IconPicker>
         <FormControl
+          v-model="view.label"
           class="flex-1"
           size="md"
           type="text"
           :placeholder="__('My Open Deals')"
-          v-model="view.label"
         />
       </div>
     </template>
@@ -55,21 +55,15 @@ import { call } from 'frappe-ui'
 import { ref, watch, nextTick } from 'vue'
 
 const props = defineProps({
-  doctype: {
-    type: String,
-    required: true,
-  },
+  doctype: { type: String, required: true },
   options: {
     type: Object,
-    default: {
-      afterCreate: () => {},
-      afterUpdate: () => {},
-    },
+    default: () => ({ afterCreate: () => {}, afterUpdate: () => {} }),
   },
 })
 
-const show = defineModel()
-const view = defineModel('view')
+const show = defineModel({ type: Boolean })
+const view = defineModel('view', { type: Object, default: () => ({}) })
 
 const editMode = ref(false)
 const duplicateMode = ref(false)

@@ -7,15 +7,17 @@
  "engine": "InnoDB",
  "field_order": [
   "apply_on",
-  "column_break_uxua",
   "sla_name",
+  "column_break_uxua",
   "enabled",
   "default",
+  "rolling_responses",
   "section_break_nevd",
   "start_date",
   "end_date",
   "column_break_pzjg",
   "condition",
+  "condition_json",
   "section_break_ufaf",
   "priorities",
   "section_break_rmgo",
@@ -49,10 +51,12 @@
    "fieldtype": "Column Break"
   },
   {
+   "depends_on": "eval: !doc.condition_json",
    "description": "Simple Python Expression, Example: doc.status == 'Open' and doc.lead_source == 'Ads'",
    "fieldname": "condition",
    "fieldtype": "Code",
    "label": "Condition",
+   "max_height": "5rem",
    "options": "Python"
   },
   {
@@ -66,7 +70,7 @@
   {
    "fieldname": "section_break_ufaf",
    "fieldtype": "Section Break",
-   "label": "Response and Follow Up"
+   "label": "Response & Follow Up"
   },
   {
    "fieldname": "priorities",
@@ -111,11 +115,26 @@
    "fieldtype": "Link",
    "label": "Holiday List",
    "options": "CRM Holiday List"
+  },
+  {
+   "default": "0",
+   "description": "Restart the SLA each time the customer replies (status changes to Open) and fulfill it when marked as Replied",
+   "fieldname": "rolling_responses",
+   "fieldtype": "Check",
+   "label": "Rolling Responses"
+  },
+  {
+   "depends_on": "eval: doc.condition_json",
+   "description": "Auto-generated from the portal view \u2014 do not edit directly unless you know what you're doing! ",
+   "fieldname": "condition_json",
+   "fieldtype": "Code",
+   "label": "Condition",
+   "max_height": "5rem"
   }
  ],
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2024-01-19 21:54:25.831753",
+ "modified": "2026-02-23 12:41:50.104511",
  "modified_by": "Administrator",
  "module": "FCRM",
  "name": "CRM Service Level Agreement",
@@ -130,11 +149,24 @@
    "print": 1,
    "read": 1,
    "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
    "role": "Sales Manager",
    "share": 1,
    "write": 1
   }
  ],
+ "row_format": "Dynamic",
  "sort_field": "modified",
  "sort_order": "DESC",
  "states": []

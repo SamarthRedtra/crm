@@ -1,18 +1,31 @@
 import frappe
+import requests
+from frappe import _
 from frappe.query_builder import Order
 from pypika.functions import Replace
+from werkzeug.wrappers import Response
 
 from crm.utils import are_same_phone_number, parse_phone_number
 
 
+def _get_recording_credentials(telephony_medium: str) -> tuple:
+	"""Return (api_key, secret) for the given telephony medium."""
+	if telephony_medium == "Twilio":
+		s = frappe.get_single("CRM Twilio Settings")
+		return s.api_key, s.get_password("api_secret")
+	elif telephony_medium == "Exotel":
+		s = frappe.get_single("CRM Exotel Settings")
+		return s.api_key, s.get_password("api_token")
+	frappe.throw(_("Unknown telephony medium: {0}").format(telephony_medium))
+
+
 @frappe.whitelist()
 def is_call_integration_enabled():
-	twilio_enabled = frappe.db.get_single_value("CRM Twilio Settings", "enabled")
-	exotel_enabled = frappe.db.get_single_value("CRM Exotel Settings", "enabled")
-
 	return {
-		"twilio_enabled": twilio_enabled,
-		"exotel_enabled": exotel_enabled,
+		"integrations": {
+			"twilio": bool(frappe.db.get_single_value("CRM Twilio Settings", "enabled")),
+			"exotel": bool(frappe.db.get_single_value("CRM Exotel Settings", "enabled")),
+		},
 		"default_calling_medium": get_user_default_calling_medium(),
 	}
 
@@ -30,7 +43,7 @@ def get_user_default_calling_medium():
 
 
 @frappe.whitelist()
-def set_default_calling_medium(medium):
+def set_default_calling_medium(medium: str):
 	if not frappe.db.exists("CRM Telephony Agent", frappe.session.user):
 		frappe.get_doc(
 			{
@@ -46,8 +59,11 @@ def set_default_calling_medium(medium):
 
 
 @frappe.whitelist()
-def add_note_to_call_log(call_sid, note):
+def add_note_to_call_log(call_sid: str, note: dict):
 	"""Add/Update note to call log based on call sid."""
+	if not frappe.has_permission("CRM Call Log", "write", call_sid):
+		frappe.throw(_("Not permitted"), frappe.PermissionError)
+
 	_note = None
 	if not note.get("name"):
 		_note = frappe.get_doc(
@@ -68,8 +84,11 @@ def add_note_to_call_log(call_sid, note):
 
 
 @frappe.whitelist()
-def add_task_to_call_log(call_sid, task):
+def add_task_to_call_log(call_sid: str, task: dict):
 	"""Add/Update task to call log based on call sid."""
+	if not frappe.has_permission("CRM Call Log", "write", call_sid):
+		frappe.throw(_("Not permitted"), frappe.PermissionError)
+
 	_task = None
 	if not task.get("name"):
 		_task = frappe.get_doc(
@@ -105,7 +124,24 @@ def add_task_to_call_log(call_sid, task):
 
 
 @frappe.whitelist()
-def get_contact_by_phone_number(phone_number):
+def get_contact_lead_or_deal_from_number(number: str):
+	"""Get contact, lead or deal from the given number."""
+	contact = get_contact_by_phone_number(number)
+	if contact.get("name"):
+		doctype = "Contact"
+		docname = contact.get("name")
+		if contact.get("lead"):
+			doctype = "CRM Lead"
+			docname = contact.get("lead")
+		elif contact.get("deal"):
+			doctype = "CRM Deal"
+			docname = contact.get("deal")
+		return docname, doctype
+	return None, None
+
+
+@frappe.whitelist()
+def get_contact_by_phone_number(phone_number: str):
 	"""Get contact by phone number."""
 	number = parse_phone_number(phone_number)
 
@@ -115,7 +151,27 @@ def get_contact_by_phone_number(phone_number):
 		return get_contact(phone_number, number.get("country"), exact_match=True)
 
 
-def get_contact(phone_number, country="IN", exact_match=False):
+@frappe.whitelist()
+def get_recording_url(call_log_name: str):
+	"""Fetch and stream a call recording, authenticating with the provider's credentials."""
+	if not call_log_name or not frappe.db.exists("CRM Call Log", call_log_name):
+		frappe.throw(_("Call log not found"), frappe.DoesNotExistError)
+
+	log = frappe.get_doc("CRM Call Log", call_log_name)
+
+	if not log.recording_url:
+		frappe.throw(_("Recording URL not found"), frappe.DoesNotExistError)
+
+	auth = _get_recording_credentials(log.telephony_medium)
+	with requests.get(log.recording_url, auth=auth, stream=True, timeout=10) as r:
+		r.raise_for_status()
+		response = Response()
+		response.data = r.content
+		response.mimetype = "audio/mpeg"
+	return response
+
+
+def get_contact(phone_number: str, country: str = "IN", exact_match: bool = False):
 	if not phone_number:
 		return {"mobile_no": phone_number}
 
@@ -128,17 +184,29 @@ def get_contact(phone_number, country="IN", exact_match=False):
 		.replace("+", "")
 	)
 
-	# Check if the number is associated with a contact
+	# Check if the number is associated with a contact.
+	# Search all of a contact's numbers (phone_nos child table) and not just the
+	# primary mobile_no, so calls from a secondary number still resolve.
 	Contact = frappe.qb.DocType("Contact")
+	ContactPhone = frappe.qb.DocType("Contact Phone")
 	normalized_phone = Replace(
-		Replace(Replace(Replace(Replace(Contact.mobile_no, " ", ""), "-", ""), "(", ""), ")", ""), "+", ""
+		Replace(Replace(Replace(Replace(ContactPhone.phone, " ", ""), "-", ""), "(", ""), ")", ""), "+", ""
 	)
 
 	query = (
-		frappe.qb.from_(Contact)
-		.select(Contact.name, Contact.full_name, Contact.image, Contact.mobile_no)
+		frappe.qb.from_(ContactPhone)
+		.join(Contact)
+		.on(ContactPhone.parent == Contact.name)
+		.select(
+			Contact.name,
+			Contact.full_name,
+			Contact.image,
+			Contact.mobile_no,
+			ContactPhone.phone.as_("matched_phone"),
+		)
+		.where(ContactPhone.parenttype == "Contact")
 		.where(normalized_phone.like(f"%{cleaned_number}%"))
-		.orderby("modified", order=Order.desc)
+		.orderby(Contact.modified, order=Order.desc)
 	)
 	contacts = query.run(as_dict=True)
 
@@ -149,12 +217,11 @@ def get_contact(phone_number, country="IN", exact_match=False):
 				deal = frappe.db.get_value(
 					"CRM Contacts", {"contact": contact.name, "is_primary": 1}, "parent"
 				)
-				if are_same_phone_number(contact.mobile_no, phone_number, country, validate=not exact_match):
+				if are_same_phone_number(
+					contact.matched_phone, phone_number, country, validate=not exact_match
+				):
 					contact["deal"] = deal
 					return contact
-		# Else, return the first contact
-		if are_same_phone_number(contacts[0].mobile_no, phone_number, country, validate=not exact_match):
-			return contacts[0]
 
 	# Else, Check if the number is associated with a lead
 	Lead = frappe.qb.DocType("CRM Lead")
@@ -177,5 +244,10 @@ def get_contact(phone_number, country="IN", exact_match=False):
 				lead["lead"] = lead.name
 				lead["full_name"] = lead.lead_name
 				return lead
+
+	if len(contacts) and are_same_phone_number(
+		contacts[0].matched_phone, phone_number, country, validate=not exact_match
+	):
+		return contacts[0]
 
 	return {"mobile_no": phone_number}

@@ -17,7 +17,7 @@
       </Button>
     </template>
   </Autocomplete>
-  <Popover placement="bottom-end" v-else>
+  <Popover v-else placement="bottom-end">
     <template #target="{ isOpen, togglePopover }">
       <Button
         v-if="sortValues.size > 1"
@@ -28,7 +28,7 @@
       >
         <template v-if="sortValues?.size" #suffix>
           <div
-            class="flex h-5 w-5 items-center justify-center rounded-[5px] bg-surface-white pt-px text-xs font-medium text-ink-gray-8 shadow-sm"
+            class="flex h-5 w-5 items-center justify-center rounded-[5px] bg-surface-base pt-px text-xs-medium text-ink-gray-8 shadow-sm"
           >
             {{ sortValues.size }}
           </div>
@@ -65,7 +65,7 @@
     </template>
     <template #body="{ close }">
       <div
-        class="my-2 min-w-40 rounded-lg bg-surface-modal shadow-2xl ring-1 ring-black ring-opacity-5 focus:outline-none"
+        class="my-2 min-w-40 rounded-lg bg-surface-elevation-2 shadow-2xl ring-1 ring-black ring-opacity-5 focus:outline-none"
       >
         <div class="min-w-60 p-2">
           <div
@@ -99,8 +99,8 @@
                   class="[&>_div]:w-full"
                   :value="sort.fieldname"
                   :options="sortOptions.data"
-                  @change="(e) => updateSort(e, i)"
                   :placeholder="__('First Name')"
+                  @change="(e) => updateSort(e, i)"
                 >
                   <template
                     #target="{
@@ -120,7 +120,7 @@
                   </template>
                 </Autocomplete>
               </div>
-              <Button variant="ghost" icon="x" @click="removeSort(i)" />
+              <Button variant="ghost" icon="lucide-x" @click="removeSort(i)" />
             </div>
           </div>
           <div
@@ -171,18 +171,12 @@ import { createResource, Popover } from 'frappe-ui'
 import { computed, nextTick, onMounted } from 'vue'
 
 const props = defineProps({
-  doctype: {
-    type: String,
-    required: true,
-  },
-  hideLabel: {
-    type: Boolean,
-    default: false,
-  },
+  doctype: { type: String, required: true },
+  hideLabel: { type: Boolean, default: false },
 })
 
 const emit = defineEmits(['update'])
-const list = defineModel()
+const list = defineModel({ type: Object, default: () => ({}) })
 
 const sortOptions = createResource({
   url: 'crm.api.doc.sort_options',
@@ -238,6 +232,7 @@ function getSortLabel() {
 }
 
 function setSort(data) {
+  if (!data) return
   sortValues.value.add({ fieldname: data.fieldname, direction: 'asc' })
   restartSort()
   apply()

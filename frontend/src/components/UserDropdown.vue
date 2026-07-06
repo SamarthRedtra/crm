@@ -1,14 +1,14 @@
 <template>
   <Dropdown :options="dropdownItems" v-bind="$attrs">
-    <template v-slot="{ open }">
+    <template #default="{ open }">
       <button
         class="flex h-12 items-center rounded-md py-2 duration-300 ease-in-out"
         :class="
           isCollapsed
             ? 'w-auto px-0'
             : open
-              ? 'w-52 bg-surface-white px-2 shadow-sm'
-              : 'w-52 px-2 hover:bg-surface-gray-3'
+              ? 'w-full px-2 bg-surface-base shadow-sm'
+              : 'w-full px-2 hover:bg-surface-gray-3'
         "
       >
         <BrandLogo v-model="brand" class="h-8 max-w-16 flex-shrink-0" />
@@ -20,9 +20,7 @@
               : 'ml-2 w-auto opacity-100'
           "
         >
-          <div
-            class="text-base font-medium leading-none text-ink-gray-9 truncate"
-          >
+          <div class="text-base-medium leading-none text-ink-gray-9 truncate">
             {{ __(brand.name || 'CRM') }}
           </div>
           <div class="mt-1 text-sm leading-none text-ink-gray-7 truncate">
@@ -37,9 +35,8 @@
               : 'ml-2 w-auto opacity-100'
           "
         >
-          <FeatherIcon
-            name="chevron-down"
-            class="size-4 text-ink-gray-5"
+          <span
+            class="lucide-chevron-down size-4 text-ink-gray-5"
             aria-hidden="true"
           />
         </div>
@@ -59,14 +56,10 @@ import { showSettings, isMobileView } from '@/composables/settings'
 import { showAboutModal } from '@/composables/modals'
 import { confirmLoginToFrappeCloud } from '@/composables/frappecloud'
 import { Dropdown } from 'frappe-ui'
-import { theme, toggleTheme } from '@/stores/theme'
 import { computed, h, markRaw } from 'vue'
 
-const props = defineProps({
-  isCollapsed: {
-    type: Boolean,
-    default: false,
-  },
+defineProps({
+  isCollapsed: { type: Boolean, default: false },
 })
 
 const { settings, brand } = getSettings()
@@ -131,12 +124,6 @@ function getStandardItem(item) {
     case 'app_selector':
       return {
         component: markRaw(Apps),
-      }
-    case 'toggle_theme':
-      return {
-        icon: theme.value === 'dark' ? 'sun' : item.icon,
-        label: __(item.label),
-        onClick: toggleTheme,
       }
     case 'settings':
       return {

@@ -12,8 +12,8 @@
   </LayoutHeader>
   <div v-if="contact.doc" class="flex flex-col h-full overflow-hidden">
     <FileUploader
-      @success="changeContactImage"
       :validateFile="validateIsImageFile"
+      @success="changeContactImage"
     >
       <template #default="{ openFileSelector, error }">
         <div class="flex flex-col items-start justify-start gap-4 p-4">
@@ -34,13 +34,13 @@
                           {
                             icon: 'upload',
                             label: contact.doc.image
-                              ? __('Change image')
-                              : __('Upload image'),
+                              ? __('Change Image')
+                              : __('Upload Image'),
                             onClick: openFileSelector,
                           },
                           {
                             icon: 'trash-2',
-                            label: __('Remove image'),
+                            label: __('Remove Image'),
                             onClick: () => changeContactImage(''),
                           },
                         ],
@@ -61,7 +61,7 @@
               </component>
             </div>
             <div class="flex flex-col gap-2 truncate">
-              <div class="truncate text-lg font-medium text-ink-gray-9">
+              <div class="truncate text-lg-medium text-ink-gray-9">
                 <span v-if="contact.doc.salutation">
                   {{ contact.doc.salutation + '. ' }}
                 </span>
@@ -70,16 +70,17 @@
               <div class="flex items-center gap-1.5">
                 <Button
                   v-if="callEnabled && contact.doc.mobile_no"
-                  :label="__('Make Call')"
+                  :label="__('Make a Call')"
                   size="sm"
                   :iconLeft="PhoneIcon"
                   @click="callEnabled && makeCall(contact.doc.mobile_no)"
                 />
                 <Button
+                  v-if="canDelete"
                   :label="__('Delete')"
                   theme="red"
                   size="sm"
-                  icon-left="trash-2"
+                  icon-left="lucide-trash-2"
                   @click="deleteContact"
                 />
                 <Avatar
@@ -97,18 +98,23 @@
         </div>
       </template>
     </FileUploader>
-    <Tabs as="div" v-model="tabIndex" :tabs="tabs" class="overflow-auto">
-      <TabList class="!px-4" v-slot="{ tab, selected }">
+    <Tabs
+      v-model="tabIndex"
+      as="div"
+      :tabs="tabs"
+      class="flex flex-1 overflow-auto flex-col [&_[role='tablist']]:gap-3 [&_[role='tablist']]:px-4 [&_[role='tabpanel']:not([hidden])]:flex [&_[role='tabpanel']:not([hidden])]:grow"
+    >
+      <template #tab-item="{ tab, selected }">
         <button
           v-if="tab.name == 'Deals'"
-          class="group flex items-center gap-2 border-b border-transparent py-2.5 text-base text-ink-gray-5 duration-300 ease-in-out hover:border-outline-gray-3 hover:text-ink-gray-9"
+          class="group flex items-center gap-2 border-b border-transparent py-2.5 text-base text-ink-gray-5 duration-300 ease-in-out hover:text-ink-gray-9 !px-4"
           :class="{ 'text-ink-gray-9': selected }"
         >
-          <component v-if="tab.icon" :is="tab.icon" class="h-5" />
+          <component :is="tab.icon" v-if="tab.icon" class="h-5" />
           {{ __(tab.label) }}
           <Badge
-            class="group-hover:bg-surface-gray-7"
-            :class="[selected ? 'bg-surface-gray-7' : 'bg-gray-600']"
+            class="group-hover:bg-surface-gray-10"
+            :class="[selected ? 'bg-surface-gray-10' : 'bg-gray-600']"
             variant="solid"
             theme="gray"
             size="sm"
@@ -116,8 +122,8 @@
             {{ tab.count }}
           </Badge>
         </button>
-      </TabList>
-      <TabPanel v-slot="{ tab }">
+      </template>
+      <template #tab-panel="{ tab }">
         <div v-if="tab.name == 'Details'">
           <div
             v-if="sections.data"
@@ -140,14 +146,14 @@
         />
         <div
           v-if="tab.label === 'Deals' && !rows.length"
-          class="grid flex-1 place-items-center text-xl font-medium text-ink-gray-4"
+          class="grid flex-1 place-items-center text-2xl-medium text-ink-gray-4"
         >
           <div class="flex flex-col items-center justify-center space-y-3">
             <component :is="tab.icon" class="!h-10 !w-10" />
-            <div>{{ __('No {0} Found', [__(tab.label)]) }}</div>
+            <div>{{ __('No {0} found', [__(tab.label.toLowerCase())]) }}</div>
           </div>
         </div>
-      </TabPanel>
+      </template>
     </Tabs>
   </div>
 </template>
@@ -161,7 +167,8 @@ import PhoneIcon from '@/components/Icons/PhoneIcon.vue'
 import CameraIcon from '@/components/Icons/CameraIcon.vue'
 import DealsIcon from '@/components/Icons/DealsIcon.vue'
 import DealsListView from '@/components/ListViews/DealsListView.vue'
-import { formatDate, timeAgo, validateIsImageFile } from '@/utils'
+import { validateIsImageFile } from '@/utils'
+import { timestampCell } from '@/composables/useTimelinePreferences'
 import { getView } from '@/utils/view'
 import { useDocument } from '@/data/document'
 import { getSettings } from '@/stores/settings'
@@ -170,22 +177,21 @@ import { globalStore } from '@/stores/global.js'
 import { usersStore } from '@/stores/users.js'
 import { organizationsStore } from '@/stores/organizations.js'
 import { statusesStore } from '@/stores/statuses'
-import { showAddressModal, addressProps } from '@/composables/modals'
-import { callEnabled } from '@/composables/settings'
+import { callEnabled } from '@/composables/telephony'
 import {
   Breadcrumbs,
   Avatar,
   FileUploader,
   Tabs,
-  TabList,
-  TabPanel,
   call,
   createResource,
   usePageMeta,
   Dropdown,
   toast,
 } from 'frappe-ui'
-import { ref, computed, h } from 'vue'
+import { useDoctypeModal } from '@/composables/doctypeModal'
+import { useTelemetry } from 'frappe-ui/frappe'
+import { ref, computed, h, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 
 const { brand } = getSettings()
@@ -195,18 +201,26 @@ const { getUser } = usersStore()
 const { getOrganization } = organizationsStore()
 const { getDealStatus } = statusesStore()
 const { doctypeMeta } = getMeta('Contact')
+const { capture } = useTelemetry()
 
 const props = defineProps({
-  contactId: {
-    type: String,
-    required: true,
-  },
+  contactId: { type: String, required: true },
 })
 
 const route = useRoute()
 const router = useRouter()
 
-const { document: contact } = useDocument('Contact', props.contactId)
+const {
+  document: contact,
+  permissions,
+  triggerOnRender,
+} = useDocument('Contact', props.contactId)
+
+const canDelete = computed(() => permissions.data?.permissions?.delete || false)
+
+onMounted(async () => {
+  if (contact.doc) await triggerOnRender()
+})
 
 const breadcrumbs = computed(() => {
   let items = [{ label: __('Contacts'), route: { name: 'Contacts' } }]
@@ -234,7 +248,7 @@ const breadcrumbs = computed(() => {
 })
 
 const title = computed(() => {
-  let t = doctypeMeta['Contact']?.title_field || 'name'
+  let t = doctypeMeta.value?.title_field || 'name'
   return contact.doc?.[t] || props.contactId
 })
 
@@ -249,14 +263,14 @@ function changeContactImage(file) {
   contact.doc.image = file?.file_url || ''
   contact.save.submit(null, {
     onSuccess: () => {
-      toast.success(__('Contact image updated'))
+      toast.success(__('Contact Image Updated'))
     },
   })
 }
 
 async function deleteContact() {
   $dialog({
-    title: __('Delete contact'),
+    title: __('Delete Contact'),
     message: __('Are you sure you want to delete this contact?'),
     actions: [
       {
@@ -346,7 +360,7 @@ function getParsedSections(_sections) {
                     contact.doc.email_ids = contact.doc.email_ids.filter(
                       (email) => email.name !== option.name,
                     )
-                    !isNew && (await deleteOption('Contact Email', option.name))
+                    if (!isNew) await deleteOption('Contact Email', option.name)
                   },
                 }
               }) || [],
@@ -389,7 +403,7 @@ function getParsedSections(_sections) {
                     contact.doc.phone_nos = contact.doc.phone_nos.filter(
                       (phone) => phone.name !== option.name,
                     )
-                    !isNew && (await deleteOption('Contact Phone', option.name))
+                    if (!isNew) await deleteOption('Contact Phone', option.name)
                   },
                 }
               }) || [],
@@ -406,10 +420,10 @@ function getParsedSections(_sections) {
           return {
             ...field,
             create: (value, close) => {
-              openAddressModal()
+              showAddressModal()
               close()
             },
-            edit: (address) => openAddressModal(address),
+            edit: (address) => showAddressModal(address),
           }
         } else {
           return field
@@ -429,7 +443,7 @@ async function setAsPrimary(field, value) {
   })
   if (d) {
     contact.reload()
-    toast.success(___('Contact updated'))
+    toast.success(__('Contact Updated'))
   }
 }
 
@@ -442,7 +456,7 @@ async function createNew(field, value) {
   })
   if (d) {
     contact.reload()
-    toast.success(__('Contact updated'))
+    toast.success(__('Contact Updated'))
   }
 }
 
@@ -455,7 +469,7 @@ async function editOption(doctype, name, fieldname, value) {
   })
   if (d) {
     contact.reload()
-    toast.success(__('Contact updated'))
+    toast.success(__('Contact Updated'))
   }
 }
 
@@ -465,7 +479,7 @@ async function deleteOption(doctype, name) {
     name,
   })
   await contact.reload()
-  toast.success(__('Contact updated'))
+  toast.success(__('Contact Updated'))
 }
 
 const { getFormattedCurrency } = getMeta('CRM Deal')
@@ -490,10 +504,7 @@ function getDealRowObject(deal) {
       label: deal.deal_owner && getUser(deal.deal_owner).full_name,
       ...(deal.deal_owner && getUser(deal.deal_owner)),
     },
-    modified: {
-      label: formatDate(deal.modified),
-      timeAgo: __(timeAgo(deal.modified)),
-    },
+    modified: timestampCell(deal.modified),
   }
 }
 
@@ -520,27 +531,35 @@ const dealColumns = [
     width: '12rem',
   },
   {
-    label: __('Mobile no'),
+    label: __('Mobile No.'),
     key: 'mobile_no',
     width: '11rem',
   },
   {
-    label: __('Deal owner'),
+    label: __('Deal Owner'),
     key: 'deal_owner',
     width: '10rem',
   },
   {
-    label: __('Last modified'),
+    label: __('Last Modified'),
     key: 'modified',
     width: '8rem',
   },
 ]
 
-function openAddressModal(_address) {
-  showAddressModal.value = true
-  addressProps.value = {
+const { showModal } = useDoctypeModal()
+
+function showAddressModal(_address) {
+  showModal({
+    name: _address || null,
     doctype: 'Address',
-    address: _address,
-  }
+    callbacks: {
+      afterInsert: (d) => {
+        capture('address_created')
+        contact.doc.address = d.name
+        contact.save.submit()
+      },
+    },
+  })
 }
 </script>

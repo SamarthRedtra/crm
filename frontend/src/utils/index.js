@@ -2,8 +2,9 @@ import LucideCheck from '~icons/lucide/check'
 import TaskStatusIcon from '@/components/Icons/TaskStatusIcon.vue'
 import TaskPriorityIcon from '@/components/Icons/TaskPriorityIcon.vue'
 import { usersStore } from '@/stores/users'
-import { gemoji } from 'gemoji'
 import { getMeta } from '@/stores/meta'
+import { gemoji } from 'gemoji'
+import DOMPurify from 'dompurify'
 import { toast, dayjsLocal, dayjs, getConfig, FeatherIcon } from 'frappe-ui'
 import { h } from 'vue'
 
@@ -38,6 +39,37 @@ export function formatDate(date, format, onlyDate = false, onlyTime = false) {
   return dayjsLocal(date).format(format)
 }
 
+export function formatDuration(totalSeconds, longForm = false) {
+  if (
+    totalSeconds === null ||
+    totalSeconds === undefined ||
+    totalSeconds === ''
+  ) {
+    return ''
+  }
+  const s = parseInt(totalSeconds, 10)
+  if (isNaN(s)) return ''
+  if (s === 0) return longForm ? '0 seconds' : '0s'
+
+  const h = Math.floor(s / 3600)
+  const m = Math.floor((s % 3600) / 60)
+  const sec = s % 60
+
+  if (longForm) {
+    const parts = []
+    if (h) parts.push(h === 1 ? '1 hour' : `${h} hours`)
+    if (m) parts.push(m === 1 ? '1 minute' : `${m} minutes`)
+    if (sec) parts.push(sec === 1 ? '1 second' : `${sec} seconds`)
+    return parts.join(' ')
+  }
+
+  const parts = []
+  if (h) parts.push(`${h}h`)
+  if (m) parts.push(`${m}m`)
+  if (sec) parts.push(`${sec}s`)
+  return parts.join(' ')
+}
+
 export function getFormat(
   date,
   format,
@@ -45,7 +77,7 @@ export function getFormat(
   onlyTime = false,
   withDate = true,
 ) {
-  if (!date) return ''
+  if (!date && withDate) return ''
   let dateFormat =
     window.sysdefaults.date_format
       .replace('mm', 'MM')
@@ -235,11 +267,46 @@ export function taskPriorityOptions(action, data) {
   })
 }
 
-export function openWebsite(url) {
-  if (!url.startsWith('http://') && !url.startsWith('https://')) {
-    url = 'https://' + url
+export function getSafeWebsiteUrl(rawUrl) {
+  const allowedProtocols = new Set(['http:', 'https:'])
+
+  if (!rawUrl) {
+    return null
   }
-  window.open(url, '_blank')
+
+  const trimmedUrl = rawUrl.trim()
+
+  if (!trimmedUrl) {
+    return null
+  }
+
+  const urlToParse = /^[a-zA-Z][a-zA-Z\d+\-.]*:/.test(trimmedUrl)
+    ? trimmedUrl
+    : `https://${trimmedUrl}`
+
+  try {
+    const parsedUrl = new URL(urlToParse)
+
+    if (!allowedProtocols.has(parsedUrl.protocol)) {
+      return null
+    }
+
+    return parsedUrl.href
+  } catch {
+    return null
+  }
+}
+
+export function openWebsite(url) {
+  const safeUrl = getSafeWebsiteUrl(url)
+
+  if (!safeUrl) {
+    toast.error(__('Invalid Website URL'))
+    return false
+  }
+
+  window.open(safeUrl, '_blank', 'noopener')
+  return true
 }
 
 export function website(url) {
@@ -335,7 +402,7 @@ export function copyToClipboard(text) {
     document.body.removeChild(input)
   }
   function showSuccessAlert() {
-    toast.success(__('Copied to clipboard'))
+    toast.success(__('Copied to Clipboard'))
   }
 }
 
@@ -379,47 +446,20 @@ export function convertArrayToString(array) {
   return array.map((item) => item).join(',')
 }
 
-export function _eval(code, context = {}) {
-  let variable_names = Object.keys(context)
-  let variables = Object.values(context)
-  code = `let out = ${code}; return out`
-  try {
-    let expression_function = new Function(...variable_names, code)
-    return expression_function(...variables)
-  } catch (error) {
-    console.log('Error evaluating the following expression:')
-    console.error(code)
-    throw error
-  }
+export function interpolateTemplate(template, doc) {
+  if (!template) return ''
+  return template.replace(/\{\{\s*(\w+)\s*\}\}/g, (_, key) => {
+    const val = doc?.[key]
+    return val !== undefined && val !== null ? val : ''
+  })
 }
 
-export function evaluateDependsOnValue(expression, doc) {
-  if (!expression) return true
-  if (!doc) return true
-
-  let out = null
-
-  if (typeof expression === 'boolean') {
-    out = expression
-  } else if (typeof expression === 'function') {
-    out = expression(doc)
-  } else if (expression.substr(0, 5) == 'eval:') {
-    try {
-      out = _eval(expression.substr(5), { doc })
-    } catch (e) {
-      out = true
-    }
-  } else {
-    let value = doc[expression]
-    if (Array.isArray(value)) {
-      out = !!value.length
-    } else {
-      out = !!value
-    }
-  }
-
-  return out
-}
+// Re-export from extracted module so existing imports keep working
+export {
+  _eval,
+  evaluateDependsOnValue,
+  evaluateExpression,
+} from '@/utils/expressions'
 
 export function convertSize(size) {
   const units = ['B', 'KB', 'MB', 'GB', 'TB']
@@ -445,6 +485,19 @@ export function validateIsImageFile(file) {
   }
 }
 
+export function isNull(value) {
+  return (
+    value === undefined ||
+    value === null ||
+    value === '' ||
+    cstr(value).trim() === ''
+  )
+}
+
+export function cstr(s) {
+  return s === null ? '' : s.toString()
+}
+
 export function getRandom(len = 4) {
   let text = ''
   const possible = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz'
@@ -462,23 +515,13 @@ export function runSequentially(functions) {
   }, Promise.resolve())
 }
 
-export function DropdownOption({
-  active,
-  option,
-  theme,
-  icon,
-  onClick,
-  selected,
-}) {
+export function DropdownOption({ option, icon, selected, onClick }) {
   return h(
     'button',
     {
-      class: [
-        active ? 'bg-surface-gray-2' : 'text-ink-gray-8',
-        'group flex w-full justify-between items-center rounded-md px-2 py-2 text-sm',
-        theme == 'danger' ? 'text-ink-red-3 hover:bg-ink-red-1' : '',
-      ],
-      onClick: !selected ? onClick : null,
+      class:
+        'group flex w-full text-ink-gray-8 justify-between items-center rounded-md px-2 py-2 text-sm hover:bg-surface-gray-2',
+      onClick,
     },
     [
       h('div', { class: 'flex gap-2' }, [
@@ -501,14 +544,236 @@ export function DropdownOption({
   )
 }
 
-export function TemplateOption({ active, option, theme, icon, onClick }) {
+export function deepClone(obj) {
+  if (obj === null || typeof obj !== 'object') {
+    return obj
+  }
+
+  if (obj instanceof Date) {
+    return new Date(obj.getTime())
+  }
+
+  if (Array.isArray(obj)) {
+    return obj.map((item) => deepClone(item))
+  }
+
+  if (typeof obj === 'object') {
+    const cloned = {}
+    for (const key in obj) {
+      if (Object.hasOwn(obj, key)) {
+        cloned[key] = deepClone(obj[key])
+      }
+    }
+    return cloned
+  }
+
+  return obj
+}
+
+export function copy(obj) {
+  if (!obj) return obj
+  return JSON.parse(JSON.stringify(obj))
+}
+
+export const convertToConditions = ({ conditions, fieldPrefix }) => {
+  if (!conditions || conditions.length === 0) {
+    return ''
+  }
+
+  const processCondition = (condition) => {
+    if (typeof condition === 'string') {
+      return condition.toLowerCase()
+    }
+
+    if (Array.isArray(condition)) {
+      // Nested condition group
+      if (Array.isArray(condition[0])) {
+        const nestedStr = convertToConditions({
+          conditions: condition,
+          fieldPrefix,
+        })
+        return `(${nestedStr})`
+      }
+
+      // Simple condition: [fieldname, operator, value]
+      const [field, operator, value] = condition
+      const fieldAccess = fieldPrefix ? `${fieldPrefix}.${field}` : field
+
+      const operatorMap = {
+        equals: '==',
+        '=': '==',
+        '==': '==',
+        '!=': '!=',
+        'not equals': '!=',
+        '<': '<',
+        '<=': '<=',
+        '>': '>',
+        '>=': '>=',
+        in: 'in',
+        'not in': 'not in',
+        like: 'like',
+        'not like': 'not like',
+        is: 'is',
+        'is not': 'is not',
+        between: 'between',
+      }
+
+      let op = operatorMap[operator.toLowerCase()] || operator
+
+      if (
+        (op === '==' || op === '!=') &&
+        (String(value).toLowerCase() === 'yes' ||
+          String(value).toLowerCase() === 'no')
+      ) {
+        let checkVal = String(value).toLowerCase() === 'yes'
+        if (op === '!=') {
+          checkVal = !checkVal
+        }
+        return checkVal ? fieldAccess : `not ${fieldAccess}`
+      }
+
+      if (op === 'is' && String(value).toLowerCase() === 'set') {
+        return fieldAccess
+      }
+      if (
+        (op === 'is' && String(value).toLowerCase() === 'not set') ||
+        (op === 'is not' && String(value).toLowerCase() === 'set')
+      ) {
+        return `not ${fieldAccess}`
+      }
+
+      if (op === 'like') {
+        return `(${fieldAccess} and "${value}" in ${fieldAccess})`
+      }
+      if (op === 'not like') {
+        return `(${fieldAccess} and "${value}" not in ${fieldAccess})`
+      }
+
+      if (
+        op === 'between' &&
+        typeof value === 'string' &&
+        value.includes(',')
+      ) {
+        const [start, end] = value.split(',').map((v) => v.trim())
+        return `(${fieldAccess} >= "${start}" and ${fieldAccess} <= "${end}")`
+      }
+
+      let valueStr
+
+      if (op === 'in' || op === 'not in') {
+        let items
+        if (Array.isArray(value)) {
+          items = value.map((v) => `"${String(v).trim()}"`)
+        } else if (typeof value === 'string') {
+          items = value.split(',').map((v) => `"${v.trim()}"`)
+        } else {
+          items = [`"${String(value).trim()}"`]
+        }
+        valueStr = `[${items.join(', ')}]`
+        return `(${fieldAccess} and ${fieldAccess} ${op} ${valueStr})`
+      }
+
+      if (typeof value === 'string') {
+        valueStr = `"${value.replace(/"/g, '\\"')}"`
+      } else if (typeof value === 'number' || typeof value === 'boolean') {
+        valueStr = String(value)
+      } else if (value === null || value === undefined) {
+        return op === '==' || op === 'is' ? `not ${fieldAccess}` : fieldAccess
+      } else {
+        valueStr = `"${String(value).replace(/"/g, '\\"')}"`
+      }
+
+      return `${fieldAccess} ${op} ${valueStr}`
+    }
+
+    return ''
+  }
+
+  const parts = conditions.map(processCondition)
+  return parts.join(' ')
+}
+
+export function validateConditions(conditions) {
+  if (!Array.isArray(conditions)) return false
+
+  // Handle simple condition [field, operator, value]
+  if (
+    conditions.length === 3 &&
+    typeof conditions[0] === 'string' &&
+    typeof conditions[1] === 'string'
+  ) {
+    return conditions[0] !== '' && conditions[1] !== '' && conditions[2] !== ''
+  }
+
+  // Iterate through conditions and logical operators
+  for (let i = 0; i < conditions.length; i++) {
+    const item = conditions[i]
+
+    // Skip logical operators (they will be validated by their position)
+    if (item === 'and' || item === 'or') {
+      // Ensure logical operators are not at start/end and not consecutive
+      if (
+        i === 0 ||
+        i === conditions.length - 1 ||
+        conditions[i - 1] === 'and' ||
+        conditions[i - 1] === 'or'
+      ) {
+        return false
+      }
+      continue
+    }
+
+    // Handle nested conditions (arrays)
+    if (Array.isArray(item)) {
+      if (!validateConditions(item)) {
+        return false
+      }
+    } else if (item !== undefined && item !== null) {
+      return false
+    }
+  }
+
+  return conditions.length > 0
+}
+
+// sameArrayContents: returns true if both arrays have exactly the same elements
+// (including duplicate counts) irrespective of order.
+// Non-arrays or arrays of different length return false.
+export function sameArrayContents(a, b) {
+  if (a === b) return true
+  if (!Array.isArray(a) || !Array.isArray(b)) return false
+  if (a.length !== b.length) return false
+  if (a.length === 0) return true
+  const counts = new Map()
+  for (const v of a) {
+    counts.set(v, (counts.get(v) || 0) + 1)
+  }
+  for (const v of b) {
+    const c = counts.get(v)
+    if (!c) return false
+    if (c === 1) counts.delete(v)
+    else counts.set(v, c - 1)
+  }
+  return counts.size === 0
+}
+
+// orderSensitiveEqual: returns true only if arrays are strictly equal index-wise
+export function orderSensitiveEqual(a, b) {
+  if (a === b) return true
+  if (!Array.isArray(a) || !Array.isArray(b)) return false
+  if (a.length !== b.length) return false
+  for (let i = 0; i < a.length; i++) if (a[i] !== b[i]) return false
+  return true
+}
+
+export function TemplateOption({ active, option, variant, icon, onClick }) {
   return h(
     'button',
     {
       class: [
-        active ? 'bg-surface-gray-2 text-ink-gray-8' : 'text-ink-gray-7',
-        'group flex w-full gap-2 items-center rounded-md px-2 py-2 text-sm',
-        theme == 'danger' ? 'text-ink-red-3 hover:bg-ink-red-1' : '',
+        active ? 'bg-surface-gray-2' : 'text-ink-gray-7',
+        'group flex w-full gap-2 items-center rounded-md px-2 py-2 text-base hover:bg-surface-gray-3',
+        variant == 'danger' ? 'text-ink-red-6 hover:bg-ink-red-1' : '',
       ],
       onClick: onClick,
     },
@@ -525,7 +790,97 @@ export function TemplateOption({ active, option, theme, icon, onClick }) {
   )
 }
 
-export function copy(obj) {
-  if (!obj) return obj
-  return JSON.parse(JSON.stringify(obj))
+/**
+ * @param {Ref<boolean>} isConfirmingDelete - Ref to track confirmation state
+ * @param {Function} onConfirmDelete - Callback when delete is confirmed
+ * @param {string} label - Label for the delete option
+ * @returns {Array} Array of option objects for use in dropdowns
+ */
+export function ConfirmDelete({
+  isConfirmingDelete,
+  onConfirmDelete,
+  label = __('Delete'),
+}) {
+  return [
+    {
+      label,
+      component: (props) =>
+        TemplateOption({
+          option: label,
+          icon: 'trash-2',
+          active: props.active,
+          variant: 'grey',
+          onClick: (event) => {
+            event.preventDefault()
+            event.stopImmediatePropagation()
+            isConfirmingDelete.value = true
+          },
+        }),
+      condition: () => !isConfirmingDelete.value,
+    },
+    {
+      label: __('Confirm {0}', [label]),
+      component: (props) =>
+        TemplateOption({
+          option: __('Confirm {0}', [label]),
+          icon: 'trash-2',
+          active: props.active,
+          variant: 'danger',
+          onClick: () => {
+            onConfirmDelete()
+            // Reset state after confirming
+            isConfirmingDelete.value = false
+          },
+        }),
+      condition: () => isConfirmingDelete.value,
+    },
+  ]
+}
+
+export function getGridTemplateColumnsForTable(columns) {
+  let columnsWidth = columns
+    .map((col) => {
+      let width = col.width || 1
+      if (typeof width === 'number') {
+        return width + 'fr'
+      }
+      return width
+    })
+    .join(' ')
+  return columnsWidth + ' 22px'
+}
+
+export function clearCache() {
+  ;[
+    '_last_load',
+    '_version_number',
+    'metadata_version',
+    'page_info',
+    'last_visited',
+  ].forEach((key) => localStorage.removeItem(key))
+
+  for (let key in localStorage) {
+    if (
+      key.startsWith('_page:') ||
+      key.startsWith('_doctype:') ||
+      key.startsWith('preferred_breadcrumbs:')
+    ) {
+      localStorage.removeItem(key)
+    }
+  }
+}
+
+export function isTranslatable(doctype) {
+  let translatedDoctypes = window.translated_doctypes || []
+  return translatedDoctypes.includes(doctype)
+}
+
+export function sanitizeHTML(html = '', options = {}) {
+  if (typeof html !== 'string') return html
+  return DOMPurify.sanitize(html, options)
+}
+
+export function sanitizeText(text = '') {
+  if (typeof text !== 'string') return text
+  return text.replace(/\p{Cf}/gu, '')
 }

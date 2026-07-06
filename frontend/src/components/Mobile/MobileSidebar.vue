@@ -1,6 +1,6 @@
 <template>
   <TransitionRoot :show="sidebarOpened">
-    <Dialog as="div" @close="sidebarOpened = false" class="fixed inset-0 z-40">
+    <Dialog as="div" class="fixed inset-0" @close="sidebarOpened = false">
       <TransitionChild
         as="template"
         enter="transition ease-in-out duration-200 transform"
@@ -11,7 +11,7 @@
         leave-to="-translate-x-full"
       >
         <div
-          class="relative z-10 flex h-full w-[260px] flex-col justify-between border-r bg-surface-menu-bar transition-all duration-300 ease-in-out"
+          class="relative z-10 flex h-full w-[260px] flex-col justify-between border-r bg-surface-gray-1 transition-all duration-300 ease-in-out"
         >
           <div>
             <UserDropdown class="p-2" :isCollapsed="!sidebarOpened" />
@@ -35,7 +35,7 @@
               </SidebarLink>
             </div>
             <div v-for="view in allViews" :key="view.label">
-              <Section
+              <CollapsibleSection
                 :label="view.name"
                 :hideLabel="view.hideLabel"
                 :opened="view.opened"
@@ -43,13 +43,13 @@
                 <template #header="{ opened, hide, toggle }">
                   <div
                     v-if="!hide"
-                    class="ml-2 mt-4 flex h-7 w-auto cursor-pointer gap-1.5 px-1 text-base font-medium text-ink-gray-5 opacity-100 transition-all duration-300 ease-in-out"
+                    class="ml-2 mt-4 flex h-7 w-auto cursor-pointer gap-1.5 px-1 text-base-medium text-ink-gray-5 opacity-100 transition-all duration-300 ease-in-out"
                     @click="toggle()"
                   >
-                    <FeatherIcon
-                      name="chevron-right"
-                      class="h-4 text-ink-gray-9 transition-all duration-300 ease-in-out"
+                    <span
+                      class="lucide-chevron-right h-4 text-ink-gray-9 transition-all duration-300 ease-in-out"
                       :class="{ 'rotate-90': opened }"
+                      aria-hidden="true"
                     />
                     <span>{{ __(view.name) }}</span>
                   </div>
@@ -57,13 +57,14 @@
                 <nav class="flex flex-col">
                   <SidebarLink
                     v-for="link in view.views"
+                    :key="link.label"
                     :icon="link.icon"
                     :label="__(link.label)"
                     :to="link.to"
                     class="mx-2 my-0.5"
                   />
                 </nav>
-              </Section>
+              </CollapsibleSection>
             </div>
           </div>
         </div>
@@ -77,7 +78,7 @@
         leave-from="opacity-100"
         leave-to="opacity-0"
       >
-        <DialogOverlay class="fixed inset-0 bg-gray-600 bg-opacity-50" />
+        <DialogOverlay class="fixed inset-0 bg-surface-gray-8 bg-opacity-50" />
       </TransitionChild>
     </Dialog>
   </TransitionRoot>
@@ -89,8 +90,7 @@ import {
   Dialog,
   DialogOverlay,
 } from '@headlessui/vue'
-import Section from '@/components/Section.vue'
-import Email2Icon from '@/components/Icons/Email2Icon.vue'
+import CollapsibleSection from '@/components/CollapsibleSection.vue'
 import PinIcon from '@/components/Icons/PinIcon.vue'
 import UserDropdown from '@/components/UserDropdown.vue'
 import LeadsIcon from '@/components/Icons/LeadsIcon.vue'
@@ -104,9 +104,7 @@ import NotificationsIcon from '@/components/Icons/NotificationsIcon.vue'
 import SidebarLink from '@/components/SidebarLink.vue'
 import { viewsStore } from '@/stores/views'
 import { unreadNotificationsCount } from '@/stores/notifications'
-import { createResource } from 'frappe-ui'
-import { TrialBanner } from 'frappe-ui/frappe'
-import { computed, h, provide } from 'vue'
+import { computed, h } from 'vue'
 import { mobileSidebarOpened as sidebarOpened } from '@/composables/settings'
 
 const { getPinnedViews, getPublicViews } = viewsStore()
@@ -147,11 +145,6 @@ const links = [
     icon: PhoneIcon,
     to: 'Call Logs',
   },
-  {
-    label: 'Email Templates',
-    icon: Email2Icon,
-    to: 'Email Templates',
-  },
 ]
 
 const allViews = computed(() => {
@@ -165,7 +158,7 @@ const allViews = computed(() => {
   ]
   if (getPublicViews().length) {
     _views.push({
-      name: 'Public views',
+      name: 'Public Views',
       opened: true,
       views: parseView(getPublicViews()),
     })
@@ -173,7 +166,7 @@ const allViews = computed(() => {
 
   if (getPinnedViews().length) {
     _views.push({
-      name: 'Pinned views',
+      name: 'Pinned Views',
       opened: true,
       views: parseView(getPinnedViews()),
     })

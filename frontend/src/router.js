@@ -1,7 +1,26 @@
 import { createRouter, createWebHistory } from 'vue-router'
-import { userResource } from '@/stores/user'
+import { call } from 'frappe-ui'
+import { usersStore } from '@/stores/users'
 import { sessionStore } from '@/stores/session'
 import { viewsStore } from '@/stores/views'
+
+let personaChecked = false
+export const PERSONA_DONE_KEY = 'crm_persona_captured'
+
+async function shouldCapturePersona() {
+  // Client-side flag guards against re-prompting if the server persist failed.
+  if (localStorage.getItem(PERSONA_DONE_KEY)) return false
+  const captured = await call('frappe.client.get_single_value', {
+    doctype: 'FCRM Settings',
+    field: 'persona_captured',
+  })
+  if (captured) return false
+  // The wizard only feeds telemetry; skip it entirely if the user opted out.
+  const telemetryEnabled = await call(
+    'frappe.utils.telemetry.pulse.client.is_enabled',
+  )
+  return !!telemetryEnabled
+}
 
 const routes = [
   {
@@ -85,14 +104,46 @@ const routes = [
     component: () => import('@/pages/CallLogs.vue'),
   },
   {
+    path: '/calendar',
+    name: 'Calendar',
+    component: () => import('@/pages/Calendar.vue'),
+  },
+  {
+    path: '/data-import',
+    name: 'DataImportList',
+    component: () => import('@/pages/DataImport.vue'),
+  },
+  {
+    path: '/data-import/doctype/:doctype',
+    name: 'NewDataImport',
+    component: () => import('@/pages/DataImport.vue'),
+    props: true,
+  },
+  {
+    path: '/data-import/:importName',
+    name: 'DataImport',
+    component: () => import('@/pages/DataImport.vue'),
+    props: true,
+  },
+  {
     path: '/welcome',
     name: 'Welcome',
     component: () => import('@/pages/Welcome.vue'),
   },
   {
+    path: '/onboarding',
+    name: 'Onboarding',
+    component: () => import('@/pages/PersonaForm.vue'),
+  },
+  {
     path: '/:invalidpath',
     name: 'Invalid Page',
     component: () => import('@/pages/InvalidPage.vue'),
+  },
+  {
+    path: '/not-permitted',
+    name: 'Not Permitted',
+    component: () => import('@/pages/NotPermitted.vue'),
   },
 ]
 
@@ -106,11 +157,52 @@ let router = createRouter({
 })
 
 router.beforeEach(async (to, from, next) => {
-  const { isLoggedIn } = sessionStore()
+  router.previousRoute = from
 
-  isLoggedIn && (await userResource.promise)
+  const { isLoggedIn, user } = sessionStore()
+  const { users, isCrmUser, isAdmin } = usersStore()
 
-  if (to.name === 'Home' && isLoggedIn) {
+  if (isLoggedIn && !users.fetched) {
+    try {
+      await users.promise
+    } catch (error) {
+      console.error('Error loading users', error)
+    }
+  }
+
+  const isAdminUser = isAdmin() || user === 'Administrator'
+
+  // Only admins who haven't finished may reach the wizard, even via direct URL.
+  if (isLoggedIn && to.name === 'Onboarding') {
+    try {
+      if (!isAdminUser || !(await shouldCapturePersona())) {
+        return next({ name: 'Home' })
+      }
+    } catch {
+      return next({ name: 'Home' })
+    }
+  }
+
+  if (
+    isLoggedIn &&
+    isCrmUser() &&
+    !personaChecked &&
+    to.name !== 'Onboarding' &&
+    isAdminUser
+  ) {
+    personaChecked = true
+    try {
+      if (await shouldCapturePersona()) {
+        return next({ name: 'Onboarding' })
+      }
+    } catch (error) {
+      // fail open
+    }
+  }
+
+  if (isLoggedIn && to.name !== 'Not Permitted' && !isCrmUser()) {
+    next({ name: 'Not Permitted' })
+  } else if (to.name === 'Home' && isLoggedIn) {
     const { views, getDefaultView } = viewsStore()
     await views.promise
 
@@ -124,7 +216,11 @@ router.beforeEach(async (to, from, next) => {
     route_name = route_name || 'Leads'
 
     if (name && !is_standard) {
-      next({ name: route_name, params: { viewType: type }, query: { view: name } })
+      next({
+        name: route_name,
+        params: { viewType: type },
+        query: { view: name },
+      })
     } else {
       next({ name: route_name, params: { viewType: type } })
     }
@@ -137,6 +233,87 @@ router.beforeEach(async (to, from, next) => {
     const activeTab = localStorage.getItem(storageKey) || 'activity'
     const hash = '#' + activeTab
     next({ ...to, hash })
+  } else if (
+    [
+      'Leads',
+      'Deals',
+      'Contacts',
+      'Organizations',
+      'Notes',
+      'Tasks',
+      'Call Logs',
+    ].includes(to.name) &&
+    !to.query?.view
+  ) {
+    const { views, standardViews, getDefaultView } = viewsStore()
+    await views.promise
+
+    const viewType = to.params?.viewType ?? ''
+    const standardViewTypes = ['list', 'kanban', 'group_by']
+
+    if (!viewType) {
+      const doctypeMap = {
+        Leads: 'CRM Lead',
+        Deals: 'CRM Deal',
+        Contacts: 'Contact',
+        Organizations: 'CRM Organization',
+        Notes: 'FCRM Note',
+        Tasks: 'CRM Task',
+        'Call Logs': 'CRM Call Log',
+      }
+
+      const doctype = doctypeMap[to.name]
+      let defaultViewType = 'list'
+
+      let globalDefault = getDefaultView()
+      if (globalDefault && globalDefault.route_name === to.name) {
+        defaultViewType = globalDefault.type || 'list'
+        if (globalDefault.name && !globalDefault.is_standard) {
+          next({
+            name: to.name,
+            params: { viewType: defaultViewType },
+            query: { ...to.query, view: globalDefault.name },
+          })
+          return
+        }
+      }
+
+      for (const viewType of standardViewTypes) {
+        const standardView = standardViews.value?.[doctype + ' ' + viewType]
+        if (standardView?.is_default) {
+          defaultViewType = viewType
+          break
+        }
+      }
+
+      next({
+        name: to.name,
+        params: { viewType: defaultViewType },
+        query: to.query,
+      })
+    } else if (!standardViewTypes.includes(viewType)) {
+      const viewNameOrLabel = viewType
+
+      let view = views.data?.find(
+        (v) => v.name == viewNameOrLabel || v.label === viewNameOrLabel,
+      )
+
+      if (view) {
+        next({
+          name: to.name,
+          params: { viewType: view.type || 'list' },
+          query: { ...to.query, view: view.name },
+        })
+      } else {
+        next({
+          name: to.name,
+          params: { viewType: 'list' },
+          query: to.query,
+        })
+      }
+    } else {
+      next()
+    }
   } else {
     next()
   }

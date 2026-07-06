@@ -19,17 +19,20 @@
             {{ __('Apps') }}
           </span>
         </div>
-        <FeatherIcon name="chevron-right" class="size-4 text-ink-gray-5" />
+        <span
+          class="lucide-chevron-right size-4 text-ink-gray-5"
+          aria-hidden="true"
+        />
       </button>
     </template>
     <template #body>
       <div
-        class="flex w-fit mx-2 min-w-32 max-w-48 flex-col rounded-lg border border-outline-gray-2 bg-surface-white p-1.5 text-sm text-ink-gray-8 shadow-xl auto-fill-[100px]"
+        class="flex w-fit mx-2 min-w-32 max-w-48 flex-col rounded-lg border border-outline-gray-2 bg-surface-base p-1.5 text-sm text-ink-gray-8 shadow-xl auto-fill-[100px]"
       >
         <a
-          :href="app.route"
           v-for="app in apps.data"
-          key="name"
+          :key="app.name"
+          :href="app.route"
           class="flex items-center gap-2 rounded p-1.5 hover:bg-surface-gray-2"
         >
           <img class="size-6" :src="app.logo" />
@@ -44,11 +47,9 @@
 <script setup>
 import AppsIcon from '@/components/Icons/AppsIcon.vue'
 import { Popover, createResource } from 'frappe-ui'
-import { onUnmounted } from 'vue'
-import { stopRecording } from '@/telemetry'
 
-const props = defineProps({
-  active: Boolean,
+defineProps({
+  active: { type: Boolean, default: false },
 })
 
 const apps = createResource({
@@ -76,9 +77,5 @@ const apps = createResource({
 
     return _apps
   },
-})
-
-onUnmounted(() => {
-  stopRecording()
 })
 </script>

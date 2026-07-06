@@ -30,11 +30,12 @@
     >
       <div
         v-for="note in notes.data.data"
-        class="group flex h-56 cursor-pointer flex-col justify-between gap-2 rounded-lg border px-5 py-4 shadow-sm hover:bg-surface-menu-bar"
-        @click="editNote(note)"
+        :key="note.name"
+        class="group flex h-56 cursor-pointer flex-col justify-between gap-2 rounded-lg border px-5 py-4 shadow-sm hover:bg-surface-sidebar"
+        @click="editNote(note.name)"
       >
         <div class="flex items-center justify-between">
-          <div class="truncate text-lg font-medium text-ink-gray-9">
+          <div class="truncate text-lg-medium text-ink-gray-9">
             {{ note.title }}
           </div>
           <Dropdown
@@ -45,12 +46,12 @@
                 onClick: () => deleteNote(note.name),
               },
             ]"
-            @click.stop
           >
             <Button
-              icon="more-horizontal"
+              icon="lucide-more-horizontal"
               variant="ghosted"
-              class="hover:bg-surface-white"
+              class="hover:bg-surface-base"
+              @click.stop
             />
           </Dropdown>
         </div>
@@ -79,28 +80,15 @@
   </div>
   <ListFooter
     v-if="notes.data?.data?.length"
-    class="border-t px-3 py-2 sm:px-5"
     v-model="notes.data.page_length_count"
+    class="border-t px-3 py-2 sm:px-5"
     :options="{
       rowCount: notes.data.row_count,
       totalCount: notes.data.total_count,
     }"
     @loadMore="() => loadMore++"
   />
-  <div v-else class="flex h-full items-center justify-center">
-    <div
-      class="flex flex-col items-center gap-3 text-xl font-medium text-ink-gray-4"
-    >
-      <NoteIcon class="h-10 w-10" />
-      <span>{{ __('No {0} Found', [__('Notes')]) }}</span>
-      <Button :label="__('Create')" iconLeft="plus" @click="createNote" />
-    </div>
-  </div>
-  <NoteModal
-    v-model="showNoteModal"
-    v-model:reloadNotes="notes"
-    :note="currentNote"
-  />
+  <EmptyState v-else name="Notes" :icon="NoteIcon" />
 </template>
 
 <script setup>
@@ -108,17 +96,20 @@ import ViewBreadcrumbs from '@/components/ViewBreadcrumbs.vue'
 import LayoutHeader from '@/components/LayoutHeader.vue'
 import UserAvatar from '@/components/UserAvatar.vue'
 import NoteIcon from '@/components/Icons/NoteIcon.vue'
-import NoteModal from '@/components/Modals/NoteModal.vue'
 import ViewControls from '@/components/ViewControls.vue'
+import { useDoctypeModal } from '@/composables/doctypeModal'
+import EmptyState from '@/components/ListViews/EmptyState.vue'
 import { usersStore } from '@/stores/users'
 import { timeAgo, formatDate } from '@/utils'
+import { useOnboarding, useTelemetry } from 'frappe-ui/frappe'
 import { TextEditor, call, Dropdown, Tooltip, ListFooter } from 'frappe-ui'
 import { ref, watch } from 'vue'
 
 const { getUser } = usersStore()
+const { updateOnboardingStep } = useOnboarding('frappecrm')
+const { capture } = useTelemetry()
 
-const showNoteModal = ref(false)
-const currentNote = ref(null)
+const { showModal } = useDoctypeModal()
 
 const notes = ref({})
 const loadMore = ref(1)
@@ -134,17 +125,33 @@ watch(
   },
 )
 
-function createNote() {
-  currentNote.value = {
-    title: '',
-    content: '',
-  }
-  showNoteModal.value = true
+const noteCallbacks = {
+  afterInsert: () => {
+    notes.value.reload()
+    updateOnboardingStep('create_first_note')
+    capture('note_created')
+  },
+  afterUpdate: () => {
+    notes.value.reload()
+    capture('note_updated')
+  },
 }
 
-function editNote(note) {
-  currentNote.value = note
-  showNoteModal.value = true
+function createNote() {
+  showModal({
+    doctype: 'FCRM Note',
+    title: 'Note',
+    callbacks: noteCallbacks,
+  })
+}
+
+function editNote(noteName) {
+  showModal({
+    name: noteName,
+    doctype: 'FCRM Note',
+    title: 'Note',
+    callbacks: noteCallbacks,
+  })
 }
 
 async function deleteNote(name) {
@@ -164,7 +171,7 @@ const openNoteFromURL = () => {
       (note) => note.name === noteName,
     )
     if (foundNote) {
-      editNote(foundNote)
+      editNote(foundNote.name)
     }
     searchParams.delete('open')
     window.history.replaceState(null, '', window.location.pathname)

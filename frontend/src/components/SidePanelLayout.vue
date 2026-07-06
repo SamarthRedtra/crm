@@ -7,7 +7,7 @@
           class="w-full section-border h-px border-t"
         />
         <div class="p-1 sm:p-3">
-          <Section
+          <CollapsibleSection
             labelClass="px-2 font-semibold"
             headerClass="h-8"
             :label="section.label"
@@ -38,7 +38,11 @@
                     v-if="field.visible"
                     class="field flex items-center gap-2 px-3 leading-5 first:mt-3"
                   >
-                    <Tooltip :text="__(field.label)" :hoverDelay="1">
+                    <Tooltip
+                      v-if="!['Button', 'HTML'].includes(field.fieldtype)"
+                      :text="__(field.label)"
+                      :hoverDelay="1"
+                    >
                       <div
                         class="w-[35%] min-w-20 shrink-0 flex items-center gap-0.5"
                       >
@@ -51,13 +55,20 @@
                             (field.mandatory_depends_on &&
                               field.mandatory_via_depends_on)
                           "
-                          class="text-ink-red-2"
+                          class="text-ink-red-5"
                         >
                           *
                         </div>
                       </div>
                     </Tooltip>
-                    <div class="flex items-center justify-between w-[65%]">
+                    <div
+                      :class="[
+                        'flex items-center justify-between',
+                        ['Button', 'HTML'].includes(field.fieldtype)
+                          ? 'w-full'
+                          : 'w-[65%]',
+                      ]"
+                    >
                       <div
                         class="grid min-h-[28px] flex-1 items-center overflow-hidden text-base"
                       >
@@ -71,6 +82,14 @@
                               'Percent',
                               'Check',
                               'Dropdown',
+                              'Duration',
+                              'Rating',
+                              'Button',
+                              'Attach',
+                              'Attach Image',
+                              'HTML',
+                              'Geolocation',
+                              'Text Editor',
                             ].includes(field.fieldtype)
                           "
                           class="flex h-7 cursor-pointer items-center px-2 py-1 text-ink-gray-5"
@@ -79,79 +98,23 @@
                             <div>{{ doc[field.fieldname] }}</div>
                           </Tooltip>
                         </div>
-                        <div v-else-if="field.fieldtype === 'Dropdown'">
-                          <Popover>
-                            <template #target="{ isOpen, togglePopover }">
-                              <Button
-                                :label="doc[field.fieldname]"
-                                class="dropdown-button flex items-center justify-between bg-surface-white !px-2.5 py-1.5 text-base text-ink-gray-8 placeholder-ink-gray-4 transition-colors hover:bg-surface-white focus:bg-surface-white focus:shadow-sm focus:outline-none focus:ring-0"
-                                @click="togglePopover"
-                              >
-                                <div
-                                  v-if="doc[field.fieldname]"
-                                  class="truncate"
-                                >
-                                  {{ doc[field.fieldname] }}
-                                </div>
-                                <div
-                                  v-else
-                                  class="text-base leading-5 text-ink-gray-4 truncate"
-                                >
-                                  {{ field.placeholder }}
-                                </div>
-                                <template #suffix>
-                                  <FeatherIcon
-                                    :name="
-                                      isOpen ? 'chevron-up' : 'chevron-down'
-                                    "
-                                    class="h-4 text-ink-gray-5"
-                                  />
-                                </template>
-                              </Button>
-                            </template>
-                            <template #body>
-                              <div
-                                class="my-2 p-1.5 min-w-40 space-y-1.5 divide-y divide-outline-gray-1 rounded-lg bg-surface-modal shadow-2xl ring-1 ring-black ring-opacity-5 focus:outline-none"
-                              >
-                                <div>
-                                  <DropdownItem
-                                    v-if="field.options?.length"
-                                    v-for="option in field.options"
-                                    :key="option.name"
-                                    :option="option"
-                                  />
-                                  <div v-else>
-                                    <div
-                                      class="p-1.5 pl-3 pr-4 text-base text-ink-gray-4"
-                                    >
-                                      {{
-                                        __('No {0} Available', [field.label])
-                                      }}
-                                    </div>
-                                  </div>
-                                </div>
-                                <div class="pt-1.5">
-                                  <Button
-                                    variant="ghost"
-                                    class="w-full !justify-start"
-                                    :label="__('Create New')"
-                                    iconLeft="plus"
-                                    @click="field.create()"
-                                  />
-                                </div>
-                              </div>
-                            </template>
-                          </Popover>
-                        </div>
+                        <PrimaryDropdown
+                          v-else-if="field.fieldtype === 'Dropdown'"
+                          :value="doc[field.fieldname]"
+                          :placeholder="field.placeholder"
+                          :options="field.options"
+                          :create="field.create"
+                          :label="field.label"
+                        />
                         <FormControl
                           v-else-if="field.fieldtype == 'Check'"
+                          v-model="doc[field.fieldname]"
                           class="form-control"
                           type="checkbox"
-                          v-model="doc[field.fieldname]"
+                          :disabled="Boolean(field.read_only)"
                           @change.stop="
                             fieldChange($event.target.checked, field)
                           "
-                          :disabled="Boolean(field.read_only)"
                         />
                         <FormControl
                           v-else-if="
@@ -171,12 +134,12 @@
                         />
                         <FormControl
                           v-else-if="field.fieldtype === 'Select'"
-                          class="form-control cursor-pointer [&_select]:cursor-pointer truncate"
-                          type="select"
                           v-model="doc[field.fieldname]"
+                          class="form-control cursor-pointer [&_select]:cursor-pointer truncate [&>*]:!ring-0"
+                          type="select"
                           :options="field.options"
                           :placeholder="field.placeholder"
-                          @change.stop="fieldChange($event.target.value, field)"
+                          @update:modelValue="(v) => fieldChange(v, field)"
                         />
                         <Link
                           v-else-if="field.fieldtype === 'User'"
@@ -187,9 +150,11 @@
                           "
                           doctype="User"
                           :filters="field.filters"
-                          @change="(v) => fieldChange(v, field)"
-                          :placeholder="'Select' + ' ' + field.label + '...'"
+                          :placeholder="
+                            __('Select') + ' ' + field.label + '...'
+                          "
                           :hideMe="true"
+                          @change="(v) => fieldChange(v, field)"
                         >
                           <template v-if="doc[field.fieldname]" #prefix>
                             <UserAvatar
@@ -226,22 +191,29 @@
                           "
                           :filters="field.filters"
                           :placeholder="field.placeholder"
-                          @change="(v) => fieldChange(v, field)"
                           :onCreate="field.create"
+                          @change="(v) => fieldChange(v, field)"
                         />
+                        <div
+                          v-else-if="field.fieldtype === 'Time'"
+                          class="form-control"
+                        >
+                          <TimePicker
+                            :value="doc[field.fieldname]"
+                            :format="getFormat('', '', false, true, false)"
+                            :placeholder="field.placeholder"
+                            @change="(v) => fieldChange(v, field)"
+                          />
+                        </div>
                         <div
                           v-else-if="field.fieldtype === 'Datetime'"
                           class="form-control"
                         >
                           <DateTimePicker
-                            icon-left=""
                             :value="doc[field.fieldname]"
-                            :formatter="
-                              (date) => getFormat(date, '', true, true)
-                            "
+                            :format="getFormat('', '', true, true, false)"
                             :placeholder="field.placeholder"
                             placement="left-start"
-                            :hideIcon="true"
                             @change="(v) => fieldChange(v, field)"
                           />
                         </div>
@@ -250,12 +222,10 @@
                           class="form-control"
                         >
                           <DatePicker
-                            icon-left=""
                             :value="doc[field.fieldname]"
-                            :formatter="(date) => getFormat(date, '', true)"
+                            :format="getFormat('', '', true, false, false)"
                             :placeholder="field.placeholder"
                             placement="left-start"
-                            :hideIcon="true"
                             @change="(v) => fieldChange(v, field)"
                           />
                         </div>
@@ -266,10 +236,10 @@
                           :value="getFormattedPercent(field.fieldname, doc)"
                           :placeholder="field.placeholder"
                           :debounce="500"
+                          :disabled="Boolean(field.read_only)"
                           @change.stop="
                             fieldChange(flt($event.target.value), field)
                           "
-                          :disabled="Boolean(field.read_only)"
                         />
                         <Password
                           v-else-if="field.fieldtype === 'Password'"
@@ -277,8 +247,8 @@
                           :value="doc[field.fieldname]"
                           :placeholder="field.placeholder"
                           :debounce="500"
-                          @change.stop="fieldChange($event.target.value, field)"
                           :disabled="Boolean(field.read_only)"
+                          @change.stop="fieldChange($event.target.value, field)"
                         />
                         <FormattedInput
                           v-else-if="field.fieldtype === 'Int'"
@@ -287,8 +257,8 @@
                           :value="doc[field.fieldname] || '0'"
                           :placeholder="field.placeholder"
                           :debounce="500"
-                          @change.stop="fieldChange($event.target.value, field)"
                           :disabled="Boolean(field.read_only)"
+                          @change.stop="fieldChange($event.target.value, field)"
                         />
                         <FormattedInput
                           v-else-if="field.fieldtype === 'Float'"
@@ -297,10 +267,10 @@
                           :value="getFormattedFloat(field.fieldname, doc)"
                           :placeholder="field.placeholder"
                           :debounce="500"
+                          :disabled="Boolean(field.read_only)"
                           @change.stop="
                             fieldChange(flt($event.target.value), field)
                           "
-                          :disabled="Boolean(field.read_only)"
                         />
                         <FormattedInput
                           v-else-if="field.fieldtype === 'Currency'"
@@ -309,10 +279,75 @@
                           :value="getFormattedCurrency(field.fieldname, doc)"
                           :placeholder="field.placeholder"
                           :debounce="500"
+                          :disabled="Boolean(field.read_only)"
                           @change.stop="
                             fieldChange(flt($event.target.value), field)
                           "
+                        />
+                        <DurationInput
+                          v-else-if="field.fieldtype === 'Duration'"
+                          class="form-control"
+                          :value="doc[field.fieldname]"
+                          :placeholder="field.placeholder"
                           :disabled="Boolean(field.read_only)"
+                          @change="(v) => fieldChange(v, field)"
+                        />
+                        <RatingInput
+                          v-else-if="field.fieldtype === 'Rating'"
+                          class="pl-[10px]"
+                          :value="doc[field.fieldname]"
+                          :max="field.options || 5"
+                          :disabled="Boolean(field.read_only)"
+                          @change="(v) => fieldChange(v, field)"
+                        />
+                        <ButtonControl
+                          v-else-if="field.fieldtype === 'Button'"
+                          :label="field.label"
+                          :icon="field.icon"
+                          :theme="getButtonTheme(field.button_color)"
+                          :variant="getButtonVariant(field.button_color)"
+                          :disabled="Boolean(field.read_only)"
+                          @click="handleButtonClick(field)"
+                        />
+                        <AttachControl
+                          v-else-if="
+                            ['Attach', 'Attach Image'].includes(field.fieldtype)
+                          "
+                          class="attach-control"
+                          :value="doc[field.fieldname]"
+                          :doctype="doctype"
+                          :docname="doc.name"
+                          :fieldname="field.fieldname"
+                          :imageOnly="field.fieldtype === 'Attach Image'"
+                          :disabled="Boolean(field.read_only)"
+                          @change="(v) => fieldChange(v, field)"
+                        />
+                        <HtmlControl
+                          v-else-if="field.fieldtype === 'HTML'"
+                          :html="
+                            document.fieldHtmlMap?.[field.fieldname] !==
+                            undefined
+                              ? document.fieldHtmlMap[field.fieldname]
+                              : interpolateTemplate(field.options || '', doc)
+                          "
+                        />
+                        <GeolocationControl
+                          v-else-if="field.fieldtype === 'Geolocation'"
+                          class="geolocation-control"
+                          :value="doc[field.fieldname]"
+                          :disabled="Boolean(field.read_only)"
+                          @change="(v) => fieldChange(v, field)"
+                        />
+                        <TextEditorControl
+                          v-else-if="field.fieldtype === 'Text Editor'"
+                          variant="ghost"
+                          :fixed-menu="false"
+                          :bubble-menu="true"
+                          editorClass="w-full !min-h-[38px] !h-[38px] ml-1"
+                          :value="doc[field.fieldname]"
+                          :placeholder="field.placeholder"
+                          :disabled="Boolean(field.read_only)"
+                          @change="(v) => fieldChange(v, field)"
                         />
                         <FormControl
                           v-else
@@ -349,7 +384,7 @@
                 </template>
               </FadedScrollableDiv>
             </slot>
-          </Section>
+          </CollapsibleSection>
         </div>
       </div>
     </template>
@@ -365,8 +400,18 @@
 <script setup>
 import Password from '@/components/Controls/Password.vue'
 import FormattedInput from '@/components/Controls/FormattedInput.vue'
-import Section from '@/components/Section.vue'
-import DropdownItem from '@/components/DropdownItem.vue'
+import DurationInput from '@/components/Controls/DurationInput.vue'
+import RatingInput from '@/components/Controls/RatingInput.vue'
+import AttachControl from '@/components/Controls/AttachControl.vue'
+import HtmlControl from '@/components/Controls/HtmlControl.vue'
+import GeolocationControl from '@/components/Controls/GeolocationControl.vue'
+import TextEditorControl from '@/components/Controls/TextEditorControl.vue'
+import ButtonControl, {
+  getButtonTheme,
+  getButtonVariant,
+} from '@/components/Controls/ButtonControl.vue'
+import CollapsibleSection from '@/components/CollapsibleSection.vue'
+import PrimaryDropdown from '@/components/PrimaryDropdown.vue'
 import FadedScrollableDiv from '@/components/FadedScrollableDiv.vue'
 import ArrowUpRightIcon from '@/components/Icons/ArrowUpRightIcon.vue'
 import EditIcon from '@/components/Icons/EditIcon.vue'
@@ -374,34 +419,26 @@ import Link from '@/components/Controls/Link.vue'
 import UserAvatar from '@/components/UserAvatar.vue'
 import SidePanelModal from '@/components/Modals/SidePanelModal.vue'
 import { getMeta } from '@/stores/meta'
+import { parseLinkFilters } from '@/utils/fieldTransforms'
 import { usersStore } from '@/stores/users'
 import { isMobileView } from '@/composables/settings'
-import { getFormat, evaluateDependsOnValue } from '@/utils'
+import {
+  getFormat,
+  evaluateDependsOnValue,
+  isNull,
+  interpolateTemplate,
+} from '@/utils'
 import { flt } from '@/utils/numberFormat.js'
-import { Tooltip, DateTimePicker, DatePicker, Popover } from 'frappe-ui'
+import { Tooltip, DateTimePicker, DatePicker, TimePicker } from 'frappe-ui'
 import { useDocument } from '@/data/document'
 import { ref, computed, getCurrentInstance } from 'vue'
 
 const props = defineProps({
-  sections: {
-    type: Object,
-  },
-  doctype: {
-    type: String,
-    default: 'CRM Lead',
-    required: true,
-  },
-  docname: {
-    type: String,
-    required: true,
-  },
-  preview: {
-    type: Boolean,
-    default: false,
-  },
-  addContact: {
-    type: Function,
-  },
+  sections: { type: Object, default: () => ({}) },
+  doctype: { type: String, default: 'CRM Lead' },
+  docname: { type: String, required: true },
+  preview: { type: Boolean, default: false },
+  addContact: { type: Function, default: null },
 })
 
 const emit = defineEmits(['beforeFieldChange', 'afterFieldChange', 'reload'])
@@ -415,11 +452,13 @@ const showSidePanelModal = ref(false)
 
 let document = { doc: {} }
 let triggerOnChange
+let triggerButton = () => {}
 
 if (props.docname) {
   let d = useDocument(props.doctype, props.docname)
   document = d.document
   triggerOnChange = d.triggerOnChange
+  triggerButton = d.triggerButton
 }
 
 const doc = computed(() => document.doc || {})
@@ -442,12 +481,21 @@ const _sections = computed(() => {
 })
 
 function parsedField(field) {
+  // Clone to avoid mutating the cached layout data
+  field = { ...field }
+
+  // Merge script property overrides
+  const overrides = document.fieldPropertyOverrides?.[field.fieldname]
+  if (overrides) {
+    Object.assign(field, overrides)
+  }
+
   if (field.fieldtype == 'Select' && typeof field.options === 'string') {
     field.options = field.options.split('\n').map((option) => {
       return { label: option, value: option }
     })
 
-    if (field.options[0].value !== '') {
+    if (field.options[0].value !== '' && !field.reqd) {
       field.options.unshift({ label: '', value: '' })
     }
   }
@@ -455,23 +503,38 @@ function parsedField(field) {
   if (field.fieldtype === 'Link' && field.options === 'User') {
     field.fieldtype = 'User'
     field.link_filters = JSON.stringify({
-      ...(field.link_filters ? JSON.parse(field.link_filters) : {}),
       name: ['in', users.data?.crmUsers?.map((user) => user.name)],
+      ignore_user_type: 1,
+      ...(parseLinkFilters(field.link_filters) || {}),
     })
   }
 
+  const read_only_via_depends_on = evaluateDependsOnValue(
+    field.read_only_depends_on,
+    doc.value,
+  )
+
+  // Script overrides for read_only take priority over depends_on
+  const scriptReadOnly = overrides?.read_only
+  const effectiveReadOnly =
+    scriptReadOnly !== undefined
+      ? scriptReadOnly
+      : field.read_only ||
+        (field.read_only_depends_on && read_only_via_depends_on)
+
   let _field = {
     ...field,
-    filters: field.link_filters && JSON.parse(field.link_filters),
+    filters: parseLinkFilters(field.link_filters),
     placeholder: field.placeholder || field.label,
     display_via_depends_on: evaluateDependsOnValue(field.depends_on, doc.value),
     mandatory_via_depends_on: evaluateDependsOnValue(
       field.mandatory_depends_on,
       doc.value,
     ),
+    read_only: effectiveReadOnly,
   }
 
-  _field.visible = isFieldVisible(_field)
+  _field.visible = isFieldVisible(_field, overrides?.hidden)
   return _field
 }
 
@@ -495,6 +558,12 @@ async function fieldChange(value, df) {
 }
 
 function parsedSection(section, editButtonAdded) {
+  // Merge script property overrides for section
+  const overrides = document.fieldPropertyOverrides?.[section.name]
+  if (overrides) {
+    section = { ...section, ...overrides }
+  }
+
   let isContactSection = section.name == 'contacts_section'
   section.showEditButton = !(
     isMobileView.value ||
@@ -503,22 +572,51 @@ function parsedSection(section, editButtonAdded) {
     editButtonAdded
   )
 
-  section.visible =
-    isContactSection ||
-    section.columns?.[0].fields.filter((f) => f.visible).length
+  // Script hidden override for sections
+  if (overrides?.hidden !== undefined) {
+    section.visible = !overrides.hidden
+  } else {
+    section.visible =
+      isContactSection ||
+      section.columns?.[0].fields.filter((f) => f.visible).length
+  }
 
   return section
 }
 
-function isFieldVisible(field) {
+function isFieldVisible(field, scriptHidden) {
   if (props.preview) return true
+
+  // Script override for hidden wins over everything
+  if (scriptHidden !== undefined) return !scriptHidden
+
+  let readOnlyField =
+    field.read_only || field.fieldtype === 'Read Only' ? true : false
+
+  let hideEmptyReadOnlyField =
+    isNull(doc.value[field.fieldname]) &&
+    Number(window.sysdefaults?.hide_empty_read_only_fields ?? 1)
+
+  let showReadOnlyField = readOnlyField && !hideEmptyReadOnlyField
+
   return (
     (field.fieldtype == 'Check' ||
-      (field.read_only && doc.value?.[field.fieldname]) ||
-      !field.read_only) &&
+      field.fieldtype == 'Button' ||
+      showReadOnlyField ||
+      !readOnlyField) &&
     (!field.depends_on || field.display_via_depends_on) &&
     !field.hidden
   )
+}
+
+async function handleButtonClick(field) {
+  if (props.preview) return
+
+  if (typeof field.click === 'function') {
+    await field.click(doc.value)
+  } else {
+    await triggerButton(field.fieldname)
+  }
 }
 
 function firstVisibleIndex() {
@@ -535,6 +633,8 @@ function firstVisibleIndex() {
 :deep(.form-control select),
 :deep(.form-control textarea),
 :deep(.form-control button),
+:deep(.attach-control),
+:deep(.geolocation-control),
 .dropdown-button {
   border-color: transparent;
   background: transparent;

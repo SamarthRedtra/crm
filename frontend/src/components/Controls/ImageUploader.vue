@@ -1,42 +1,37 @@
 <template>
   <FileUploader
     :file-types="image_type"
-    class="text-base"
-    @success="
-      (file) => {
-        $emit('upload', file.file_url)
-      }
-    "
+    @success="(file) => emit('upload', file.file_url)"
   >
-    <template v-slot="{ progress, uploading, openFileSelector }">
+    <template #default="{ progress, uploading, openFileSelector }">
       <div class="flex items-end space-x-1">
-        <Button @click="openFileSelector">
-          {{
+        <Button
+          :iconLeft="uploading ? 'cloud-upload' : ImageUpIcon"
+          :label="
             uploading
-              ? `Uploading ${progress}%`
+              ? __('Uploading {0}%', [progress])
               : image_url
-                ? 'Change'
-                : 'Upload'
-          }}
-        </Button>
-        <Button v-if="image_url" @click="$emit('remove')">Remove</Button>
+                ? __('Change')
+                : __('Upload')
+          "
+          @click="openFileSelector"
+        />
+        <Button
+          v-if="image_url"
+          :label="__('Remove')"
+          @click="emit('remove')"
+        />
       </div>
     </template>
   </FileUploader>
 </template>
 <script setup>
+import ImageUpIcon from '~icons/lucide/image-up'
 import { FileUploader, Button } from 'frappe-ui'
 
-const prop = defineProps({
-  image_url: String,
-  image_type: {
-    type: String,
-    default: 'image/*',
-  },
-  label: {
-    type: String,
-    default: '',
-  },
+defineProps({
+  image_url: { type: String, default: '' },
+  image_type: { type: String, default: 'image/*' },
 })
 const emit = defineEmits(['upload', 'remove'])
 </script>
