@@ -208,7 +208,7 @@
             :format="'MMM D, YYYY'"
             :placeholder="__('May 1, 2025')"
             :clearable="false"
-            @update:modelValue="(date) => updateDate(date, true)"
+            @update:modelValue="updateDate"
           >
             <template #suffix="{ togglePopover }">
               <FeatherIcon
@@ -558,23 +558,31 @@ function normalizePickerValue(value) {
 
 function updateDate(d) {
   const date = normalizePickerValue(d)
-  _event.value.fromDate = date
-  _event.value.toDate = date
+  const normalized = dayjs(date).isValid()
+    ? dayjs(date).format('YYYY-MM-DD')
+    : date
+  if (!normalized) return
+
+  _event.value.fromDate = normalized
+  _event.value.toDate = normalized
 
   sync()
 }
 
 function updateTime(t, fromTime = false) {
   const time = normalizePickerValue(t)
+  const normalized = dayjs(time, ['HH:mm', 'H:mm', 'h:mm A'], true).isValid()
+    ? dayjs(time, ['HH:mm', 'H:mm', 'h:mm A']).format('HH:mm')
+    : time
   error.value = null
   const prevTo = _event.value.toTime
   if (fromTime) {
-    _event.value.fromTime = time
-    if (!_event.value.toTime || _event.value.toTime <= time) {
-      _event.value.toTime = computeAutoToTime(time)
+    _event.value.fromTime = normalized
+    if (!_event.value.toTime || _event.value.toTime <= normalized) {
+      _event.value.toTime = computeAutoToTime(normalized)
     }
   } else {
-    _event.value.toTime = time
+    _event.value.toTime = normalized
   }
   const { valid, error: err } = validateTimeRange({
     fromDate: _event.value.fromDate,
@@ -754,6 +762,7 @@ const toOptions = computed(() => buildEndTimeOptions(_event.value.fromTime))
 
 function updateEvent(_e) {
   Object.assign(_event.value, _e)
+  sync()
 }
 
 defineExpose({ updateEvent })

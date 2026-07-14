@@ -2,6 +2,30 @@ import frappe
 from crm.api.redtra.agents import get_agent, list_agents
 from crm.api.redtra.agencies import get_agency, list_agencies
 
+
+def verify_agency_isolation_data():
+	"""Report records still missing agency and agents missing User Permission."""
+	print("Verifying agency isolation data...")
+	doctypes = ("Property", "CRM Lead", "Contact", "FCRM Note", "CRM Call Log")
+	for doctype in doctypes:
+		if not frappe.db.has_column(doctype, "agency"):
+			continue
+		missing = frappe.db.count(doctype, filters={"agency": ["in", ["", None]]})
+		print(f"  {doctype}: {missing} record(s) missing agency")
+
+	from frappe.core.doctype.user_permission.user_permission import user_permission_exists
+
+	missing_perms = 0
+	for agent in frappe.get_all(
+		"Agent",
+		filters={"agency": ["is", "set"], "user": ["is", "set"]},
+		fields=["user", "agency"],
+	):
+		if not user_permission_exists(agent.user, "Agency", agent.agency, None):
+			missing_perms += 1
+	print(f"  Agents missing Agency User Permission: {missing_perms}")
+
+
 def verify_crm_lead_fields():
     print("Verifying CRM Lead fields...")
     meta = frappe.get_meta("CRM Lead")
@@ -61,5 +85,6 @@ def verify_agency_api():
 
 if __name__ == "__main__":
     verify_crm_lead_fields()
+    verify_agency_isolation_data()
     verify_agent_api()
     verify_agency_api()

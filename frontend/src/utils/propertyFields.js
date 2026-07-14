@@ -4,7 +4,7 @@ import { usePropertySettings } from '@/stores/propertySettings'
 
 const { fieldConfigs } = usePropertySettings()
 const session = sessionStore()
-const TITLE_MIN_LETTERS = 15
+const TITLE_MIN_LETTERS = 5
 const TITLE_MAX_LETTERS = 50
 
 const PROPERTY_FIELD_GROUPS = {

@@ -305,12 +305,14 @@ async function updateEvent(_event, afterDrag = false) {
   }
 
   if (mode.value == 'edit' && afterDrag) {
-    eventPanel.value.updateEvent({
+    const dragUpdate = {
       fromDate: _event.fromDate,
       toDate: _event.toDate,
       fromTime: _event.fromTime,
       toTime: _event.toTime,
-    })
+    }
+    eventPanel.value?.updateEvent(dragUpdate)
+    syncEvent(_event.id, dragUpdate)
     return
   }
 
@@ -371,9 +373,11 @@ function deleteEvent(eventID) {
   })
 }
 
-function syncEvent(eventID, _event) {
-  if (!eventID) return
-  Object.assign(events.data.filter((event) => event.id === eventID)[0], _event)
+function syncEvent(eventID, patch) {
+  if (!eventID || !Array.isArray(events.data)) return
+  const idx = events.data.findIndex((event) => event.id === eventID)
+  if (idx === -1) return
+  events.data[idx] = { ...events.data[idx], ...patch }
 }
 
 onMounted(() => {

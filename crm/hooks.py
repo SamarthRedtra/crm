@@ -130,6 +130,8 @@ permission_query_conditions = {
 	"Contact": "crm.api.redtra.permissions.get_contact_permission_query",
 	"CRM Call Log": "crm.api.redtra.permissions.get_call_log_permission_query",
 	"FCRM Note": "crm.api.redtra.permissions.get_note_permission_query",
+	"CRM Lead": "crm.api.redtra.permissions.get_crm_lead_permission_query",
+	"CRM Deal": "crm.api.redtra.permissions.get_crm_deal_permission_query",
 }
 
 has_permission = {
@@ -139,6 +141,8 @@ has_permission = {
 	"Contact": "crm.api.redtra.permissions.has_contact_permission",
 	"CRM Call Log": "crm.api.redtra.permissions.has_call_log_permission",
 	"FCRM Note": "crm.api.redtra.permissions.has_note_permission",
+	"CRM Lead": "crm.api.redtra.permissions.has_crm_lead_permission",
+	"CRM Deal": "crm.api.redtra.permissions.has_crm_deal_permission",
 }
 
 # DocType Class
@@ -168,6 +172,9 @@ doc_events = {
 		"validate": ["crm.api.redtra.permissions.set_agency_on_doc"],
 	},
 	"FCRM Note": {
+		"validate": ["crm.api.redtra.permissions.set_agency_on_doc"],
+	},
+	"CRM Lead": {
 		"validate": ["crm.api.redtra.permissions.set_agency_on_doc"],
 	},
 	"ToDo": {

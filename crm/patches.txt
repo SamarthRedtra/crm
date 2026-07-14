@@ -32,3 +32,4 @@ crm.patches.v1_0.add_event_sync_fields
 crm.patches.v1_0.add_event_appointment_customer_field
 crm.patches.v1_0.add_agency_manager_role
 crm.patches.v1_0.add_agent_permissions_for_contact
+crm.patches.v1_0.backfill_agency_isolation_data

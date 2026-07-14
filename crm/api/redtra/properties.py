@@ -58,7 +58,7 @@ SUMMARY_FIELDS = [
 	"completion_percentage",
 ]
 
-TITLE_MIN_LETTERS = 15
+TITLE_MIN_LETTERS = 5
 TITLE_MAX_LETTERS = 50
 
 
