@@ -9,6 +9,7 @@ def get_agency_context(user=None):
 	agency = frappe.db.get_value("Agent", {"user": user}, "agency")
 	return agency
 
+
 def apply_agency_isolation(doctype, user=None):
 	if not user:
 		user = frappe.session.user
