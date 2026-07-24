@@ -301,7 +301,7 @@ import {
   createResource,
   toast,
 } from 'frappe-ui'
-import { reactive, ref, computed, watch } from 'vue'
+import { reactive, ref, computed, watch, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 
 const showStripeModal = ref(false)

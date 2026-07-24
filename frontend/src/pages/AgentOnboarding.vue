@@ -31,7 +31,7 @@
               : __('The agency profile is currently under review. You can proceed with your onboarding, but full CRM access requires agency verification.') 
           }}
         </p>
-        <Button v-if="agencyContext?.can_manage_billing" variant="subtle" size="sm" :label="__('Fix Agency Profile')" @click="goAgencyOnboarding" />
+        <Button v-if="agencyContext?.can_manage_billing" variant="subtle" size="sm" :label="__('Review Agency Verification')" @click="goAgencyVerification" />
       </div>
 
       <div class="px-8 py-6 flex flex-col gap-6">
@@ -63,6 +63,23 @@
             <p class="text-p-sm text-yellow-800">
               {{ __('Broker license is pending DDA sync. You can use the CRM, but some features may be limited until license verification completes.') }}
             </p>
+          </div>
+
+          <div
+            v-if="showAgencyVerificationPendingBanner"
+            class="w-full flex items-start gap-2.5 rounded-md bg-surface-yellow-1 border border-outline-yellow-1 px-4 py-3"
+          >
+            <FeatherIcon name="alert-triangle" class="h-4 w-4 text-yellow-600 shrink-0 mt-0.5" />
+            <div class="flex-1 text-p-sm text-yellow-900">
+              <p>{{ __('Agency verification is still pending. Review your agency verification status to unlock full CRM access.') }}</p>
+              <Button
+                class="mt-2"
+                variant="subtle"
+                size="sm"
+                :label="__('Go to Agency Verification')"
+                @click="goAgencyVerification"
+              />
+            </div>
           </div>
 
           <div
@@ -478,11 +495,23 @@ const showAgencyAdminPendingBanner = computed(
   () =>
     localStatus.value === 'Verified' &&
     showAgencyOnboardingLink.value &&
-    agency.needsAgencyOnboarding(),
+    agency.needsAgencyOnboarding() &&
+    !agency.needsAgencyVerification(),
+)
+
+const showAgencyVerificationPendingBanner = computed(
+  () =>
+    localStatus.value === 'Verified' &&
+    showAgencyOnboardingLink.value &&
+    agency.needsAgencyVerification(),
 )
 
 function goAgencyOnboarding() {
   router.push({ name: 'Agency Onboarding', query: { resume: 'agency' } })
+}
+
+function goAgencyVerification() {
+  router.push({ name: 'Agency Verification' })
 }
 
 const activeSection = ref(0)
