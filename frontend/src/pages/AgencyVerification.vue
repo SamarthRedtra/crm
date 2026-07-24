@@ -36,10 +36,10 @@
           <div class="mt-3 flex flex-wrap gap-2">
             <Button variant="outline" :label="__('Open Agent Onboarding')" @click="goAgentOnboarding" />
             <Button
-              v-if="isVerified"
+              v-if="isVerified && !onboardingComplete"
               variant="subtle"
               :label="__('Open Agency Onboarding')"
-              @click="router.push({ name: 'Agency Onboarding' })"
+              @click="goAgencyOnboarding"
             />
           </div>
         </div>
@@ -104,6 +104,20 @@
           <p v-else-if="isPending" class="mt-3 text-p-sm text-ink-gray-6">
             {{ __('Your agency registration is under review. We will unlock the next steps when it is approved.') }}
           </p>
+
+          <div
+            v-if="hasDdaLicenseWarning"
+            class="mt-3 flex items-start gap-2.5 rounded-md border border-outline-yellow-1 bg-surface-yellow-1 px-3 py-2.5"
+          >
+            <FeatherIcon name="alert-triangle" class="mt-0.5 h-4 w-4 shrink-0 text-yellow-600" />
+            <p class="text-p-sm text-yellow-800">
+              {{
+                __(
+                  'Agency broker license is pending DDA sync. You can use the CRM, but some features may be limited until license verification completes.',
+                )
+              }}
+            </p>
+          </div>
         </div>
 
         <div class="mt-5 flex flex-wrap gap-2">
@@ -118,8 +132,8 @@
           <Button
             v-if="isVerified"
             variant="solid"
-            :label="__('Continue to Agency Onboarding')"
-            @click="router.push({ name: 'Agency Onboarding' })"
+            :label="continueLabel"
+            @click="continueNextStep"
           />
         </div>
       </template>
@@ -131,7 +145,11 @@
 
 <script setup>
 import { agencyStore } from '@/stores/agency'
-import { Badge, Button, ErrorMessage, LoadingIndicator, call } from 'frappe-ui'
+import {
+  agencyNeedsDdaLicenseSync,
+  isAgencyOnboardingComplete,
+} from '@/utils/agencyOnboarding'
+import { Badge, Button, ErrorMessage, FeatherIcon, LoadingIndicator, call } from 'frappe-ui'
 import { storeToRefs } from 'pinia'
 import { computed, ref } from 'vue'
 import { useRouter } from 'vue-router'
@@ -152,6 +170,18 @@ const agencyName = computed(() => context.value?.agency_name || context.value?.a
 const isVerified = computed(() => verificationStatus.value === 'Verified')
 const isPending = computed(() => verificationStatus.value === 'Pending Verification')
 const isRejected = computed(() => verificationStatus.value === 'Rejected')
+const onboardingComplete = computed(() => isAgencyOnboardingComplete(context.value))
+const hasDdaLicenseWarning = computed(() => agencyNeedsDdaLicenseSync(context.value))
+
+const continueLabel = computed(() => {
+  if (onboardingComplete.value) {
+    if (agency.needsBillingActivation()) {
+      return __('Continue to Billing Activation')
+    }
+    return __('Continue to CRM')
+  }
+  return __('Continue to Agency Onboarding')
+})
 
 const verificationTheme = computed(() => {
   if (isVerified.value) return 'green'
@@ -165,13 +195,29 @@ function goAgentOnboarding() {
   router.push({ name: 'Agent Onboarding' })
 }
 
+function goAgencyOnboarding() {
+  router.push({ name: 'Agency Onboarding', query: { resume: 'agency' } })
+}
+
+function continueNextStep() {
+  if (onboardingComplete.value) {
+    if (agency.needsBillingActivation()) {
+      router.push({ name: 'Billing Activation' })
+      return
+    }
+    router.push({ name: 'Home' })
+    return
+  }
+  goAgencyOnboarding()
+}
+
 async function refreshContext() {
   errorMessage.value = ''
   loading.value = true
   try {
     await contextResource.reload()
     if (isVerified.value) {
-      router.push({ name: 'Agency Onboarding' })
+      continueNextStep()
     }
   } catch (error) {
     errorMessage.value = error?.messages?.[0] || error?.message

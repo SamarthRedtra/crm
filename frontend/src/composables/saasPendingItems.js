@@ -3,6 +3,7 @@ import { agentStore } from '@/stores/agent'
 import { storeToRefs } from 'pinia'
 import { computed } from 'vue'
 import { isUnverifiedAgent as agentNeedsOnboarding } from '@/utils/agentOnboarding'
+import { agencyNeedsDdaLicenseSync } from '@/utils/agencyOnboarding'
 
 /**
  * Pending onboarding / verification / billing items for SaaS header + banner.
@@ -52,6 +53,13 @@ export function useSaasPendingItems() {
         label: __('Billing activation'),
         detail: __('Activate billing to continue.'),
         to: { name: 'Billing Activation' },
+      })
+    }
+    if (agencyNeedsDdaLicenseSync(agencyContext.value)) {
+      out.push({
+        key: 'agency_dda_license',
+        label: __('Agency license sync'),
+        detail: __('Broker license pending DDA sync — some features may be limited.'),
       })
     }
     return out
