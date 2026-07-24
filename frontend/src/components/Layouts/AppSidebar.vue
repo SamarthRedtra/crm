@@ -175,6 +175,7 @@ import { sessionStore } from '@/stores/session'
 import { agentStore } from '@/stores/agent'
 import { agencyStore } from '@/stores/agency'
 import { userCanAccessDashboard } from '@/utils/dashboardAccess'
+import { isAgentOnboardingComplete } from '@/utils/agentOnboarding'
 import { showSettings, activeSettingsPage } from '@/composables/settings'
 import { showChangePasswordModal } from '@/composables/modals'
 import { FeatherIcon, call } from 'frappe-ui'
@@ -216,20 +217,10 @@ const canOpenAppointmentAvailability = computed(() => Boolean(agentResource.data
 const isAgentVerified = computed(() => {
   const userRoles = window.frappe?.boot?.user?.roles || []
   if (userRoles.includes('System Manager')) return true
-  
+
   if (!agentResource.data?.name) return true
-  
-  const isAgentStatusVerified = agentResource.data?.status === 'Verified'
-  const isAgencyOnboarded = agentResource.data?.agency_onboarding_status === 'Completed'
-  
-  // Failsafe: if they are somehow unverified but the router didn't block them,
-  // we still want to show the sidebar if they are accessing dashboard/leads safely.
-  // We'll trust the router and just match router's isUnverifiedAgent logic here:
-  const isUnverifiedAgent = agentResource.data && agentResource.data.name && agentResource.data.status !== 'Verified'
-  
-  if (!isUnverifiedAgent) return true
-  
-  return isAgentStatusVerified && isAgencyOnboarded
+
+  return isAgentOnboardingComplete(agentResource.data)
 })
 
 const isFCSite = ref(window.is_fc_site)

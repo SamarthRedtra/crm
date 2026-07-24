@@ -55,6 +55,33 @@
           </div>
           <Button variant="solid" :label="__('Go to CRM Dashboard')" iconRight="arrow-right" @click="goToCRM" />
 
+          <div
+            v-if="hasDdaLicenseWarning"
+            class="w-full flex items-start gap-2.5 rounded-md bg-surface-yellow-1 border border-outline-yellow-1 px-4 py-3"
+          >
+            <FeatherIcon name="alert-triangle" class="h-4 w-4 text-yellow-600 shrink-0 mt-0.5" />
+            <p class="text-p-sm text-yellow-800">
+              {{ __('Broker license is pending DDA sync. You can use the CRM, but some features may be limited until license verification completes.') }}
+            </p>
+          </div>
+
+          <div
+            v-if="showAgencyAdminPendingBanner"
+            class="w-full flex items-start gap-2.5 rounded-md bg-surface-blue-1 border border-outline-blue-1 px-4 py-3"
+          >
+            <FeatherIcon name="info" class="h-4 w-4 text-blue-600 shrink-0 mt-0.5" />
+            <div class="flex-1 text-p-sm text-blue-900">
+              <p>{{ __('Your agency profile or billing setup is still incomplete. Complete agency onboarding to unlock full team access.') }}</p>
+              <Button
+                class="mt-2"
+                variant="subtle"
+                size="sm"
+                :label="__('Go to Agency Onboarding')"
+                @click="goAgencyOnboarding"
+              />
+            </div>
+          </div>
+
           <!-- Read-only profile summary -->
           <div class="w-full rounded-lg border border-outline-gray-2 bg-surface-gray-1 p-4 mt-2">
             <p class="text-p-sm font-semibold text-ink-gray-7 mb-3">{{ __('Your Submitted Profile') }}</p>
@@ -431,6 +458,7 @@ import { sessionStore } from '@/stores/session'
 import PhoneInput from '@/components/PhoneInput.vue'
 import { FeatherIcon, Button, TextInput, FileUploader, Badge, createResource, toast } from 'frappe-ui'
 import { useRouter } from 'vue-router'
+import { agentNeedsDdaLicenseSync } from '@/utils/agentOnboarding'
 
 const { agentResource } = agentStore()
 const agency = agencyStore()
@@ -440,6 +468,17 @@ const router = useRouter()
 
 const showAgencyOnboardingLink = computed(
   () => Boolean(agencyContext.value?.agency && agencyContext.value?.can_manage_billing),
+)
+
+const hasDdaLicenseWarning = computed(() =>
+  agentNeedsDdaLicenseSync(agentResource.data),
+)
+
+const showAgencyAdminPendingBanner = computed(
+  () =>
+    localStatus.value === 'Verified' &&
+    showAgencyOnboardingLink.value &&
+    agency.needsAgencyOnboarding(),
 )
 
 function goAgencyOnboarding() {

@@ -57,6 +57,7 @@ import SettingsIcon2 from '@/components/Icons/SettingsIcon2.vue'
 import Users from '@/components/Settings/Users.vue'
 import InviteUserPage from '@/components/Settings/InviteUserPage.vue'
 import ProfileSettings from '@/components/Settings/ProfileSettings.vue'
+import AgentProfileSettings from '@/components/Settings/AgentProfileSettings.vue'
 import WhatsAppSettings from '@/components/Settings/WhatsAppSettings.vue'
 import ERPNextSettings from '@/components/Settings/ERPNextSettings.vue'
 import HelpdeskSettings from '@/components/Settings/HelpdeskSettings.vue'
@@ -127,6 +128,12 @@ const tabs = computed(() => {
               image: user.value.user_image,
             }),
           component: markRaw(ProfileSettings),
+        },
+        {
+          label: __('Agent profile'),
+          icon: 'user',
+          component: markRaw(AgentProfileSettings),
+          condition: () => hasAgentProfile.value,
         },
         {
           label: __('Appointment availability'),

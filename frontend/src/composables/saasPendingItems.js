@@ -2,6 +2,7 @@ import { agencyStore } from '@/stores/agency'
 import { agentStore } from '@/stores/agent'
 import { storeToRefs } from 'pinia'
 import { computed } from 'vue'
+import { isUnverifiedAgent as agentNeedsOnboarding } from '@/utils/agentOnboarding'
 
 /**
  * Pending onboarding / verification / billing items for SaaS header + banner.
@@ -35,7 +36,8 @@ export function useSaasPendingItems() {
       })
     }
     const agentNeedsWork =
-      Boolean(agentResource.data?.name) && agentResource.data?.status !== 'Verified'
+      Boolean(agentResource.data?.name) &&
+      agentNeedsOnboarding(agentResource.data)
     if (agentNeedsWork && !agency.needsAgencyVerification() && !agency.needsAgencyOnboarding()) {
       out.push({
         key: 'agent_onboarding',

@@ -890,6 +890,45 @@ def get_current_agent():
 	return out
 
 
+@frappe.whitelist()
+def update_current_agent_profile(
+	phone: str | None = None,
+	whatsapp_number: str | None = None,
+	bio: str | None = None,
+	brn_id: str | None = None,
+):
+	"""Update the logged-in user's Agent profile from the CRM SPA (no Desk)."""
+	user = frappe.session.user
+	if user == "Guest":
+		frappe.throw(_("Not permitted"), frappe.PermissionError)
+
+	agent_name = frappe.db.get_value("Agent", {"user": user}, "name")
+	if not agent_name:
+		frappe.throw(_("No agent profile is linked to your user."))
+
+	agent = frappe.get_doc("Agent", agent_name)
+	updated = False
+
+	if phone is not None:
+		agent.phone = phone
+		updated = True
+	if whatsapp_number is not None:
+		agent.whatsapp_number = whatsapp_number
+		updated = True
+	if bio is not None:
+		agent.bio = bio
+		updated = True
+	if brn_id is not None:
+		agent.brn_id = brn_id
+		updated = True
+
+	if not updated:
+		return get_current_agent()
+
+	agent.save()
+	return get_current_agent()
+
+
 def remove_doc_link(doctype, docname):
 	if not doctype or not docname:
 		return

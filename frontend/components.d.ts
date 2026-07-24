@@ -22,6 +22,7 @@ declare module 'vue' {
     AgencyTeamInvite: typeof import('./src/components/Settings/AgencyTeamInvite.vue')['default']
     AgentAppointmentSettings: typeof import('./src/components/Settings/AgentAppointmentSettings.vue')['default']
     AgentLevelPricingSettings: typeof import('./src/components/Settings/AgentLevelPricingSettings.vue')['default']
+    AgentProfileSettings: typeof import('./src/components/Settings/AgentProfileSettings.vue')['default']
     AgentSettings: typeof import('./src/components/Settings/AgentSettings.vue')['default']
     AllModals: typeof import('./src/components/Activities/AllModals.vue')['default']
     AppHeader: typeof import('./src/components/Layouts/AppHeader.vue')['default']

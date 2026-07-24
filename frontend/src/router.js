@@ -2,6 +2,7 @@ import { createRouter, createWebHistory } from 'vue-router'
 import { userResource } from '@/stores/user'
 import { sessionStore } from '@/stores/session'
 import { viewsStore } from '@/stores/views'
+import { isUnverifiedAgent as agentNeedsOnboarding } from '@/utils/agentOnboarding'
 
 const routes = [
   {
@@ -252,11 +253,7 @@ router.beforeEach(async (to, from, next) => {
       await agentResource.reload()
     }
     const isUnverifiedAgent =
-      agentResource.data &&
-      agentResource.data.name &&
-      (agentResource.data.status !== 'Verified' ||
-        agentResource.data.requires_agent_license_verification ||
-        agentResource.data.requires_license_verification)
+      agentResource.data && agentNeedsOnboarding(agentResource.data)
 
     // Administrator bypasses agency/agent onboarding gates (no Agent record, system-wide access).
     if (!isAdministrator) {

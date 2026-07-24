@@ -231,6 +231,8 @@ def review_kyc_document(agent_name, row_name, action, comment=""):
 		agent.status = "Rejected"
 
 	agent.flags.ignore_permissions = True
+	if agent.status == "Verified":
+		agent._verify_broker_license_if_applicable()
 	agent.save()
 
 	return {"status": agent.status, "doc_status": doc_row.doc_status}
