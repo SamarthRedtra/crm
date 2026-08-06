@@ -22,15 +22,15 @@
 
       <div class="p-2 group bg-surface-gray-2 hover:bg-surface-gray-3 rounded">
         <EmailMultiSelect
-          v-if="users?.data?.crmUsers?.length"
           class="flex-1"
           inputClass="!bg-surface-gray-2 hover:!bg-surface-gray-3 group-hover:!bg-surface-gray-3"
           :placeholder="__('john@doe.com')"
           v-model="newUsers"
           :validate="validateEmail"
           :fetchUsers="true"
+          :userOptions="existingUserCandidates.data || []"
           :existingEmails="[
-            ...users.data.crmUsers.map((user) => user.name),
+            ...(users.data?.crmUsers || []).map((user) => user.name),
             'admin@example.com',
           ]"
           :error-message="
@@ -75,6 +75,11 @@ const show = defineModel()
 
 const newUsers = ref([])
 const role = ref('Sales User')
+
+const existingUserCandidates = createResource({
+  url: 'crm.api.user.get_existing_user_candidates',
+  auto: true,
+})
 
 const description = computed(() => {
   return {

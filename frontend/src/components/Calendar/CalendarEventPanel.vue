@@ -14,14 +14,14 @@
       </div>
       <div class="flex items-center gap-x-1">
         <ShortcutTooltip
-          v-if="mode == 'details'"
+          v-if="mode == 'details' && !isPastEvent"
           :label="__('Edit event')"
           combo="Enter"
         >
           <Button :icon="EditIcon" variant="ghost" @click="editDetails" />
         </ShortcutTooltip>
         <ShortcutTooltip
-          v-if="mode === 'edit' || mode === 'details'"
+          v-if="(mode === 'edit' || mode === 'details') && !isPastEvent"
           :label="__('Delete event')"
           combo="Delete"
           :alt-combos="['Backspace']"
@@ -45,7 +45,7 @@
     <div v-if="mode == 'details'" class="flex flex-col overflow-y-auto">
       <div
         class="flex items-start gap-2 px-4.5 py-3 pb-0"
-        @dblclick="editDetails"
+        @dblclick="!isPastEvent && editDetails()"
       >
         <div
           class="mx-0.5 my-[5px] size-2.5 rounded-full cursor-pointer"
@@ -490,6 +490,16 @@ const dirty = computed(() => {
   return JSON.stringify(oldEvent.value) !== JSON.stringify(_event.value)
 })
 
+const isPastEvent = computed(() => {
+  if (!_event.value?.toDate) return false
+  if (_event.value.isFullDay) {
+    return dayjs(_event.value.toDate).endOf('day').isBefore(dayjs())
+  }
+  return dayjs(
+    `${_event.value.toDate} ${_event.value.toTime || '00:00'}`,
+  ).isBefore(dayjs())
+})
+
 const displayedPeoples = computed(() => {
   if (showAllParticipants.value) return peoples.value
   return peoples.value.slice(0, 2)
@@ -635,6 +645,7 @@ function saveEvent() {
 }
 
 function editDetails() {
+  if (isPastEvent.value) return
   emit('edit', _event.value)
 }
 
@@ -647,6 +658,7 @@ function duplicateEvent() {
 }
 
 function deleteEvent() {
+  if (isPastEvent.value) return
   emit('delete', _event.value.id)
 }
 
@@ -775,12 +787,15 @@ useKeyboardShortcuts({
     {
       keys: 'Enter',
       guard: () =>
-        ['details', 'edit'].includes(props.mode) && props.mode === 'details',
+        ['details', 'edit'].includes(props.mode) &&
+        props.mode === 'details' &&
+        !isPastEvent.value,
       action: () => editDetails(),
     },
     {
       keys: ['Delete', 'Backspace'],
-      guard: () => ['details', 'edit'].includes(props.mode),
+      guard: () =>
+        ['details', 'edit'].includes(props.mode) && !isPastEvent.value,
       action: () => deleteEvent(),
     },
     {

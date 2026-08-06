@@ -1,7 +1,41 @@
 import frappe
 from frappe import _
+from frappe.utils import cint, get_datetime, getdate, now_datetime
 
 from crm.api.redtra.utils import ensure_customer_for_email
+
+
+def is_past_calendar_event(doc) -> bool:
+	"""Return whether an Event has completed in the site's current timezone."""
+	if not getattr(doc, "ends_on", None):
+		return False
+
+	now = now_datetime()
+	if cint(getattr(doc, "all_day", False)):
+		return getdate(doc.ends_on) < now.date()
+	return get_datetime(doc.ends_on) < now
+
+
+def prevent_past_calendar_event_mutation(doc, method=None):
+	"""Keep historical calendar Events immutable after they have ended.
+
+	The persisted end time is deliberately used for updates so a client cannot
+	move a completed event into the future and then change it.
+	"""
+	if doc.is_new():
+		return
+
+	persisted_end = frappe.db.get_value("Event", doc.name, "ends_on")
+	persisted_all_day = frappe.db.get_value("Event", doc.name, "all_day")
+	if not persisted_end:
+		return
+
+	persisted = frappe._dict(ends_on=persisted_end, all_day=persisted_all_day)
+	if is_past_calendar_event(persisted):
+		frappe.throw(
+			_("Past events cannot be changed or deleted."),
+			frappe.ValidationError,
+		)
 
 
 def _parse_if_string(val):
@@ -400,6 +434,8 @@ def delete_calendar_event(name: str | None = None):
 	doc = frappe.get_doc("Event", name)
 	if not _user_can_delete_calendar_event(doc):
 		frappe.throw(_("Not permitted to delete this event."), frappe.PermissionError)
+	if is_past_calendar_event(doc):
+		frappe.throw(_("Past events cannot be changed or deleted."), frappe.ValidationError)
 
 	frappe.delete_doc("Event", name, ignore_permissions=True, force=1)
 	return {"ok": True, "name": name}

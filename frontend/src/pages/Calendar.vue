@@ -188,6 +188,9 @@ const events = createListResource({
       customerEmail: ev.customer_email,
       appointmentCustomer: ev.appointment_customer,
       property: ev.property,
+      isPast: ev.all_day
+        ? dayjs(ev.ends_on).endOf('day').isBefore(dayjs())
+        : dayjs(ev.ends_on).isBefore(dayjs()),
     })),
 })
 
@@ -201,6 +204,15 @@ const mode = ref('')
 const isCreateDisabled = computed(() =>
   ['edit', 'new', 'duplicate'].includes(mode.value),
 )
+
+function isPastEvent(_event) {
+  if (!_event?.toDate) return false
+  if (_event.isPast) return true
+  if (_event.isFullDay) {
+    return dayjs(_event.toDate).endOf('day').isBefore(dayjs())
+  }
+  return dayjs(`${_event.toDate} ${_event.toTime || '00:00'}`).isBefore(dayjs())
+}
 
 // Temp event helpers
 const TEMP_EVENT_IDS = new Set(['new-event', 'duplicate-event'])
@@ -225,7 +237,7 @@ function openEvent(e, nextMode, reloadEvent = false) {
   showEventPanel.value = true
   event.value = { id: _e.id, reloadEvent }
   activeEvent.value = _e.id
-  mode.value = nextMode
+  mode.value = nextMode === 'edit' && isPastEvent(_e) ? 'details' : nextMode
 }
 
 function saveEvent(_event) {
@@ -291,6 +303,13 @@ function createEvent(_event) {
 async function updateEvent(_event, afterDrag = false) {
   if (!_event.id) return
 
+  const currentEvent = events.data?.find((item) => item.id === _event.id)
+  if (isPastEvent(currentEvent || _event)) {
+    await events.reload()
+    toast.error(__('Past events cannot be changed or deleted.'))
+    return
+  }
+
   _event.fromTime = dayjs(_event.fromTime, 'HH:mm').format('HH:mm')
   _event.toTime = dayjs(_event.toTime, 'HH:mm').format('HH:mm')
 
@@ -343,6 +362,13 @@ async function updateEvent(_event, afterDrag = false) {
 
 function deleteEvent(eventID) {
   if (!eventID) return
+
+  const calendarEvent = events.data?.find((item) => item.id === eventID)
+  if (isPastEvent(calendarEvent)) {
+    toast.error(__('Past events cannot be changed or deleted.'))
+    events.reload()
+    return
+  }
 
   $dialog({
     title: __('Delete'),

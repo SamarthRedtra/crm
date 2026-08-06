@@ -123,6 +123,7 @@ const props = defineProps({
   // Behaviour
   mode: { type: String, default: null }, // 'users' | 'contacts' | 'free' (fallback to legacy flags)
   fetchUsers: { type: Boolean, default: false },
+  userOptions: { type: Array, default: null },
   fetchContacts: { type: Boolean, default: false },
   existingEmails: { type: Array, default: () => [] },
   validate: { type: Function, default: null },
@@ -206,7 +207,7 @@ function reload(val) {
 const options = computed(() => {
   const mode = effectiveMode.value
   if (mode === 'users') {
-    let list = users?.data?.allUsers || []
+    let list = props.userOptions || users?.data?.allUsers || []
     list = list.map((u) => ({
       label: u.full_name || u.name || u.email,
       value: u.email,

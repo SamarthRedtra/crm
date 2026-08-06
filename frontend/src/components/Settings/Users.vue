@@ -15,17 +15,14 @@
         </p>
       </div>
       <div class="flex item-center space-x-2 w-3/12 justify-end">
+        <Button
+          v-if="canInviteTeam"
+          :label="__('Invite team members')"
+          icon-left="user-plus"
+          @click="activeSettingsPage = 'Invite team'"
+        />
         <Dropdown
-          :options="[
-            {
-              label: __('Add Existing User'),
-              onClick: () => (showAddExistingModal = true),
-            },
-            {
-              label: __('Invite team'),
-              onClick: () => (activeSettingsPage = 'Invite team'),
-            },
-          ]"
+          :options="newUserOptions"
           :button="{
             label: __('New'),
             iconLeft: 'plus',
@@ -171,6 +168,7 @@
 import AddExistingUserModal from '@/components/Modals/AddExistingUserModal.vue'
 import { activeSettingsPage } from '@/composables/settings'
 import { sessionStore } from '@/stores/session'
+import { agencyStore } from '@/stores/agency'
 import { usersStore } from '@/stores/users'
 import { DropdownOption } from '@/utils'
 import {
@@ -182,6 +180,7 @@ import {
   FeatherIcon,
   Tooltip,
   FormControl,
+  Button,
 } from 'frappe-ui'
 import { storeToRefs } from 'pinia'
 import { ref, computed, onMounted } from 'vue'
@@ -189,6 +188,7 @@ import { ref, computed, onMounted } from 'vue'
 const session = sessionStore()
 const { user: sessionUserId } = storeToRefs(session)
 const { users, isAdmin, isManager, getUser } = usersStore()
+const agency = agencyStore()
 
 const showAddExistingModal = ref(false)
 const searchRef = ref(null)
@@ -198,6 +198,27 @@ const currentRole = ref('All')
 const usersScopeAll = computed(
   () => users.data?.viewerMeta?.users_scope === 'all',
 )
+
+const canInviteTeam = computed(() =>
+  Boolean(agency.context?.can_manage_team) &&
+  (isManager() || getUser().role === 'Agency Admin'),
+)
+
+const newUserOptions = computed(() => {
+  const options = [
+    {
+      label: __('Add Existing User'),
+      onClick: () => (showAddExistingModal.value = true),
+    },
+  ]
+  if (canInviteTeam.value) {
+    options.push({
+      label: __('Invite team'),
+      onClick: () => (activeSettingsPage.value = 'Invite team'),
+    })
+  }
+  return options
+})
 
 const crmUsersPool = computed(() => {
   const raw =

@@ -1,16 +1,77 @@
 import frappe
 
 
+_USER_MANAGEMENT_ROLES = ["System Manager", "Sales Manager", "Agency Admin", "Agency Manager"]
+
+
+def _has_crm_wide_user_management_access() -> bool:
+	roles = set(frappe.get_roles(frappe.session.user))
+	return frappe.session.user == "Administrator" or bool(
+		roles.intersection({"System Manager", "Sales Manager"})
+	)
+
+
+def _viewer_agency_for_user_management() -> str:
+	agency = frappe.db.get_value("Agent", {"user": frappe.session.user}, "agency")
+	if not agency:
+		frappe.throw(frappe._("Your user is not linked to an agency."), frappe.PermissionError)
+	return agency
+
+
+def _assert_user_management_scope(user: str) -> None:
+	"""Prevent agency managers from changing users outside their own agency."""
+	if _has_crm_wide_user_management_access():
+		return
+
+	viewer_agency = _viewer_agency_for_user_management()
+	target_agency = frappe.db.get_value("Agent", {"user": user}, "agency")
+	if not target_agency or target_agency != viewer_agency:
+		frappe.throw(frappe._("Not permitted to manage users outside your agency."), frappe.PermissionError)
+
+
+@frappe.whitelist()
+def get_existing_user_candidates():
+	"""Return existing users eligible for the current user's Add Existing flow.
+
+	Agency managers receive only Agent-linked users from their agency. CRM-wide
+	managers keep the legacy all-user candidate list.
+	"""
+	frappe.only_for(_USER_MANAGEMENT_ROLES)
+
+	filters = {"enabled": 1}
+	if _has_crm_wide_user_management_access():
+		return frappe.get_all(
+			"User",
+			filters=filters,
+			fields=["name", "email", "full_name", "user_image"],
+			order_by="full_name asc",
+		)
+
+	agency = _viewer_agency_for_user_management()
+	user_names = frappe.get_all("Agent", filters={"agency": agency}, pluck="user")
+	if not user_names:
+		return []
+
+	filters["name"] = ["in", user_names]
+	return frappe.get_all(
+		"User",
+		filters=filters,
+		fields=["name", "email", "full_name", "user_image"],
+		order_by="full_name asc",
+	)
+
+
 @frappe.whitelist()
 def add_existing_users(users, role="Sales User"):
 	"""
 	Add existing users to the CRM by assigning them a role (Sales User or Sales Manager).
 	:param users: List of user names to be added
 	"""
-	frappe.only_for(["System Manager", "Sales Manager", "Agency Admin", "Agency Manager"])
+	frappe.only_for(_USER_MANAGEMENT_ROLES)
 	users = frappe.parse_json(users)
 
 	for user in users:
+		_assert_user_management_scope(user)
 		add_user(user, role)
 
 
@@ -22,10 +83,13 @@ def update_user_role(user, new_role):
 	:param new_role: The new role to assign (Sales Manager or Sales User)
 	"""
 
-	frappe.only_for(["System Manager", "Sales Manager", "Agency Admin", "Agency Manager"])
+	frappe.only_for(_USER_MANAGEMENT_ROLES)
+	_assert_user_management_scope(user)
 
 	if new_role not in ["System Manager", "Sales Manager", "Sales User", "Agency Admin", "Agency Manager"]:
 		frappe.throw("Cannot assign this role")
+	if not _has_crm_wide_user_management_access() and new_role != "Sales User":
+		frappe.throw(frappe._("Agency managers can only grant Sales User access."), frappe.PermissionError)
 
 	user_doc = frappe.get_doc("User", user)
 
@@ -77,7 +141,8 @@ def _sync_frappe_roles_from_agency_role(user: str, agency_role: str) -> None:
 @frappe.whitelist()
 def update_agency_team_member_role(user, agency_role):
 	"""Update Agent.agency_role (Agent / Manager / Admin) and sync CRM roles for that team member."""
-	frappe.only_for(["System Manager", "Sales Manager", "Agency Admin", "Agency Manager"])
+	frappe.only_for(_USER_MANAGEMENT_ROLES)
+	_assert_user_management_scope(user)
 
 	ar = (agency_role or "").strip()
 	if ar not in {"Agent", "Manager", "Admin"}:
@@ -134,7 +199,8 @@ def remove_user(user):
 	Remove a user means removing Sales User & Sales Manager roles from the user.
 	:param user: The name of the user to be removed
 	"""
-	frappe.only_for(["System Manager", "Sales Manager", "Agency Admin", "Agency Manager"])
+	frappe.only_for(_USER_MANAGEMENT_ROLES)
+	_assert_user_management_scope(user)
 
 	user_doc = frappe.get_doc("User", user)
 	roles = [d.role for d in user_doc.roles]

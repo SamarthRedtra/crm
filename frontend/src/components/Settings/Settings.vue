@@ -221,7 +221,7 @@ const tabs = computed(() => {
       label: __('Email Settings'),
       items: [
         {
-          label: __('Email Accounts'),
+          label: __('Agency Email'),
           icon: Email2Icon,
           component: markRaw(EmailConfig),
           condition: () => isManager(),
@@ -307,12 +307,15 @@ const tabs = computed(() => {
 const activeTab = ref(tabs.value[0].items[0])
 
 function setActiveTab(tabName) {
+  // Keep links and scripted actions inside the CRM settings dialog. Older
+  // callers used "Email Accounts"; map that legacy label to the CRM panel.
+  const normalizedTabName = tabName === 'Email Accounts' ? 'Agency Email' : tabName
   activeTab.value =
-    (tabName &&
+    (normalizedTabName &&
       tabs.value
         .map((tab) => tab.items)
         .flat()
-        .find((tab) => tab.label === tabName)) ||
+        .find((tab) => tab.label === normalizedTabName)) ||
     tabs.value[0].items[0]
 }
 

@@ -198,9 +198,13 @@ doc_events = {
 		"validate_reset_password": ["crm.api.demo.validate_reset_password"],
 	},
 	"Event": {
+		"validate": ["crm.api.events.prevent_past_calendar_event_mutation"],
 		"after_insert": ["crm.api.events.sync_property_appointment_after_insert"],
 		"on_update": ["crm.api.events.sync_property_appointment_on_update"],
-		"on_trash": ["crm.api.events.cancel_property_appointment_on_event_delete"],
+		"on_trash": [
+			"crm.api.events.prevent_past_calendar_event_mutation",
+			"crm.api.events.cancel_property_appointment_on_event_delete",
+		],
 	},
 }
 
