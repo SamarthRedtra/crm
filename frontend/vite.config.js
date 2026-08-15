@@ -67,6 +67,7 @@ export default defineConfig(async ({ mode }) => {
     resolve: {
       alias: {
         '@': path.resolve(__dirname, 'src'),
+        '../../../frappe/frappe/public/js/lib/posthog.js': path.resolve(__dirname, 'src/posthog.js'),
       },
     },
     optimizeDeps: {

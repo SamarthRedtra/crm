@@ -1,4 +1,4 @@
-import '../../../frappe/frappe/public/js/lib/posthog.js'
+import './posthog.js'
 import { createResource } from 'frappe-ui'
 
 declare global {
